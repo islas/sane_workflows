@@ -43,12 +43,13 @@ class DAG:
 
     if len( sort_order ) == len( self.nodes_.keys() ):
       print( "Sorted correctly" )
-      return sort_order
+      return sort_order, True
     else:
       print( "Error: Contains a cycle!" )
       print( "  See the following nodes: " )
-      not_visied = [ key for key in self.nodes_.keys() if in_degree[key] >= 1 ]
-      print( not_visied )
+      not_visited = [ key for key in self.nodes_.keys() if in_degree[key] >= 1 ]
+      print( not_visited )
+      return not_visited, False
   
 
   def traversal_to( self, nodes ):
