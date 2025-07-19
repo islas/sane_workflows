@@ -86,6 +86,8 @@ class DAG:
     traversal = { key : len( self.rnodes_[key] ) for l in traversal_directed for key in l }
     return traversal
   
+  # This could be a static method but as traversal_list and node_complete are not
+  # to give a similar interfacing I am keeping this as an instance method
   def get_next_nodes( self, traversal_list ):
     nodes = [ key for key, count in traversal_list.items() if count == 0]
     for n in nodes:
