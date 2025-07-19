@@ -1,26 +1,20 @@
 import queue
 import copy
-from collections import Counter
 
 class DAG:
   def __init__( self ):
     self.nodes_  = {}
     self.rnodes_ = {}
 
+  def add_node( self, node ):
+    if node not in self.nodes_:
+      self.nodes_[node] = []
+    if node not in self.rnodes_:
+      self.rnodes_[node] = []
+
   def add_edge( self, parent, child ):
-    if parent not in self.nodes_:
-      self.nodes_[parent] = []
-    
-    if child not in self.nodes_:
-      self.nodes_[child] = []
-
-    
-    if parent not in self.rnodes_:
-      self.rnodes_[parent] = []
-    
-    if child not in self.rnodes_:
-      self.rnodes_[child] = []
-
+    self.add_node( parent )
+    self.add_node( child  )
 
     self.nodes_[parent].append( child )
     self.rnodes_[child].append( parent )
