@@ -4,11 +4,30 @@ import shutil
 import sys
 import io
 import subprocess
+from enum import Enum
+
+from Logger import *
+
+class DependencyType( str, Enum ):
+  AFTEROK    = "afterok"    # after successful run (this is the default)
+  AFTERNOTOK = "afternotok" # after failure
+  AFTERANY   = "afterany"   # after either failure or success
+  AFTER      = "after"      # after the step *starts*
+  def __str__( self ) :
+    return str( self.value )
+  def __repr__( self ) :
+    return str( self.value )
+
+class ActionState( Enum ):
+  PENDING  = 0
+  RUNNING  = 1
+  FINISHED = 2
+  INACTIVE = 3
+  ERROR    = 4 # This should not be used for errors in running the action (status),
+               # Instead this should be reserved for internal errors of the action
 
 
-LABEL_LENGTH = 12
-
-class Action:
+class Action( Logger ):
   def __init__( self, id ):
     self.id_ = id
     self.config_ = {}
@@ -16,11 +35,11 @@ class Action:
     self.verbose_ = False
     self.dryRun_  = False
 
-    self.labelIndentation_ = "  "
-    self.labelLevel_       = 0
-    self.label_            = "{0:<{1}}".format( "[{0}] ".format( self.id_ ), LABEL_LENGTH + 3 )
-
     self.logfile_          = None
+    self.state_            = ActionState.INACTIVE
+    self.dependencies_     = {}
+
+    super().__init__( id )
 
 
   def set_config( self, config ):
@@ -29,20 +48,19 @@ class Action:
   def set_config_from_file( self, config_file ):
     with open( config_file, "r" ) as f:
       self.config_ = json.load( f )
-  
-  def log( self, *args, **kwargs ) :
-    # https://stackoverflow.com/a/39823534
-    output=io.StringIO()
-    print( *args, file=output, end="", **kwargs )
-    contents = output.getvalue()
-    output.close()
-    print( self.label_ + self.labelIndentation_ * self.labelLevel_ + contents, flush=True )
-    return self.label_ + self.labelIndentation_ * self.labelLevel_ + contents
-  
-  def log_push( self, levels=1 ) :
-    self.labelLevel_ += levels
-  def log_pop( self, levels=1 ) :
-    self.labelLevel_ -= levels
+
+  def add_dependencies( self, *args ):
+    arg_idx = -1
+    for arg in args:
+      arg_idx += 1
+      if isinstance( arg, str ):
+        self.dependencies_[arg] = DependencyType.AFTEROK
+      elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType :
+        self.dependencies_[arg[0]] = DependencyType[arg[1]]
+      else:
+        msg = f"Error: Argument {arg_idx} is invalid for {Action.add_dependencies.__name__}(), must be of type str or tuple( str, DependencyType.value->str )"
+        self.log( msg )
+        raise Exception( msg )
 
 
   def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False ):
