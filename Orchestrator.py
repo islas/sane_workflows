@@ -1,6 +1,36 @@
+import functools
+
 import dag
 from Action import *
 from Logger import *
+
+registered_functions = {}
+# https://stackoverflow.com/a/14412901
+def callable_decorator( f ):
+  '''
+  a decorator decorator, allowing the decorator to be used as:
+  @decorator(with, arguments, and=kwargs)
+  or
+  @decorator
+  '''
+  @functools.wraps(f)
+  def insitu_decorator(*args, **kwargs):
+    if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+      # actual decorated function
+      return f(args[0])
+    else:
+      # decorator arguments
+      return lambda realf: f(realf, *args, **kwargs)
+
+  return insitu_decorator
+
+@callable_decorator
+def register( f, priority=0 ):
+  if priority not in registered_functions:
+    registered_functions[priority] = []
+  registered_functions[priority] = f
+  return f
+
 
 class Orchestrator( Logger ):
   def __init__( self ):
@@ -35,6 +65,11 @@ class Orchestrator( Logger ):
       msg = f"Error: In {Orchestrator.add_action.__name__}() DAG construction failed, invalid topology"
       self.log( msg )
       raise Exception( msg )
+    
+  def process_registered( self ):
+    keys = sorted( registered_functions.keys() )
+    for key in keys:
+      registered_functions[key]( self )
   
   def run_actions( self, action_id_list ):
     self.construct_dag()

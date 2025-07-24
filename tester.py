@@ -79,5 +79,8 @@ orch = Orchestrator()
 for action in actions:
   orch.add_action( action )
 
+import decorator_instancing_test
+orch.process_registered()
+
 orch.run_actions( ["d", "l" ] )
 print( "Finished" )
