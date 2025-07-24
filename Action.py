@@ -35,6 +35,8 @@ class Action( Logger ):
     self.verbose_ = False
     self.dryRun_  = False
 
+    self.environment_ = None
+
     self.logfile_          = None
     self.state_            = ActionState.INACTIVE
     self.dependencies_     = {}
@@ -149,19 +151,9 @@ class Action( Logger ):
 
     return retval, content
 
-  def launch( self ):
+  def launch( self, working_directory, action_file ):
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
-    cmd = "./action_launcher.sh"
-    config = self.config_.copy()
-    if not "submit_options" in config:
-      config["submit_options"] = {}
-
-    config["submit_options"]["submit_type"] = "LOCAL"
-    config["id"] = self.id_
-
-    tmp_file = f"./{self.id_}_config.json"
-    with open( tmp_file, "w" ) as f:
-      json.dump( config, f, indent=2 )
+    cmd = "./action_launcher.py"
     
     try:
       # Get extra submission stuff
@@ -171,7 +163,7 @@ class Action( Logger ):
       if self.logfile_ is None and not self.verbose_:
         self.log( "Action will not be printed to screen or saved to logfile" )
         self.log( "Consider modifying the action to use one of these two options" )
-      retval, content = self.execute_subprocess( cmd, [ os.getcwd(), tmp_file ], logfile=self.logfile_, capture=True, verbose=self.verbose_, dry_run=self.dryRun_ )
+      retval, content = self.execute_subprocess( cmd, [ working_directory, action_file ], logfile=self.logfile_, capture=True, verbose=self.verbose_, dry_run=self.dryRun_ )
 
       # if need to submit
       #   get job id from content

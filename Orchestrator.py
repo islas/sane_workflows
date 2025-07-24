@@ -1,7 +1,10 @@
 import functools
+import pickle
 
 import dag
+import UniqueTypedDict as utd
 from Action import *
+from Host import *
 from Logger import *
 
 registered_functions = {}
@@ -34,28 +37,25 @@ def register( f, priority=0 ):
 
 class Orchestrator( Logger ):
   def __init__( self ):
-    self.actions_ = {}
-    self.dag_     = dag.DAG()
+    self.actions = utd.UniqueTypedDict( Action )
+    self.hosts   = utd.UniqueTypedDict( Host )
+
+    self.dag_    = dag.DAG()
+
+    self.current_host_  = None
+    self.save_location_ = "./"
+    self.working_directory_ = "./"
+
     super().__init__( "orchestrator" )
 
   def add_action( self, action ):
-    if not isinstance( action, Action ):
-      msg = f"Error: Provided Action to {Orchestrator.add_action.__name__}() is not of type Action"
-      self.log( msg )
-      raise Exception( msg )
+    self.actions[action.id_] = action
 
-    # We know we have an action type
-    if action.id_ not in self.actions_:
-      self.actions_[action.id_] = action
-    else:
-      msg = f"Error: Provided Action( \"{action.id_}\" ) to {Orchestrator.add_action.__name__}() does not have a unique ID"
-      self.log( msg )
-      raise Exception( msg )
-
-    # defer creation of DAG dependency mapping until the very end
+  def add_host( self, host ):
+    self.hosts[host.name_] = host
 
   def construct_dag( self ):
-    for id, action in self.actions_.items():
+    for id, action in self.actions.items():
       self.dag_.add_node( id )
       for dependency in action.dependencies_.keys():
         self.dag_.add_edge( dependency, id )
@@ -70,15 +70,72 @@ class Orchestrator( Logger ):
     keys = sorted( registered_functions.keys() )
     for key in keys:
       registered_functions[key]( self )
-  
-  def run_actions( self, action_id_list ):
+
+  def check_hostenv( self, as_host, traversal_list ):
+    for host_name, host in self.hosts.items():
+      self.log( f"Checking host \"{host_name}\"" )
+      if host.valid_host( as_host ):
+        self.current_host_ = host_name
+        break
+
+    if self.current_host_ is None:
+      self.log( "No valid host configuration found" )
+      raise Exception( f"No valid host configuration found" )
+
+    self.log( f"Running as {as_host}" )
+    host = self.hosts[self.current_host_]
+
+    # Check action needs
+    check_list = traversal_list.copy()
+    missing_env = []
+    while len( check_list ) > 0:
+      next_nodes = self.dag_.get_next_nodes( check_list )
+      for node in next_nodes:
+        env_name = "default"
+        found    = False
+        env      = None
+
+        if self.actions[node].environment_ is None:
+          found, env = host.default_env()
+        else:
+          found, env = host.has_environment( self.actions[node].environment_ )
+
+        if not found:
+          missing_env.append( ( node, env_name ) )
+
+        self.dag_.node_complete( node, check_list )
+
+    if len( missing_env ) > 0:
+      self.log( f"Error: Missing environments in Host( \"{self.current_host_}\" )" )
+      self.log_push()
+      for node, env_name in missing_env:
+        self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )" )
+      self.log_pop()
+      raise Exception( f"Missing environments {missing_env}" )
+
+
+  def run_actions( self, action_id_list, as_host=None ):
     self.construct_dag()
 
     traversal_list = self.dag_.traversal_list( action_id_list )
 
+    self.check_hostenv( as_host, traversal_list )
+    
+    # We have a valid host for all actions slated to run
+    host_file = f"{self.save_location_}/{self.current_host_}.pkl"
+
+    with open( host_file, "wb" ) as f:
+      pickle.dump( self.hosts[self.current_host_], f )
+
     while len( traversal_list ) > 0:
       next_nodes = self.dag_.get_next_nodes( traversal_list )
       for node in next_nodes:
-        self.actions_[node].launch()
+        self.actions[node].config_["host_file"] = host_file
+        
+        action_file = f"{self.save_location_}/{node}.pkl"
+        with open( action_file, "wb" ) as f:
+          pickle.dump( self.actions[node], f )
+
+        self.actions[node].launch( self.working_directory_, action_file )
         self.dag_.node_complete( node, traversal_list )
 

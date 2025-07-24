@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
-import json
 import sys
+import os
+import pickle
 
 from Action import Action
 
 if __name__ == "__main__":
-  config = None
-  config_file = sys.argv[1]
-  with open( config_file, "r" ) as f:
-    config = json.load( f )
+  working_directory = sys.argv[1]
+  action_file       = sys.argv[2]
 
-  id = config["id"]
-  print( f"Spawning action {id}" )
-  action = Action( id )
-  action.set_config( config )
+  os.chdir( working_directory )
+
+  action = None
+  with open( action_file, "rb" ) as f:
+    action = pickle.load( f )
+
+  print( f"Loaded Action \"{action.id_}\"" )
+
+  host = None
+  with open( action.config_["host_file"], "rb" ) as f:
+    host = pickle.load( f )
+  
+  print( f"Loaded Host \"{host.name_}\"" )
 
   action.setup()
   retval = action.run()

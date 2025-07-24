@@ -82,5 +82,14 @@ for action in actions:
 import decorator_instancing_test
 orch.process_registered()
 
-orch.run_actions( ["d", "l" ] )
+from Host import Host
+from Environment import Environment
+
+simple_host = Host( "Linux" )
+simple_host.add_environment( Environment( "none" ) )
+simple_host.default_env_ = "none"
+
+orch.add_host( simple_host )
+
+orch.run_actions( ["d", "l" ], as_host="Linux" )
 print( "Finished" )

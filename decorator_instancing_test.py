@@ -3,7 +3,6 @@ from Action import Action
 
 @register
 def my_tests( orchestrator ):
-  print( "foo" )
   z = Action( "z" )
   z.set_config(
     {
@@ -13,4 +12,4 @@ def my_tests( orchestrator ):
   )
   z.add_dependencies( "h", "b" )
   orchestrator.add_action( z )
-  orchestrator.actions_["l"].add_dependencies( "z" )
+  orchestrator.actions["l"].add_dependencies( "z" )
