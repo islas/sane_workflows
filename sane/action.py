@@ -6,7 +6,7 @@ import io
 import subprocess
 from enum import Enum
 
-from Logger import *
+import sane.logger as logger
 
 class DependencyType( str, Enum ):
   AFTEROK    = "afterok"    # after successful run (this is the default)
@@ -27,7 +27,7 @@ class ActionState( Enum ):
                # Instead this should be reserved for internal errors of the action
 
 
-class Action( Logger ):
+class Action( logger.Logger ):
   def __init__( self, id ):
     self.id_ = id
     self.config_ = {}

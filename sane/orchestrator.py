@@ -1,11 +1,10 @@
 import functools
 import pickle
 
-import dag
-import UniqueTypedDict as utd
-from Action import *
-from Host import *
-from Logger import *
+import sane.logger as logger
+import sane.utdict as utdict
+import sane.action as action
+import sane.host   as host
 
 registered_functions = {}
 # https://stackoverflow.com/a/14412901
@@ -35,10 +34,10 @@ def register( f, priority=0 ):
   return f
 
 
-class Orchestrator( Logger ):
+class Orchestrator( logger.Logger ):
   def __init__( self ):
-    self.actions = utd.UniqueTypedDict( Action )
-    self.hosts   = utd.UniqueTypedDict( Host )
+    self.actions = utdict.UniqueTypedDict( action.Action )
+    self.hosts   = utdict.UniqueTypedDict( host.Host )
 
     self.dag_    = dag.DAG()
 

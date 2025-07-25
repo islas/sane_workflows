@@ -42,7 +42,6 @@ class DAG:
           need_to_visit.put( neighbor )
 
     if len( sort_order ) == len( self.nodes_.keys() ):
-      print( "Sorted correctly" )
       return sort_order, True
     else:
       print( "Error: Contains a cycle!" )

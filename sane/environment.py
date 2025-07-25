@@ -3,9 +3,9 @@ import sys
 import os
 from collections import OrderedDict
 
-from Config import Config
+import sane.config as config
 
-class Environment( Config ):
+class Environment( config.Config ):
   LMOD_MODULE = "env_modules_python"
 
   def __init__( self, name, aliases=[], lmod_pgk=None ):

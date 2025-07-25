@@ -1,15 +1,15 @@
 from abc import ABCMeta, abstractmethod
 import socket
 
-from Config import Config
-from Environment import Environment
-import UniqueTypedDict as utd
+import sane.config as config
+import sane.utdict as utdict
+import sane.environment as environment
 
-class Host( Config ):
+class Host( config.Config ):
   def __init__( self, name, aliases=[] ):
     super().__init__( name, aliases )
 
-    self.environments  = utd.UniqueTypedDict( Environment )
+    self.environments  = utdict.UniqueTypedDict( environment.Environment )
     self.resources_    = {}
 
     self.default_env_  = None
