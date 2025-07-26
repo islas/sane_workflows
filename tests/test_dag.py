@@ -10,13 +10,13 @@ class DagTests( unittest.TestCase ):
   def dag_valid( self, nodes, valid ):
     self.assertTrue( valid )
     for node in nodes:
-      self.assertIn( node, self.dag.nodes_ )
-    self.assertEqual( len( nodes ), len( self.dag.nodes_ ) )
+      self.assertIn( node, self.dag._nodes )
+    self.assertEqual( len( nodes ), len( self.dag._nodes ) )
   
   def dag_invalid( self, nodes, valid ):
     self.assertFalse( valid )
     # This cannot be tested like so since all nodes may be problematic
-    # self.assertNotEqual( len( nodes ), len( self.dag.nodes_ ) )
+    # self.assertNotEqual( len( nodes ), len( self.dag._nodes ) )
 
 
   def test_dag_no_nodes( self ):
@@ -141,7 +141,7 @@ class DagTests( unittest.TestCase ):
     # the total nodes
     print( traversal_list )
     self.assertEqual( len( traversal_list ), 4 )
-    self.assertEqual( len( [ node for node_list in traversal_list for node in node_list ] ), len( self.dag.nodes_ ) )
+    self.assertEqual( len( [ node for node_list in traversal_list for node in node_list ] ), len( self.dag._nodes ) )
 
   def test_dag_5node_acyclic_traversal_list( self ):
     """A valid DAG consisting of 5 nodes and walking the traversal one node at a time
@@ -167,7 +167,7 @@ class DagTests( unittest.TestCase ):
     self.test_dag_5node_acyclic_traversal_to_end()
     # Get traversal_list
     traversal_list = self.dag.traversal_list( [ "e" ] )
-    self.assertEqual( len( traversal_list ), len( self.dag.nodes_ ) )
+    self.assertEqual( len( traversal_list ), len( self.dag._nodes ) )
 
     expected = self.dag.traversal_to( [ "e" ] )
     step     = 0

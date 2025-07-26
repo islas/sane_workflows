@@ -29,36 +29,39 @@ class ActionState( Enum ):
 
 class Action( logger.Logger ):
   def __init__( self, id ):
-    self.id_ = id
-    self.config_ = {}
+    self._id = id
+    self.config = {}
+    self.environment = None
 
-    self.verbose_ = False
-    self.dryRun_  = False
+    self._verbose = False
+    self._dryRun  = False
 
-    self.environment_ = None
-
-    self.logfile_          = None
-    self.state_            = ActionState.INACTIVE
-    self.dependencies_     = {}
+    self._logfile          = None
+    self._state            = ActionState.INACTIVE
+    self._dependencies     = {}
 
     super().__init__( id )
 
-
-  def set_config( self, config ):
-    self.config_ = config
+  @property
+  def id( self ):
+    return self._id
   
-  def set_config_from_file( self, config_file ):
-    with open( config_file, "r" ) as f:
-      self.config_ = json.load( f )
+  @property
+  def state( self ):
+    return self._state
+  
+  @property
+  def dependencies( self ):
+    return self._dependencies.copy()
 
   def add_dependencies( self, *args ):
     arg_idx = -1
     for arg in args:
       arg_idx += 1
       if isinstance( arg, str ):
-        self.dependencies_[arg] = DependencyType.AFTEROK
-      elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType :
-        self.dependencies_[arg[0]] = DependencyType[arg[1]]
+        self._dependencies[arg] = DependencyType.AFTEROK
+      elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType:
+        self._dependencies[arg[0]] = DependencyType[arg[1]]
       else:
         msg = f"Error: Argument {arg_idx} is invalid for {Action.add_dependencies.__name__}(), must be of type str or tuple( str, DependencyType.value->str )"
         self.log( msg )
@@ -77,7 +80,7 @@ class Action( logger.Logger ):
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
     self.log( "Running command:" )
     self.log( "  {0}".format( command ) )
-    self.log(  "*" * 15 + "{:^15}".format( "START " + self.id_ ) + "*" * 15 + "\n" )
+    self.log(  "*" * 15 + "{:^15}".format( "START " + self.id ) + "*" * 15 + "\n" )
 
     retval  = -1
     content = None
@@ -136,7 +139,7 @@ class Action( logger.Logger ):
     # self.log( "\n" )
     print( "\n", flush=True, end="" )
 
-    self.log(  "*" * 15 + "{:^15}".format( "STOP " + self.id_ ) + "*" * 15 )
+    self.log(  "*" * 15 + "{:^15}".format( "STOP " + self.id ) + "*" * 15 )
 
     if not dry_run :
       if capture :
@@ -160,10 +163,17 @@ class Action( logger.Logger ):
       # if need to submit
       #   get submit cmd and args
       #   put Action.py cmd and config at the end
-      if self.logfile_ is None and not self.verbose_:
+      if self._logfile is None and not self._verbose:
         self.log( "Action will not be printed to screen or saved to logfile" )
         self.log( "Consider modifying the action to use one of these two options" )
-      retval, content = self.execute_subprocess( cmd, [ working_directory, action_file ], logfile=self.logfile_, capture=True, verbose=self.verbose_, dry_run=self.dryRun_ )
+      retval, content = self.execute_subprocess(
+                                                cmd,
+                                                [ working_directory, action_file ],
+                                                logfile=self._logfile,
+                                                capture=True,
+                                                verbose=self._verbose,
+                                                dry_run=self._dryRun
+                                                )
 
       # if need to submit
       #   get job id from content
@@ -184,20 +194,20 @@ class Action( logger.Logger ):
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     command = None
-    if "command" in self.config_:
-      command = self.config_["command"]
+    if "command" in self.config:
+      command = self.config["command"]
     
     if command is None:
       self.log( "No command provided for default Action" )
       exit( 1 )
     
     arguments = None
-    if "arguments" in self.config_:
-      arguments = self.config_["arguments"]
+    if "arguments" in self.config:
+      arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True )
     return retval
     
-  def __repr__( self ):
-    return f"Action({self.id_})"
+  def __str__( self ):
+    return f"Action({self.id})"
 
