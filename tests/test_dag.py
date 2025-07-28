@@ -2,6 +2,7 @@ import unittest
 
 from sane.dag import DAG
 
+
 class DagTests( unittest.TestCase ):
 
   def setUp( self ):
@@ -12,7 +13,7 @@ class DagTests( unittest.TestCase ):
     for node in nodes:
       self.assertIn( node, self.dag._nodes )
     self.assertEqual( len( nodes ), len( self.dag._nodes ) )
-  
+
   def dag_invalid( self, nodes, valid ):
     self.assertFalse( valid )
     # This cannot be tested like so since all nodes may be problematic
@@ -24,7 +25,7 @@ class DagTests( unittest.TestCase ):
     nodes, valid = self.dag.topological_sort()
     self.dag_valid( nodes, valid )
     self.assertEqual( nodes, [] )
-    
+
   def test_dag_single_node( self ):
     """A valid DAG consisting of a single node"""
     self.dag.add_node( "a" )
@@ -54,13 +55,13 @@ class DagTests( unittest.TestCase ):
     nodes, valid = self.dag.topological_sort()
     self.dag_valid( nodes, valid )
     self.assertEqual( nodes, [ "a", "b" ] )
-  
+
   def test_dag_2node_acyclic_via_edge( self ):
     """A valid DAG consisting of 2 nodes, one pointing to the other
 
     This does not individually create the nodes and then connect them,
     instead creating the nodes via the add_edge() command directly.
-    
+
     The result should be something identical to the create-then-link DAG
     """
     # this sets up a -> b where b is dependent (child) on a (parent)
@@ -69,7 +70,6 @@ class DagTests( unittest.TestCase ):
     nodes, valid = self.dag.topological_sort()
     self.dag_valid( nodes, valid )
     self.assertEqual( nodes, [ "a", "b" ] )
-  
 
   def test_dag_2node_cyclic( self ):
     """An invalid DAG consisting of 2 nodes pointing to each other creating a cycle"""
@@ -85,10 +85,9 @@ class DagTests( unittest.TestCase ):
     # nodes should now be equal to the potentially bad nodes
     self.assertEqual( nodes, [ "a", "b" ] )
 
-  
   def test_dag_5node_acyclic_single_entry_single_end( self ):
     """A valid DAG consisting of 5 nodes with one start node and one end node
-    
+
     The single start node has an in-degree of zero and the path to the final
     node is fully reduced and requires traversal to all other nodes:
           a
@@ -113,10 +112,9 @@ class DagTests( unittest.TestCase ):
     self.dag_valid( nodes, valid )
     self.assertEqual( nodes, [ "a", "b", "c", "d", "e" ] )
 
-  
   def test_dag_5node_acyclic_traversal_to_end( self ):
     """A valid DAG consisting of 5 nodes and testing traversal to the end
-    
+
     The single start node has an in-degree of zero and the path to the final
     node is fully reduced and requires traversal to all other nodes:
           a
@@ -129,14 +127,14 @@ class DagTests( unittest.TestCase ):
           |
           v
           e
-    
+
     From here, the traversal to "e" should consist of a -> b -> [c, d] -> e
     """
     # Start from this test
     self.test_dag_5node_acyclic_single_entry_single_end()
 
     traversal_list = self.dag.traversal_to( [ "e" ] )
-    # The traversal list is a record of all levels that must be traversed and 
+    # The traversal list is a record of all levels that must be traversed and
     # which nodes in that level to visited. The flattened version should have
     # the total nodes
     print( traversal_list )
@@ -145,7 +143,7 @@ class DagTests( unittest.TestCase ):
 
   def test_dag_5node_acyclic_traversal_list( self ):
     """A valid DAG consisting of 5 nodes and walking the traversal one node at a time
-    
+
     The single start node has an in-degree of zero and the path to the final
     node is fully reduced and requires traversal to all other nodes:
           a
@@ -158,7 +156,7 @@ class DagTests( unittest.TestCase ):
           |
           v
           e
-    
+
     From here, the traversal to "e" should consist of a -> b -> [c, d] -> e
     Thus, a walk of the traversal using traversal_list() should yield:
     a then b then [c or d] then [d or c, whichever did not yet run] then e
@@ -180,12 +178,8 @@ class DagTests( unittest.TestCase ):
         self.assertNotIn( node, traversal_list )
         self.dag.node_complete( node, traversal_list )
       step += 1
-    
+
     # All expected should have been visited in this walk
     self.assertEqual( traversal_list, {} )
     for node_list in expected:
       self.assertEqual( node_list, [] )
-
-
-
-

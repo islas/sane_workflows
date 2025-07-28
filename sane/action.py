@@ -8,23 +8,27 @@ from enum import Enum
 
 import sane.logger as logger
 
+
 class DependencyType( str, Enum ):
-  AFTEROK    = "afterok"    # after successful run (this is the default)
-  AFTERNOTOK = "afternotok" # after failure
-  AFTERANY   = "afterany"   # after either failure or success
-  AFTER      = "after"      # after the step *starts*
-  def __str__( self ) :
+  AFTEROK    = "afterok"     # after successful run (this is the default)
+  AFTERNOTOK = "afternotok"  # after failure
+  AFTERANY   = "afterany"    # after either failure or success
+  AFTER      = "after"       # after the step *starts*
+
+  def __str__( self ):
     return str( self.value )
-  def __repr__( self ) :
+
+  def __repr__( self ):
     return str( self.value )
+
 
 class ActionState( Enum ):
   PENDING  = 0
   RUNNING  = 1
   FINISHED = 2
   INACTIVE = 3
-  ERROR    = 4 # This should not be used for errors in running the action (status),
-               # Instead this should be reserved for internal errors of the action
+  ERROR    = 4  # This should not be used for errors in running the action (status),
+                # Instead this should be reserved for internal errors of the action
 
 
 class Action( logger.Logger ):
@@ -45,11 +49,11 @@ class Action( logger.Logger ):
   @property
   def id( self ):
     return self._id
-  
+
   @property
   def state( self ):
     return self._state
-  
+
   @property
   def dependencies( self ):
     return self._dependencies.copy()
@@ -63,20 +67,20 @@ class Action( logger.Logger ):
       elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType:
         self._dependencies[arg[0]] = DependencyType[arg[1]]
       else:
-        msg = f"Error: Argument {arg_idx} is invalid for {Action.add_dependencies.__name__}(), must be of type str or tuple( str, DependencyType.value->str )"
+        msg  = f"Error: Argument {arg_idx} is invalid for {Action.add_dependencies.__name__}()"
+        msg += f", must be of type str or tuple( str, DependencyType.value->str )"
         self.log( msg )
         raise Exception( msg )
-
 
   def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False ):
     args = [cmd]
     inpath = shutil.which( cmd ) is not None
     if not inpath:
       args[0] = os.path.abspath( cmd )
-    
+
     if arguments is not None:
       args.extend( arguments )
-    
+
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
     self.log( "Running command:" )
     self.log( "  {0}".format( command ) )
@@ -85,7 +89,7 @@ class Action( logger.Logger ):
     retval  = -1
     content = None
 
-    if not dry_run :
+    if not dry_run:
       ############################################################################
       ##
       ## Call subprocess
@@ -96,12 +100,12 @@ class Action( logger.Logger ):
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
-      if capture :
+      if capture:
         output = io.BytesIO()
 
       proc = subprocess.Popen(
                               args,
-                              stdin =subprocess.PIPE,
+                              stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT
                               )
@@ -115,12 +119,12 @@ class Action( logger.Logger ):
         if logfileOutput is not None:
           logfileOutput.write( c.decode( 'utf-8', 'replace' ) )
           logfileOutput.flush()
-        
+
         if capture:
           output.write( c )
 
         # Also duplicate output to stdout if requested
-        if verbose :
+        if verbose:
           sys.stdout.buffer.write(c)
           sys.stdout.flush()
 
@@ -128,10 +132,10 @@ class Action( logger.Logger ):
       dump, err    = proc.communicate()
       retval       = proc.returncode
       ##
-      ## 
+      ##
       ##
       ############################################################################
-    else :
+    else:
       self.log( "Doing dry-run, no ouptut" )
       retval = 0
       output = "12345"
@@ -141,15 +145,15 @@ class Action( logger.Logger ):
 
     self.log(  "*" * 15 + "{:^15}".format( "STOP " + self.id ) + "*" * 15 )
 
-    if not dry_run :
-      if capture :
-        if False: # TODO Not sure which conditional is supposed to lead here
+    if not dry_run:
+      if capture:
+        if False:  # TODO Not sure which conditional is supposed to lead here
           output.seek(0)
           content = output.read()
-        else : 
+        else:
           content = output.getvalue().decode( 'utf-8' )
         output.close()
-    else :
+    else:
       content = output
 
     return retval, content
@@ -157,7 +161,7 @@ class Action( logger.Logger ):
   def launch( self, working_directory, action_file ):
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
     cmd = "./action_launcher.py"
-    
+
     try:
       # Get extra submission stuff
       # if need to submit
@@ -177,18 +181,17 @@ class Action( logger.Logger ):
 
       # if need to submit
       #   get job id from content
-    
+
       # Communicate up the chain
     except Exception as e:
       # Communicate up the chain that we failed :(
-      
+
       # and propagate
       raise e
 
   def setup( self ):
     # Setup environment stuff
     self.log( "Setting up environment" )
-  
 
   def run( self ):
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
@@ -196,18 +199,17 @@ class Action( logger.Logger ):
     command = None
     if "command" in self.config:
       command = self.config["command"]
-    
+
     if command is None:
       self.log( "No command provided for default Action" )
       exit( 1 )
-    
+
     arguments = None
     if "arguments" in self.config:
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True )
     return retval
-    
+
   def __str__( self ):
     return f"Action({self.id})"
-

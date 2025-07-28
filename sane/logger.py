@@ -1,5 +1,7 @@
 import io
+
 LABEL_LENGTH = 12
+
 
 class Logger:
   def __init__( self, name ):
@@ -10,14 +12,15 @@ class Logger:
 
   def log( self, *args, **kwargs ) :
     # https://stackoverflow.com/a/39823534
-    output=io.StringIO()
+    output = io.StringIO()
     print( *args, file=output, end="", **kwargs )
     contents = output.getvalue()
     output.close()
     print( self._label + self._level_indentation * self._level + contents, flush=True )
     return self._label + self._level_indentation * self._level + contents
-  
+
   def log_push( self, levels=1 ) :
     self._level += levels
+
   def log_pop( self, levels=1 ) :
     self._level -= levels

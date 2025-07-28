@@ -1,9 +1,9 @@
 import socket
 
-
 import sane.config as config
 import sane.utdict as utdict
 import sane.environment as environment
+
 
 class Host( config.Config ):
   def __init__( self, name, aliases=[] ):
@@ -28,7 +28,7 @@ class Host( config.Config ):
       if found:
         env_id = env_name
         break
-    
+
     return env_id
 
   @property
@@ -37,10 +37,10 @@ class Host( config.Config ):
       return None
     else:
       return self.has_environment( self.default_env_ )
-  
+
   @default_env.setter
   def default_env( self, env ):
     self._default_env = env
-  
+
   def add_environment( self, env ):
     self.environments[env.name] = env

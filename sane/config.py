@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
+
 class Config( metaclass=ABCMeta ):
   def __init__( self, name, aliases=[] ):
     self._name    = name
@@ -8,7 +9,7 @@ class Config( metaclass=ABCMeta ):
   @property
   def name( self ):
     return self._name
-  
+
   @property
   def aliases( self ):
     return self._aliases.copy()
@@ -21,4 +22,10 @@ class Config( metaclass=ABCMeta ):
     return ( self._name == requested_config or requested_config in self._aliases )
 
   def partial_match( self, requested_config ):
-    return ( self._name in requested_config or next( ( True for alias in self._aliases if alias in requested_config ), False ) )
+    return (
+            self._name in requested_config
+            or next(
+                    ( True for alias in self._aliases if alias in requested_config ),
+                    False
+                    )
+            )

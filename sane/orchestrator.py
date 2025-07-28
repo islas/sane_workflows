@@ -4,9 +4,12 @@ import pickle
 import sane.logger as logger
 import sane.utdict as utdict
 import sane.action as action
-import sane.host   as host
+import sane.host as host
+
 
 _registered_functions = {}
+
+
 # https://stackoverflow.com/a/14412901
 def callable_decorator( f ):
   '''
@@ -15,16 +18,17 @@ def callable_decorator( f ):
   or
   @decorator
   '''
-  @functools.wraps(f)
-  def insitu_decorator(*args, **kwargs):
-    if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+  @functools.wraps( f )
+  def insitu_decorator( *args, **kwargs ):
+    if len( args ) == 1 and len( kwargs ) == 0 and callable( args[0] ):
       # actual decorated function
-      return f(args[0])
+      return f( args[0] )
     else:
       # decorator arguments
-      return lambda realf: f(realf, *args, **kwargs)
+      return lambda realf: f( realf, *args, **kwargs )
 
   return insitu_decorator
+
 
 @callable_decorator
 def register( f, priority=0 ):
@@ -58,13 +62,13 @@ class Orchestrator( logger.Logger ):
       self._dag.add_node( id )
       for dependency in action.dependencies.keys():
         self._dag.add_edge( dependency, id )
-    
+
     nodes, valid = self._dag.topological_sort()
     if not valid:
       msg = f"Error: In {Orchestrator.add_action.__name__}() DAG construction failed, invalid topology"
       self.log( msg )
       raise Exception( msg )
-    
+
   def process_registered( self ):
     keys = sorted( registered_functions.keys() )
     for key in keys:
@@ -113,14 +117,13 @@ class Orchestrator( logger.Logger ):
       self.log_pop()
       raise Exception( f"Missing environments {missing_env}" )
 
-
   def run_actions( self, action_id_list, as_host=None ):
     self.construct_dag()
 
     traversal_list = self._dag.traversal_list( action_id_list )
 
     self.check_hostenv( as_host, traversal_list )
-    
+
     # We have a valid host for all actions slated to run
     host_file = f"{self.save_location_}/{self.current_host_}.pkl"
 
@@ -131,7 +134,7 @@ class Orchestrator( logger.Logger ):
       next_nodes = self._dag.get_next_nodes( traversal_list )
       for node in next_nodes:
         self.actions[node].config["host_file"] = host_file
-        
+
         # TODO Fix up pathing
         action_file = f"{self._save_location}/{node}.pkl"
         with open( action_file, "wb" ) as f:
@@ -139,4 +142,3 @@ class Orchestrator( logger.Logger ):
 
         self.actions[node].launch( self._working_directory, action_file )
         self._dag.node_complete( node, traversal_list )
-
