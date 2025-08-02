@@ -3,7 +3,7 @@ import sys
 import os
 import pickle
 
-from Action import Action
+import sane
 
 if __name__ == "__main__":
   working_directory = sys.argv[1]
@@ -11,22 +11,27 @@ if __name__ == "__main__":
 
   os.chdir( working_directory )
 
-  action = None
-  with open( action_file, "rb" ) as f:
-    action = pickle.load( f )
+  action = sane.save_state.load( action_file )
 
-  print( f"Loaded Action \"{action.id_}\"" )
+  print( f"Loaded Action \"{action.id}\"" )
 
-  host = None
-  with open( action.config_["host_file"], "rb" ) as f:
-    host = pickle.load( f )
-  
-  print( f"Loaded Host \"{host.name_}\"" )
+  if "host_file" not in action.config:
+    raise Exception( "Missing host file!" )
+
+  host = sane.save_state.load( action.config["host_file"] )
+
+  print( f"Loaded Host \"{host.name}\"" )
+  environment = host.has_environment( action.environment )
+  if environment is None:
+    raise Exception( f"Missing environment \"{action.environment}\"!" )
+
+  print( f"Using Environment \"{environment.name}\"" )
+  environment.setup()
 
   action.setup()
   retval = action.run()
   if retval is None:
     retval = -1
     print( f"No return value provided by Action {id}" )
-    
+
   exit( retval )

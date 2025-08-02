@@ -7,6 +7,7 @@ import subprocess
 from enum import Enum
 
 import sane.logger as logger
+import sane.save_state as state
 
 
 class DependencyType( str, Enum ):
@@ -31,7 +32,7 @@ class ActionState( Enum ):
                 # Instead this should be reserved for internal errors of the action
 
 
-class Action( logger.Logger ):
+class Action( logger.Logger, state.SaveState ):
   def __init__( self, id ):
     self._id = id
     self.config = {}
@@ -44,7 +45,7 @@ class Action( logger.Logger ):
     self._state            = ActionState.INACTIVE
     self._dependencies     = {}
 
-    super().__init__( id )
+    super().__init__( name=id, filename=f"action_{id}.pkl" )
 
   @property
   def id( self ):
@@ -125,8 +126,9 @@ class Action( logger.Logger ):
 
         # Also duplicate output to stdout if requested
         if verbose:
-          sys.stdout.buffer.write(c)
-          sys.stdout.flush()
+          print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
+          # sys.stdout.buffer.write(c)
+          # sys.stdout.flush()
 
       # We don't mind doing this as the process should block us until we are ready to continue
       dump, err    = proc.communicate()
@@ -158,7 +160,10 @@ class Action( logger.Logger ):
 
     return retval, content
 
-  def launch( self, working_directory, action_file ):
+  def launch( self, working_directory ):
+    # Immediately save the current state of this action
+    self.save()
+
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
     cmd = "./action_launcher.py"
 
@@ -172,7 +177,7 @@ class Action( logger.Logger ):
         self.log( "Consider modifying the action to use one of these two options" )
       retval, content = self.execute_subprocess(
                                                 cmd,
-                                                [ working_directory, action_file ],
+                                                [ working_directory, self.save_file ],
                                                 logfile=self._logfile,
                                                 capture=True,
                                                 verbose=self._verbose,
@@ -189,9 +194,11 @@ class Action( logger.Logger ):
       # and propagate
       raise e
 
+    return retval, content
+
   def setup( self ):
-    # Setup environment stuff
-    self.log( "Setting up environment" )
+    # Setup action-specific stuff
+    pass
 
   def run( self ):
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)

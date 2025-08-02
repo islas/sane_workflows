@@ -19,6 +19,23 @@ class DagTests( unittest.TestCase ):
     # This cannot be tested like so since all nodes may be problematic
     # self.assertNotEqual( len( nodes ), len( self.dag._nodes ) )
 
+  def validate_traversal( self, traversal_list, expected ):
+    step     = 0
+    while len( traversal_list ) > 0:
+      nodes = self.dag.get_next_nodes( traversal_list )
+      for node in nodes:
+        self.assertIn( node, expected[step] )
+        expected[step].remove( node )
+
+        self.assertNotIn( node, traversal_list )
+        self.dag.node_complete( node, traversal_list )
+      step += 1
+
+    # All expected should have been visited in this walk
+    self.assertEqual( traversal_list, {} )
+    for node_list in expected:
+      self.assertEqual( node_list, [] )
+
 
   def test_dag_no_nodes( self ):
     """A valid DAG consisting of no nodes"""
@@ -168,18 +185,58 @@ class DagTests( unittest.TestCase ):
     self.assertEqual( len( traversal_list ), len( self.dag._nodes ) )
 
     expected = self.dag.traversal_to( [ "e" ] )
-    step     = 0
-    while len( traversal_list ) > 0:
-      nodes = self.dag.get_next_nodes( traversal_list )
-      for node in nodes:
-        self.assertIn( node, expected[step] )
-        expected[step].remove( node )
+    self.validate_traversal( traversal_list, expected )
 
-        self.assertNotIn( node, traversal_list )
-        self.dag.node_complete( node, traversal_list )
-      step += 1
+  def test_dag_multinode_entry_multinode_end_partial( self ):
+    """A valid DAG consisting of multiple zero in-degree nodes
 
-    # All expected should have been visited in this walk
-    self.assertEqual( traversal_list, {} )
-    for node_list in expected:
-      self.assertEqual( node_list, [] )
+    This test will have multiple required in-degree nodes but also multiple
+    ending nodes such that a traversal to one results in a partial traversal
+    start -> stop
+        b - d
+    a <   /   > l => requires [a,f,i], [b,c,g], [d,e]
+        c - e
+    f <   /   > m => requires [a,f,i], [c,g,j], [e,h]
+        g - h
+    i <   /   > n => requires [f,i], [g,j], [h,k]
+        j - k
+    """
+    self.dag.add_edge( "d", "l" )
+    self.dag.add_edge( "e", "l" )
+    self.dag.add_edge( "e", "m" )
+    self.dag.add_edge( "h", "m" )
+    self.dag.add_edge( "h", "n" )
+    self.dag.add_edge( "k", "n" )
+
+    self.dag.add_edge( "b", "d" )
+    self.dag.add_edge( "c", "d" )
+    self.dag.add_edge( "c", "e" )
+    self.dag.add_edge( "g", "e" )
+    self.dag.add_edge( "g", "h" )
+    self.dag.add_edge( "j", "h" )
+    self.dag.add_edge( "j", "k" )
+
+    self.dag.add_edge( "a", "b" )
+    self.dag.add_edge( "a", "c" )
+    self.dag.add_edge( "f", "c" )
+    self.dag.add_edge( "f", "g" )
+    self.dag.add_edge( "i", "g" )
+    self.dag.add_edge( "i", "j" )
+
+    traversal_list = self.dag.traversal_list( [ "l" ] )
+    self.assertNotEqual( len( traversal_list ), len( self.dag._nodes ) )
+
+    expected = [ [ "a", "f", "i" ], [ "b", "c", "g" ], [ "d", "e" ], [ "l" ] ]
+    self.validate_traversal( traversal_list, expected )
+
+    traversal_list = self.dag.traversal_list( [ "m" ] )
+    self.assertNotEqual( len( traversal_list ), len( self.dag._nodes ) )
+
+    expected = [ [ "a", "f", "i" ], [ "c", "g", "j" ], [ "e", "h" ], [ "m" ] ]
+    self.validate_traversal( traversal_list, expected )
+
+    traversal_list = self.dag.traversal_list( [ "n" ] )
+    self.assertNotEqual( len( traversal_list ), len( self.dag._nodes ) )
+
+    expected = [ [ "f", "i" ], [ "g", "j" ], [ "h", "k" ], [ "n" ] ]
+    self.validate_traversal( traversal_list, expected )

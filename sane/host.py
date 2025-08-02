@@ -3,11 +3,12 @@ import socket
 import sane.config as config
 import sane.utdict as utdict
 import sane.environment as environment
+import sane.save_state as state
 
 
-class Host( config.Config ):
+class Host( config.Config, state.SaveState ):
   def __init__( self, name, aliases=[] ):
-    super().__init__( name, aliases )
+    super().__init__( name=name, aliases=aliases, filename=f"host_{name}.pkl" )
 
     self.environments  = utdict.UniqueTypedDict( environment.Environment )
     self._resources    = {}
@@ -22,21 +23,25 @@ class Host( config.Config ):
     return self.match( requested_host )
 
   def has_environment( self, requested_env ):
-    env_id = None
+    if requested_env is None:
+      # Note that this is the property
+      return self.default_env
+
+    env = None
     for env_name, environment in self.environments.items():
       found = environment.match( requested_env )
       if found:
-        env_id = env_name
+        env = environment
         break
 
-    return env_id
+    return env
 
   @property
   def default_env( self ):
     if self._default_env is None:
       return None
     else:
-      return self.has_environment( self.default_env_ )
+      return self.has_environment( self._default_env )
 
   @default_env.setter
   def default_env( self, env ):

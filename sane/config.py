@@ -2,9 +2,10 @@ from abc import ABCMeta, abstractmethod
 
 
 class Config( metaclass=ABCMeta ):
-  def __init__( self, name, aliases=[] ):
+  def __init__( self, name, aliases=[], **kwargs ):
     self._name    = name
     self._aliases = list(set(aliases))
+    super().__init__( **kwargs )
 
   @property
   def name( self ):

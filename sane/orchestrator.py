@@ -79,15 +79,15 @@ class Orchestrator( logger.Logger ):
     for host_name, host in self.hosts.items():
       self.log( f"Checking host \"{host_name}\"" )
       if host.valid_host( as_host ):
-        self.current_host_ = host_name
+        self._current_host = host_name
         break
 
-    if self.current_host_ is None:
+    if self._current_host is None:
       self.log( "No valid host configuration found" )
       raise Exception( f"No valid host configuration found" )
 
     self.log( f"Running as {as_host}" )
-    host = self.hosts[self.current_host_]
+    host = self.hosts[self._current_host]
 
     # Check action needs
     check_list = traversal_list.copy()
@@ -95,22 +95,18 @@ class Orchestrator( logger.Logger ):
     while len( check_list ) > 0:
       next_nodes = self._dag.get_next_nodes( check_list )
       for node in next_nodes:
-        env_name = "default"
-        found    = False
-        env      = None
+        env = host.has_environment( self.actions[node].environment )
 
-        if self.actions[node].environment is None:
-          found, env = host.default_env()
-        else:
-          found, env = host.has_environment( self.actions[node].environment )
-
-        if not found:
+        if env is None:
+          env_name = self.actions[node].environment
+          if self.actions[node].environment is None:
+            env_name = "default"
           missing_env.append( ( node, env_name ) )
 
         self._dag.node_complete( node, check_list )
 
     if len( missing_env ) > 0:
-      self.log( f"Error: Missing environments in Host( \"{self.current_host_}\" )" )
+      self.log( f"Error: Missing environments in Host( \"{self._current_host}\" )" )
       self.log_push()
       for node, env_name in missing_env:
         self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )" )
@@ -125,10 +121,10 @@ class Orchestrator( logger.Logger ):
     self.check_hostenv( as_host, traversal_list )
 
     # We have a valid host for all actions slated to run
-    host_file = f"{self.save_location_}/{self.current_host_}.pkl"
+    host_file = f"{self.save_location}/{self._current_host}.pkl"
 
     with open( host_file, "wb" ) as f:
-      pickle.dump( self.hosts[self.current_host_], f )
+      pickle.dump( self.hosts[self._current_host], f )
 
     while len( traversal_list ) > 0:
       next_nodes = self._dag.get_next_nodes( traversal_list )

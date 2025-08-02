@@ -4,11 +4,12 @@ LABEL_LENGTH = 12
 
 
 class Logger:
-  def __init__( self, name ):
+  def __init__( self, name, **kwargs ):
     self._logname           = name
     self._level_indentation = "  "
     self._level             = 0
     self._label             = "{0:<{1}}".format( "[{0}] ".format( self._logname ), LABEL_LENGTH + 3 )
+    super().__init__( **kwargs )
 
   def log( self, *args, **kwargs ) :
     # https://stackoverflow.com/a/39823534

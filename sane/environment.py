@@ -27,6 +27,7 @@ class Environment( config.Config ):
       spec = importlib.util.find_spec( Environment.LMOD_MODULE )
       if spec is not None:
         self._lmod = importlib.util.module_from_spec( spec )
+        spec.loader.exec_module( self._lmod )
 
     if required and self._lmod is None:
       raise ModuleNotFoundError( f"No module named {Environment.LMOD_MODULE}", name=Environment.LMOD_MODULE )
@@ -52,7 +53,7 @@ class Environment( config.Config ):
 
   def reset_env_setup( self ):
     self._setup_lmod_cmds.clear()
-    self._setup_env_vars_.clear()
+    self._setup_env_vars.clear()
 
   def setup_lmod_cmds( self, cmd, *args, category="unassigned", **kwargs ):
     if category not in self._setup_lmod_cmds:
@@ -78,6 +79,8 @@ class Environment( config.Config ):
     pass
 
   def setup( self ):
+    self.pre_setup()
+
     # LMOD first to ensure any mass environment changes are seen before user-specific
     # environment manipulation
     for category, lmod_cmd in self._setup_lmod_cmds.items():
@@ -94,6 +97,8 @@ class Environment( config.Config ):
           self.env_var_append( var, val )
         elif cmd == "prepend":
           self.env_var_prepend( var, val )
+
+    self.post_setup()
 
   def match( self, requested_env ):
     return self.exact_match( requested_env )
