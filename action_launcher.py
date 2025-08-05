@@ -32,6 +32,6 @@ if __name__ == "__main__":
   retval = action.run()
   if retval is None:
     retval = -1
-    print( f"No return value provided by Action {id}" )
+    print( f"No return value provided by Action {action.id}" )
 
   exit( retval )
