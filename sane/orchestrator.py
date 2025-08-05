@@ -5,7 +5,7 @@ import sane.logger as logger
 import sane.utdict as utdict
 import sane.action as action
 import sane.host as host
-
+import sane.dag as dag
 
 _registered_functions = {}
 
@@ -70,7 +70,7 @@ class Orchestrator( logger.Logger ):
       raise Exception( msg )
 
   def process_registered( self ):
-    keys = sorted( registered_functions.keys() )
+    keys = sorted( _registered_functions.keys() )
     for key in keys:
       for f in _registered_functions[key]:
         f( self )
