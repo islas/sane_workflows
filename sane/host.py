@@ -8,7 +8,7 @@ import sane.save_state as state
 
 class Host( config.Config, state.SaveState ):
   def __init__( self, name, aliases=[] ):
-    super().__init__( name=name, aliases=aliases, filename=f"host_{name}.pkl" )
+    super().__init__( name=name, aliases=aliases, filename=f"host_{name}", base=Host )
 
     self.environments  = utdict.UniqueTypedDict( environment.Environment )
     self._resources    = {}

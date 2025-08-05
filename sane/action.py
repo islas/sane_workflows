@@ -45,7 +45,7 @@ class Action( logger.Logger, state.SaveState ):
     self._state            = ActionState.INACTIVE
     self._dependencies     = {}
 
-    super().__init__( name=id, filename=f"action_{id}.pkl" )
+    super().__init__( name=id, filename=f"action_{id}", base=Action )
 
   @property
   def id( self ):
