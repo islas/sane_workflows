@@ -31,7 +31,6 @@ class DependencyType( str, Enum ):
     return True
 
 
-
 class ActionState( Enum ):
   PENDING  = 0
   RUNNING  = 1
@@ -100,12 +99,10 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     retval  = -1
     content = None
 
-
     # if self._verbose:
     #   self.log(  "*" * 15 + "{:^15}".format( "START launch " + self.id ) + "*" * 15 )
     # if self._verbose:
     #   self.log(  "*" * 15 + "{:^15}".format( "STOP launch " + self.id ) + "*" * 15 )
-
 
     if not dry_run:
       ############################################################################
@@ -238,9 +235,11 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
   def load_core_config( self, config ):
     environment = config.pop( "environment", None )
-    if environment is not None : self.environment = environment
+    if environment is not None:
+      self.environment = environment
 
     act_config = config.pop( "config", None )
-    if act_config is not None : self.config = act_config
+    if act_config is not None:
+      self.config = act_config
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )

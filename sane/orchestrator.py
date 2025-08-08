@@ -67,7 +67,7 @@ class JSONCDecoder( json.JSONDecoder ):
   def decode( self, s : str ) -> Any :
     # Sanitize the input string for leading // comments ONLY and replace with
     # blank line so that line numbers are preserved
-    s = '\n'.join( l if not l.lstrip().startswith( "//" ) else "" for l in s.split( '\n' ) )
+    s = '\n'.join( line if not line.lstrip().startswith( "//" ) else "" for line in s.split( '\n' ) )
     return super().decode( s )
 
 

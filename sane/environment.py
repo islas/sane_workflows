@@ -107,10 +107,12 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
   def load_core_config( self, config ):
     aliases = list( set( config.pop( "aliases", [] ) ) )
-    if aliases != [] : self._aliases = aliases
+    if aliases != []:
+      self._aliases = aliases
 
     lmod_path = config.pop( "lmod_path", None )
-    if lmod_path is not None : self.lmod_path = lmod_path
+    if lmod_path is not None:
+      self.lmod_path = lmod_path
 
     for env_cmd in config.pop( "env_vars", [] ):
       self.setup_env_vars( **env_cmd )

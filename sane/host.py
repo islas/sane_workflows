@@ -59,13 +59,16 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
 
   def load_core_config( self, config ):
     aliases = list( set( config.pop( "aliases", [] ) ) )
-    if aliases != [] : self._aliases = aliases
+    if aliases != []:
+      self._aliases = aliases
 
     default_env = config.pop( "default_env", None )
-    if default_env is not None : self.default_env = default_env
+    if default_env is not None:
+      self.default_env = default_env
 
     lmod_path = config.pop( "lmod_path", None )
-    if lmod_path is not None : self.lmod_path = lmod_path
+    if lmod_path is not None:
+      self.lmod_path = lmod_path
 
     env_configs      = config.pop( "environments", {} )
     for id, env_config in env_configs.items():

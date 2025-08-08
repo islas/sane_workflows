@@ -32,7 +32,7 @@ def actual_workflow_actions( orchestrator ):
       action.config["arguments"] = [ action_name ]
       action._verbose = True
       if layer > 0:
-        action.add_dependencies( *layers[layer-1][i:i+2] )
+        action.add_dependencies( *layers[layer - 1][i:i + 2] )
         action.config["arguments"].append( "depends on => " )
         action.config["arguments"].append( str( list( action.dependencies.keys() ) ) )
 

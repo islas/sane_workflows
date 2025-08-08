@@ -14,6 +14,7 @@ class OrchestratorTests( unittest.TestCase ):
   def test_orchestrator_external_register( self ):
     """Test the ability to register external functions"""
     x = None
+
     @sane.register
     def external_function( orchestrator ):
       orchestrator.add_host( sane.Host( "dummy" ) )
@@ -21,5 +22,8 @@ class OrchestratorTests( unittest.TestCase ):
     self.orch.process_registered()
     self.assertIn( "dummy", self.orch.hosts )
 
-  # def test_external_action_definition( self ):
-  #   """Test the ability to 
+  # def test_orchestrator_select_host( self ):
+  #   """Test the ability to select host based on name or aliases"""
+  #   self.orch.add_host( sane.Host( "dummy" ) )
+
+  #   self.orch.
