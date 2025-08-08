@@ -34,6 +34,20 @@ class MyActionWithArgs( MyAction ):
       self.log( "Please provide arguments", level=30 )
     return 0
 
+class MyActionWithMult( MyActionWithArgs ):
+  def __init__( self, id ):
+    self.mult = 1
+    super().__init__( id )
+
+  def load_extra_config( self, config ):
+    mult = config.pop( "mult", 1 )
+    if mult > 1 : self.mult = mult
+
+  def setup( self ):
+    self.log( f"Modifying args with mult = {self.mult}" )
+    if "arguments" in self.config:
+      self.config["arguments"] = [ x * self.mult for x in self.config["arguments"] ]
+
 @sane.register
 def test( orchestrator ):
   act = MyAction( "foobarbarfoo" )
