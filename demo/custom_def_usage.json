@@ -1,0 +1,14 @@
+{
+  "actions" :
+  {
+    "fib_seq_fixed" :
+    {
+      "type" : "custom_defs.MyAction"
+    },
+    "fib_seq_calc" :
+    {
+      "type" : "custom_defs.MyActionWithArgs",
+      "config" : { "arguments" : [ 0, 1, 2, 3, 4, 5 ] }
+    }
+  }
+}
