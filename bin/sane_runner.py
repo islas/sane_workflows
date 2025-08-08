@@ -3,6 +3,7 @@ import argparse
 import os
 import pathlib
 import sys
+import re
 
 import sane
 
@@ -17,22 +18,48 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Paths to search for workflows, if not specified default is ./"
+                      help="Path to search for workflows, if not specified default is ./. Use multiple times for many paths"
                       )
   parser.add_argument(
                       "-s", "--search_pattern",
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, if not specified default is [*.json, *.py]"
+                      help="Search pattern used to find workflows, if not specified default is [*.json, *.py], Use multiple times for many patterns"
                       )
-  parser.add_argument(
-                      "-r", "--run",
-                      nargs="+",
-                      type=str,
-                      default=[],
-                      help="Nodes in the workflow to run"
-                      )
+  act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
+  act_list = act_group.add_mutually_exclusive_group()
+  act_list.add_argument(
+                        "-a", "--actions",
+                        nargs="+",
+                        type=str,
+                        default=[],
+                        help="Actions in the workflow to run"
+                        )
+  act_list.add_argument(
+                        "-f", "--filter",
+                        type=str,
+                        default=".*",
+                        help="Select actions matching pattern, default '.*'"
+                        )
+  cmd_group = parser.add_argument_group( "Commands (choose only one)", "Set of commands operate on select actions" )
+  cmd = cmd_group.add_mutually_exclusive_group()
+  cmd.add_argument(
+                    "-r", "--run",
+                    action="store_true",
+                    help="Run actions"
+                    )
+  cmd.add_argument(
+                    "-l", "--list",
+                    action="store_true",
+                    help="List actions"
+                    )
+  cmd.add_argument(
+                    "-d", "--dry-run",
+                    action="store_true",
+                    help="Run actions as dry-run"
+                    )
+  
   parser.add_argument(
                       "-sh", "--specific_host",
                       type=str,
@@ -97,8 +124,28 @@ def main():
   orchestrator.verbose = options.verbose
   orchestrator.save_location = options.save_location
 
-  if len( options.run ) > 0:
-    orchestrator.run_actions( options.run, options.specific_host )
+  action_list = options.actions
+  if len( action_list ) == 0:
+    # Use filter
+    action_filter = re.compile( options.filter )
+    for action in orchestrator.actions:
+      if action_filter.match( action ):
+        action_list.append( action )
+
+  # Still nothing
+  if len( action_list ) == 0:
+    logger.log( "No actions selected" )
+    exit( 1 )
+
+  if options.run:
+    orchestrator.run_actions( action_list, options.specific_host )
+  if options.dry_run:
+    orchestrator.dry_run = True
+    orchestrator.run_actions( action_list, options.specific_host )
+  elif options.list:
+    logger.log( "Actions:" )
+    sane.orchestrator.print_actions( action_list, print=logger.log )
+
 
 if __name__ == "__main__":
   main()

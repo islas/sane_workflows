@@ -50,7 +50,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self.environment = None
 
     self._verbose = False
-    self._dryRun  = False
+    self._dry_run = False
 
     self._logfile          = None
     self._state            = ActionState.INACTIVE
@@ -196,7 +196,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
                                                 logfile=self._logfile,
                                                 capture=True,
                                                 verbose=self._verbose,
-                                                dry_run=self._dryRun
+                                                dry_run=self._dry_run
                                                 )
 
       # if need to submit

@@ -47,6 +47,18 @@ def register( f, priority=0 ):
   return f
 
 
+def print_actions( action_list, n_per_line=4, print=print ):
+  n_per_line = 4
+  longest_action = len( max( action_list, key=len ) )
+  for i in range( 0, int( len( action_list ) / n_per_line ) + 1 ):
+    line = "  "
+    for j in range( n_per_line ):
+      if ( j + i * n_per_line ) < len( action_list ):
+        line += f"{{0:<{longest_action + 2}}}".format( action_list[j + i * n_per_line] )
+    if not line.isspace():
+      print( line )
+
+
 # https://stackoverflow.com/a/72168909
 class JSONCDecoder( json.JSONDecoder ):
   def __init__( self, **kw ) :
@@ -63,6 +75,8 @@ class Orchestrator( jconfig.JSONConfig ):
   def __init__( self ):
     self.actions = utdict.UniqueTypedDict( sane.action.Action )
     self.hosts   = utdict.UniqueTypedDict( sane.host.Host )
+    self.dry_run = False
+    self.verbose = False
 
     self._dag    = dag.DAG()
 
@@ -147,7 +161,10 @@ class Orchestrator( jconfig.JSONConfig ):
       raise Exception( f"Missing environments {missing_env}" )
 
   def run_actions( self, action_id_list, as_host=None ):
-    self.log( f"Running actions {action_id_list} and any necessary dependencies" )
+    self.log( "Running actions:" )
+    print_actions( action_id_list, print=self.log )
+    self.log( "and any necessary dependencies" )
+
     self.construct_dag()
 
     traversal_list = self._dag.traversal_list( action_id_list )
@@ -165,6 +182,7 @@ class Orchestrator( jconfig.JSONConfig ):
       for node in next_nodes:
         self.actions[node].config["host_file"] = self.hosts[self._current_host].save_file
         self.actions[node]._verbose = self.verbose
+        self.actions[node]._dry_run = self.dry_run
 
         self.actions[node].save_location = self._save_location
         self.actions[node].save()
