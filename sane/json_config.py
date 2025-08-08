@@ -9,19 +9,19 @@ class JSONConfig( logger.Logger ):
     super().__init__( **kwargs )
 
   def load_config( self, config ):
-    self.load_core_config( **config )
-    self.load_extra_config( **config )
+    self.load_core_config( config )
+    self.load_extra_config( config )
     self.check_unused( config )
 
   def check_unused( self, config ):
     unused = list( config.keys() )
     if len( unused ) > 0:
-      self.log( f"Unused keys in config : {unused}" )
+      self.log( f"Unused keys in config : {unused}", level=30 )
 
-  def load_core_config( self, **kwargs ):
+  def load_core_config( self, config ):
     pass
 
-  def load_extra_config( self, **kwargs ):
+  def load_extra_config( self, config ):
     pass
 
   def search_type( self, type_str, noexcept=False ):

@@ -105,17 +105,17 @@ class Environment( config.Config, jconfig.JSONConfig ):
   def match( self, requested_env ):
     return self.exact_match( requested_env )
 
-  def load_core_config( self, **kwargs ):
-    aliases = list( set( kwargs.pop( "aliases", [] ) ) )
+  def load_core_config( self, config ):
+    aliases = list( set( config.pop( "aliases", [] ) ) )
     if aliases != [] : self._aliases = aliases
 
-    lmod_path = kwargs.pop( "lmod_path", None )
+    lmod_path = config.pop( "lmod_path", None )
     if lmod_path is not None : self.lmod_path = lmod_path
 
-    for env_cmd in kwargs.pop( "env_vars", [] ):
+    for env_cmd in config.pop( "env_vars", [] ):
       self.setup_env_vars( **env_cmd )
 
-    for lmod_cmd in kwargs.pop( "lmod_cmds", [] ):
+    for lmod_cmd in config.pop( "lmod_cmds", [] ):
       cmd  = lmod_cmd.pop( "cmd" )
       args = lmod_cmd.pop( "args", None )
       self.setup_lmod_cmds( cmd, *args, **lmod_cmd )

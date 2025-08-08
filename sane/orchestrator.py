@@ -195,8 +195,8 @@ class Orchestrator( jconfig.JSONConfig ):
         config = json.load( fp, cls=JSONCDecoder )
         self.load_config( config )
 
-  def load_core_config( self, **kwargs ):
-    hosts = kwargs.pop( "hosts", {} )
+  def load_core_config( self, config ):
+    hosts = config.pop( "hosts", {} )
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
       host_type = sane.host.Host
@@ -208,7 +208,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
       self.add_host( host )
 
-    actions = kwargs.pop( "actions", {} )
+    actions = config.pop( "actions", {} )
     for id, action_config in actions.items():
       action_typename = action_config.pop( "type", sane.action.Action.CONFIG_TYPE )
       action_type = sane.action.Action

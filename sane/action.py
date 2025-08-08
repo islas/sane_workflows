@@ -236,11 +236,11 @@ class Action( state.SaveState, jconfig.JSONConfig ):
   def __str__( self ):
     return f"Action({self.id})"
 
-  def load_core_config( self, **kwargs ):
-    environment = kwargs.pop( "environment", None )
+  def load_core_config( self, config ):
+    environment = config.pop( "environment", None )
     if environment is not None : self.environment = environment
 
-    config = kwargs.pop( "config", None )
-    if config is not None : self.config = config
+    act_config = config.pop( "config", None )
+    if act_config is not None : self.config = act_config
 
-    self.add_dependencies( *kwargs.pop( "dependencies", {} ).items() )
+    self.add_dependencies( *config.pop( "dependencies", {} ).items() )
