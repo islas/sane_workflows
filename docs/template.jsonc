@@ -1,0 +1,76 @@
+{
+  // Any hosts that this config creates
+  "hosts" :
+  {
+    // Unique name of the host
+    "generic" : 
+    {
+      // All fields are optional
+      // Specific type of host, may be a user-defined host
+      "type" : "sane.Host",
+      // Any aliases used by the host in its match()
+      "aliases" : [ "simple_host" ],
+      // Default environment to use if no match is found
+      "default_env" : "some_default_env",
+      // Location of lmod python module
+      "lmod_path" : "<path to lmod>",
+      // Any additional environments to add to this host
+      "environments" :
+      {
+        // Unique name of environment within host
+        "generic" :
+        {
+          // Specific type of environment, may be user-defined
+          "type" : "sane.Environment",
+          // Any aliases used by the environment in its match()
+          "aliases" : [ "also_generic", "maybe something else" ],
+          // Location of lmod python module, overrides host lmod_path
+          "lmod_path" : "<path to lmod>",
+          // Directly passed to setup_env_vars()
+          "env_vars"  : [ { "cmd" : "prepend|append|set|unset", "var" : "foo", "value" : 0, "category" : "useless" } ],
+          // Directly passed to setup_lmod_cmds()
+          "lmod_cmds" : [ { "cmd" : "load", "args" : [ "gcc", "netcdf" ], "category" : "useless" } ]
+          // Anything after this is passed via **kwargs to load_extra_config()
+        },
+        // An example of different ID with just type specified
+        "maybe_derived" :
+        {
+          "type" : "user_workflow.DerivedEnvironment"
+        }
+      }
+      // Anything after this is passed via **kwargs to load_extra_config()
+    },
+    // An example of a different ID with derived host specified
+    "derived_host" :
+    {
+      "type" : "user_workflow.DerivedHost",
+      "aliases" : [ "derived" ],
+      "environments" :
+      {
+        // Perhaps this type already supplies everything
+        "other_stuff" : { "type" : "user_workflow.SpecializedEnv" }
+      }
+    }
+  },
+  "actions" :
+  {
+    // Unique name of the action
+    "id" :
+    {
+      // All options are optional but do not guarantee a workable action
+      // Specific type of action, may be user-defined
+      "type" : "sane.Action",
+      // Specific environment to select from matched host if needed
+      "environment" : "preferred_env",
+      // Any dependencies on other actions, passed directly to add_dependencies()
+      "dependencies" : { "id_other" : "afterok", "id_other2" : "afterok" },
+      // Directly sets the config of an action
+      "config" : {
+        "command" : "any_command",
+        "arguments" : [ "args", "to pass", "to command" ]
+      }
+      // Anything after this is passed via **kwargs to load_extra_config()
+    }
+  }
+  // Anything after this is passed via **kwargs to load_extra_config()
+}
