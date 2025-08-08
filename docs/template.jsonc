@@ -30,7 +30,7 @@
           "env_vars"  : [ { "cmd" : "prepend|append|set|unset", "var" : "foo", "value" : 0, "category" : "useless" } ],
           // Directly passed to setup_lmod_cmds()
           "lmod_cmds" : [ { "cmd" : "load", "args" : [ "gcc", "netcdf" ], "category" : "useless" } ]
-          // Anything after this is passed via **kwargs to load_extra_config()
+          // Anything after this is passed via config dict to load_extra_config()
         },
         // An example of different ID with just type specified
         "maybe_derived" :
@@ -38,7 +38,7 @@
           "type" : "user_workflow.DerivedEnvironment"
         }
       }
-      // Anything after this is passed via **kwargs to load_extra_config()
+      // Anything after this is passed via config dict to load_extra_config()
     },
     // An example of a different ID with derived host specified
     "derived_host" :
@@ -69,8 +69,8 @@
         "command" : "any_command",
         "arguments" : [ "args", "to pass", "to command" ]
       }
-      // Anything after this is passed via **kwargs to load_extra_config()
+      // Anything after this is passed via config dict to load_extra_config()
     }
   }
-  // Anything after this is passed via **kwargs to load_extra_config()
+  // Anything after this is passed via config dict to load_extra_config()
 }
