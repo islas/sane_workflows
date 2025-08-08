@@ -85,10 +85,16 @@ class Action( logger.Logger, state.SaveState ):
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
     self.log( "Running command:" )
     self.log( "  {0}".format( command ) )
-    self.log(  "*" * 15 + "{:^15}".format( "START " + self.id ) + "*" * 15 + "\n" )
 
     retval  = -1
     content = None
+
+
+    # if self._verbose:
+    #   self.log(  "*" * 15 + "{:^15}".format( "START launch " + self.id ) + "*" * 15 )
+    # if self._verbose:
+    #   self.log(  "*" * 15 + "{:^15}".format( "STOP launch " + self.id ) + "*" * 15 )
+
 
     if not dry_run:
       ############################################################################
@@ -144,8 +150,6 @@ class Action( logger.Logger, state.SaveState ):
 
     # self.log( "\n" )
     print( "\n", flush=True, end="" )
-
-    self.log(  "*" * 15 + "{:^15}".format( "STOP " + self.id ) + "*" * 15 )
 
     if not dry_run:
       if capture:

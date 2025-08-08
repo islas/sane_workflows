@@ -12,26 +12,29 @@ if __name__ == "__main__":
   os.chdir( working_directory )
 
   action = sane.save_state.load( action_file )
-
-  print( f"Loaded Action \"{action.id}\"" )
+  action.override_logname( f"{action.id}::launch" )
+  action.log(  "*" * 15 + "{:^15}".format( "Inside action_launcher.py" ) + "*" * 15 )
+  action.log( f"Loaded Action \"{action.id}\"" )
 
   if "host_file" not in action.config:
     raise Exception( "Missing host file!" )
 
   host = sane.save_state.load( action.config["host_file"] )
 
-  print( f"Loaded Host \"{host.name}\"" )
+  action.log( f"Loaded Host \"{host.name}\"" )
   environment = host.has_environment( action.environment )
   if environment is None:
     raise Exception( f"Missing environment \"{action.environment}\"!" )
 
-  print( f"Using Environment \"{environment.name}\"" )
+  action.log( f"Using Environment \"{environment.name}\"" )
   environment.setup()
 
   action.setup()
   retval = action.run()
   if retval is None:
     retval = -1
-    print( f"No return value provided by Action {action.id}" )
+    action.log( f"No return value provided by Action {action.id}", level=40 )
+
+  action.log(  "*" * 15 + "{:^15}".format( "Finished action_launcher.py" ) + "*" * 15 )
 
   exit( retval )
