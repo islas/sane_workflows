@@ -42,6 +42,8 @@ class MyActionWithMult( MyActionWithArgs ):
   def load_extra_config( self, config ):
     mult = config.pop( "mult", 1 )
     if mult > 1 : self.mult = mult
+    # Make sure to call any inherited config reading
+    super().load_extra_config( config )
 
   def setup( self ):
     self.log( f"Modifying args with mult = {self.mult}" )
