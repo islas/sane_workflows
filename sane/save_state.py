@@ -1,3 +1,4 @@
+import collections
 import inspect
 import json
 import os
@@ -19,7 +20,7 @@ def load( filename ):
   return obj
 
 
-def _load_definitions( source_dict, ):
+def _load_definitions( source_dict ):
   # THIS IS THE DANGEROUS PART
   for module_name, class_dict in source_dict.items():
     # Load in this module manually by in situ creating the module and source def
@@ -76,13 +77,12 @@ class SaveState:
     tinfo = type( self )
     all_ancestors  = inspect.getmro( tinfo )
     base_ancestors = inspect.getmro( self._base )
-    source_dict = {}
-
-    for base_class in all_ancestors:
+    source_dict = collections.OrderedDict()
+    for base_class in reversed( all_ancestors ):
       if base_class != self._base and base_class not in base_ancestors:
         fq_name = f"{base_class.__module__}.{base_class.__name__}"
         if base_class.__module__ not in source_dict:
-          source_dict[ base_class.__module__ ] = {}
+          source_dict[ base_class.__module__ ] = collections.OrderedDict()
 
         source = inspect.getsource( base_class )
         source_dict[base_class.__module__][base_class.__name__] = source
@@ -90,7 +90,7 @@ class SaveState:
     # Now get actual class
     if tinfo != self._base:
       if tinfo.__module__ not in source_dict:
-        source_dict[ tinfo.__module__ ] = {}
+        source_dict[ tinfo.__module__ ] = collections.OrderedDict()
 
       source = inspect.getsource( tinfo )
       source_dict[tinfo.__module__][tinfo.__name__] = source
