@@ -4,24 +4,26 @@ import os
 from collections import OrderedDict
 
 import sane.config as config
+import sane.json_config as jconfig
 
 
-class Environment( config.Config ):
+class Environment( config.Config, jconfig.JSONConfig ):
   LMOD_MODULE = "env_modules_python"
+  CONFIG_TYPE = "Environment"
 
-  def __init__( self, name, aliases=[], lmod_pgk=None ):
+  def __init__( self, name, aliases=[], lmod_path=None ):
     super().__init__( name, aliases )
 
-    self.lmod_pgk  = lmod_pgk
+    self.lmod_path  = lmod_path
     self._lmod     = None
 
     self._setup_env_vars  = OrderedDict()
     self._setup_lmod_cmds = OrderedDict()
 
   def find_lmod( self, required=True ):
-    if self._lmod is None and self.lmod_pgk is not None:
-      if self.lmod_pgk not in sys.path:
-        sys.path.append( self.lmod_pgk )
+    if self._lmod is None and self.lmod_path is not None:
+      if self.lmod_path not in sys.path:
+        sys.path.append( self.lmod_path )
 
       # Find if module available
       spec = importlib.util.find_spec( Environment.LMOD_MODULE )
@@ -102,3 +104,18 @@ class Environment( config.Config ):
 
   def match( self, requested_env ):
     return self.exact_match( requested_env )
+
+  def load_core_config( self, **kwargs ):
+    aliases = list( set( kwargs.pop( "aliases", [] ) ) )
+    if aliases != [] : self._aliases = aliases
+
+    lmod_path = kwargs.pop( "lmod_path", None )
+    if lmod_path is not None : self.lmod_path = lmod_path
+
+    for env_cmd in kwargs.pop( "env_vars", [] ):
+      self.setup_env_vars( **env_cmd )
+
+    for lmod_cmd in kwargs.pop( "lmod_cmds", [] ):
+      cmd  = lmod_cmd.pop( "cmd" )
+      args = lmod_cmd.pop( "args", None )
+      self.setup_lmod_cmds( cmd, *args, **lmod_cmd )

@@ -1,5 +1,6 @@
 import unittest
 import os
+import sys
 
 import sane
 
@@ -18,6 +19,9 @@ class ActionTests( unittest.TestCase ):
   def setUp( self ):
     self.action = sane.Action( "test" )
     self.action._verbose = True
+    # Redirect logging to buffer
+    # https://stackoverflow.com/a/7483862
+    sane.console_handler.stream = sys.stdout
 
   def tearDown( self ):
     self.remove_save_files( self.action )

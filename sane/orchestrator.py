@@ -1,11 +1,20 @@
+from typing import Any
 import functools
+import importlib.util
+import json
+import os
+import pathlib
 import pickle
+import sys
 
-import sane.logger as logger
-import sane.utdict as utdict
-import sane.action as action
-import sane.host as host
+
+import sane.action
 import sane.dag as dag
+import sane.host
+import sane.json_config as jconfig
+import sane.user_space as uspace
+import sane.utdict as utdict
+
 
 _registered_functions = {}
 
@@ -38,10 +47,22 @@ def register( f, priority=0 ):
   return f
 
 
-class Orchestrator( logger.Logger ):
+# https://stackoverflow.com/a/72168909
+class JSONCDecoder( json.JSONDecoder ):
+  def __init__( self, **kw ) :
+    super().__init__( **kw )
+
+  def decode( self, s : str ) -> Any :
+    # Sanitize the input string for leading // comments ONLY and replace with
+    # blank line so that line numbers are preserved
+    s = '\n'.join( l if not l.lstrip().startswith( "//" ) else "" for l in s.split( '\n' ) )
+    return super().decode( s )
+
+
+class Orchestrator( jconfig.JSONConfig ):
   def __init__( self ):
-    self.actions = utdict.UniqueTypedDict( action.Action )
-    self.hosts   = utdict.UniqueTypedDict( host.Host )
+    self.actions = utdict.UniqueTypedDict( sane.action.Action )
+    self.hosts   = utdict.UniqueTypedDict( sane.host.Host )
 
     self._dag    = dag.DAG()
 
@@ -49,7 +70,15 @@ class Orchestrator( logger.Logger ):
     self._save_location = "./"
     self._working_directory = "./"
 
-    super().__init__( "orchestrator" )
+    super().__init__( name="orchestrator" )
+
+  @property
+  def save_location( self ):
+    return self._save_location
+
+  @save_location.setter
+  def save_location( self, path ):
+    self._save_location = os.path.abspath( path )
 
   def add_action( self, action ):
     self.actions[action.id] = action
@@ -65,15 +94,19 @@ class Orchestrator( logger.Logger ):
 
     nodes, valid = self._dag.topological_sort()
     if not valid:
-      msg = f"Error: In {Orchestrator.add_action.__name__}() DAG construction failed, invalid topology"
+      msg = f"Error: In {Orchestrator.construct_dag.__name__}() DAG construction failed, invalid topology"
       self.log( msg )
       raise Exception( msg )
 
   def process_registered( self ):
-    keys = sorted( _registered_functions.keys() )
+    # Higher number equals higher priority
+    # this makes default registered generally go last
+    self.override_logname( f"{self.logname}::register" )
+    keys = sorted( _registered_functions.keys(), reverse=True )
     for key in keys:
       for f in _registered_functions[key]:
         f( self )
+    self.restore_logname()
 
   def check_hostenv( self, as_host, traversal_list ):
     for host_name, host in self.hosts.items():
@@ -86,7 +119,7 @@ class Orchestrator( logger.Logger ):
       self.log( "No valid host configuration found" )
       raise Exception( f"No valid host configuration found" )
 
-    self.log( f"Running as {as_host}" )
+    self.log( f"Running as {self._current_host}" )
     host = self.hosts[self._current_host]
 
     # Check action needs
@@ -114,27 +147,74 @@ class Orchestrator( logger.Logger ):
       raise Exception( f"Missing environments {missing_env}" )
 
   def run_actions( self, action_id_list, as_host=None ):
+    self.log( f"Running actions {action_id_list} and any necessary dependencies" )
     self.construct_dag()
 
     traversal_list = self._dag.traversal_list( action_id_list )
 
     self.check_hostenv( as_host, traversal_list )
 
-    # We have a valid host for all actions slated to run
-    host_file = f"{self.save_location}/{self._current_host}.pkl"
+    os.makedirs( self.save_location, exist_ok=True )
 
-    with open( host_file, "wb" ) as f:
-      pickle.dump( self.hosts[self._current_host], f )
+    # We have a valid host for all actions slated to run
+    self.hosts[self._current_host].save_location = self._save_location
+    self.hosts[self._current_host].save()
 
     while len( traversal_list ) > 0:
       next_nodes = self._dag.get_next_nodes( traversal_list )
       for node in next_nodes:
-        self.actions[node].config["host_file"] = host_file
+        self.actions[node].config["host_file"] = self.hosts[self._current_host].save_file
+        self.actions[node]._verbose = self.verbose
 
-        # TODO Fix up pathing
-        action_file = f"{self._save_location}/{node}.pkl"
-        with open( action_file, "wb" ) as f:
-          pickle.dump( self.actions[node], f )
+        self.actions[node].save_location = self._save_location
+        self.actions[node].save()
 
-        self.actions[node].launch( self._working_directory, action_file )
+        self.actions[node].launch( self._working_directory )
         self._dag.node_complete( node, traversal_list )
+
+  def load_py_files( self, files ):
+    for file in files:
+      self.log( f"Loading python file {file}")
+      if not isinstance( file, pathlib.Path ):
+        file = pathlib.Path( file )
+
+      module_name = file.stem
+      spec = importlib.util.spec_from_file_location( module_name, file.absolute() )
+      user_module = importlib.util.module_from_spec( spec )
+      sys.modules[module_name] = user_module
+      spec.loader.exec_module( user_module )
+      uspace.loaded_modules[module_name] = user_module
+
+  def load_config_files( self, files ):
+    for file in files:
+      self.log( f"Loading config file {file}")
+      if not isinstance( file, pathlib.Path ):
+        file = pathlib.Path( file )
+
+      with open( file, "r" ) as fp:
+        config = json.load( fp, cls=JSONCDecoder )
+        self.load_config( config )
+
+  def load_core_config( self, **kwargs ):
+    hosts = kwargs.pop( "hosts", {} )
+    for id, host_config in hosts.items():
+      host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
+      host_type = sane.host.Host
+      if host_typename == sane.host.Host.CONFIG_TYPE:
+        host_type = self.search_type( host_typename )
+
+      host = host_type( id )
+      host.load_config( host_config )
+
+      self.add_host( host )
+
+    actions = kwargs.pop( "actions", {} )
+    for id, action_config in actions.items():
+      action_typename = action_config.pop( "type", sane.action.Action.CONFIG_TYPE )
+      action_type = sane.action.Action
+      if action_typename != sane.action.Action.CONFIG_TYPE:
+        action_type = self.search_type( action_typename )
+      action = action_type( id )
+      action.load_config( action_config )
+
+      self.add_action( action )

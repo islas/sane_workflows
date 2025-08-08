@@ -1,6 +1,7 @@
 import io
+import logging
 
-LABEL_LENGTH = 12
+LABEL_LENGTH = 18
 
 
 class Logger:
@@ -8,16 +9,34 @@ class Logger:
     self._logname           = name
     self._level_indentation = "  "
     self._level             = 0
-    self._label             = "{0:<{1}}".format( "[{0}] ".format( self._logname ), LABEL_LENGTH + 3 )
+    self._label             = ""
+    self.restore_logname()
+    self._logger = logging.getLogger( __name__ )
+
     super().__init__( **kwargs )
 
-  def log( self, *args, **kwargs ) :
+  @property
+  def logname( self ):
+    return self._logname
+
+  def override_logname( self, name ):
+    self._set_label( name )
+
+  def restore_logname( self ):
+    self._set_label( self._logname )
+
+  def _set_label( self, name ):
+    self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )
+
+  def log( self, *args, level=logging.INFO, **kwargs ) :
     # https://stackoverflow.com/a/39823534
     output = io.StringIO()
     print( *args, file=output, end="", **kwargs )
     contents = output.getvalue()
     output.close()
-    print( self._label + self._level_indentation * self._level + contents, flush=True )
+    self._logger.log( level, self._label + self._level_indentation * self._level + contents )
+    # Might need to find a way to flush...
+    # self._console_handler.flush()
     return self._label + self._level_indentation * self._level + contents
 
   def log_push( self, levels=1 ) :

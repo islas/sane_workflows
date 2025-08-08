@@ -6,8 +6,8 @@ import io
 import subprocess
 from enum import Enum
 
-import sane.logger as logger
 import sane.save_state as state
+import sane.json_config as jconfig
 
 
 class DependencyType( str, Enum ):
@@ -22,6 +22,15 @@ class DependencyType( str, Enum ):
   def __repr__( self ):
     return str( self.value )
 
+  @classmethod
+  def __contains__(cls, item):
+    try:
+      cls(item)
+    except ValueError:
+      return False
+    return True
+
+
 
 class ActionState( Enum ):
   PENDING  = 0
@@ -32,7 +41,9 @@ class ActionState( Enum ):
                 # Instead this should be reserved for internal errors of the action
 
 
-class Action( logger.Logger, state.SaveState ):
+class Action( state.SaveState, jconfig.JSONConfig ):
+  CONFIG_TYPE = "Action"
+
   def __init__( self, id ):
     self._id = id
     self.config = {}
@@ -68,7 +79,7 @@ class Action( logger.Logger, state.SaveState ):
       elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType:
         self._dependencies[arg[0]] = DependencyType[arg[1]]
       else:
-        msg  = f"Error: Argument {arg_idx} is invalid for {Action.add_dependencies.__name__}()"
+        msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
         msg += f", must be of type str or tuple( str, DependencyType.value->str )"
         self.log( msg )
         raise Exception( msg )
@@ -224,3 +235,12 @@ class Action( logger.Logger, state.SaveState ):
 
   def __str__( self ):
     return f"Action({self.id})"
+
+  def load_core_config( self, **kwargs ):
+    environment = kwargs.pop( "environment", None )
+    if environment is not None : self.environment = environment
+
+    config = kwargs.pop( "config", None )
+    if config is not None : self.config = config
+
+    self.add_dependencies( *kwargs.pop( "dependencies", {} ).items() )
