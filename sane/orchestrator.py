@@ -195,6 +195,8 @@ class Orchestrator( jconfig.JSONConfig ):
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
         self.actions[node].set_state_pending()
 
+    self.save()
+
     while len( traversal_list ) > 0:
       next_nodes = self._dag.get_next_nodes( traversal_list )
       for node in next_nodes:
@@ -215,7 +217,9 @@ class Orchestrator( jconfig.JSONConfig ):
                       level=40 - int(skip_unrunnable) * 10
                       )
         else:
-          self.log( f"Action '{node}' already has {{state, status}} {{{self.actions[node].state.value}, {self.actions[node].status.value}}}")
+          msg  = "Action {0:<24} already has {{state, status}} ".format( f"'{node}'" )
+          msg += f"{{{self.actions[node].state.value}, {self.actions[node].status.value}}}"
+          self.log( msg )
 
         if self.actions[node].state == sane.action.ActionState.FINISHED or skip_unrunnable:
           self._dag.node_complete( node, traversal_list )
@@ -224,6 +228,8 @@ class Orchestrator( jconfig.JSONConfig ):
           msg = f"Action {node} did not return finished state"
           self.log( msg, level=50 )
           raise Exception( msg )
+
+        self.save()
 
   def load_py_files( self, files ):
     for file in files:
@@ -246,7 +252,9 @@ class Orchestrator( jconfig.JSONConfig ):
 
       with open( file, "r" ) as fp:
         config = json.load( fp, cls=JSONCDecoder )
+        self.log_push()
         self.load_config( config )
+        self.log_pop()
 
   def load_core_config( self, config ):
     hosts = config.pop( "hosts", {} )
@@ -257,7 +265,9 @@ class Orchestrator( jconfig.JSONConfig ):
         host_type = self.search_type( host_typename )
 
       host = host_type( id )
+      host.log_push()
       host.load_config( host_config )
+      host.log_pop()
 
       self.add_host( host )
 
@@ -268,7 +278,9 @@ class Orchestrator( jconfig.JSONConfig ):
       if action_typename != sane.action.Action.CONFIG_TYPE:
         action_type = self.search_type( action_typename )
       action = action_type( id )
+      action.log_push()
       action.load_config( action_config )
+      action.log_pop()
 
       self.add_action( action )
 

@@ -78,6 +78,12 @@ def get_parser():
                       default=None,
                       help="Verbose output from actions running"
                       )
+  parser.add_argument(
+                      "-n", "--new",
+                      action="store_true",
+                      default=None,
+                      help="Start a new workflow run and clear previous cache"
+                      )
   return parser
 
 def main():
@@ -141,7 +147,8 @@ def main():
     exit( 1 )
 
   # Load any previous statefulness
-  orchestrator.load()
+  if not options.new:
+    orchestrator.load()
 
   if options.run:
     orchestrator.run_actions( action_list, options.specific_host )
