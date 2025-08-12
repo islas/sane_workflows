@@ -75,6 +75,7 @@ def get_parser():
   parser.add_argument(
                       "-v", "--verbose",
                       action="store_true",
+                      default=None,
                       help="Verbose output from actions running"
                       )
   return parser
@@ -121,7 +122,9 @@ def main():
   if ".json" in files_sorted:
     orchestrator.load_config_files( files_sorted[".json"] )
 
-  orchestrator.verbose = options.verbose
+  if options.verbose is not None:
+    orchestrator.verbose = options.verbose
+
   orchestrator.save_location = options.save_location
 
   action_list = options.actions
@@ -137,6 +140,9 @@ def main():
     logger.log( "No actions selected" )
     exit( 1 )
 
+  # Load any previous statefulness
+  orchestrator.load()
+
   if options.run:
     orchestrator.run_actions( action_list, options.specific_host )
   if options.dry_run:
@@ -145,6 +151,8 @@ def main():
   elif options.list:
     logger.log( "Actions:" )
     sane.orchestrator.print_actions( action_list, print=logger.log )
+
+  orchestrator.save()
 
 
 if __name__ == "__main__":

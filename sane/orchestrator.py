@@ -82,17 +82,30 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self._current_host  = None
     self._save_location = "./"
+    self._filename      = "orchestrator.json"
     self._working_directory = "./"
 
     super().__init__( name="orchestrator" )
 
   @property
+  def working_directory( self ):
+    return os.path.abspath( self._working_directory )
+
+  @working_directory.setter
+  def working_directory( self, path ):
+    self._working_directory = path
+
+  @property
   def save_location( self ):
-    return self._save_location
+    return os.path.abspath( self._save_location )
 
   @save_location.setter
   def save_location( self, path ):
-    self._save_location = os.path.abspath( path )
+    self._save_location = path
+
+  @property
+  def save_file( self ):
+    return os.path.abspath( f"{self.save_location}/{self._filename}" )
 
   def add_action( self, action ):
     self.actions[action.id] = action
@@ -160,7 +173,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log_pop()
       raise Exception( f"Missing environments {missing_env}" )
 
-  def run_actions( self, action_id_list, as_host=None ):
+  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
     self.log( "Running actions:" )
     print_actions( action_id_list, print=self.log )
     self.log( "and any necessary dependencies" )
@@ -174,21 +187,43 @@ class Orchestrator( jconfig.JSONConfig ):
     os.makedirs( self.save_location, exist_ok=True )
 
     # We have a valid host for all actions slated to run
-    self.hosts[self._current_host].save_location = self._save_location
+    self.hosts[self._current_host].save_location = self.save_location
     self.hosts[self._current_host].save()
+
+    # Mark all actions to be run as pending if not already run
+    for node in traversal_list:
+      if self.actions[node].state == sane.action.ActionState.INACTIVE:
+        self.actions[node].set_state_pending()
 
     while len( traversal_list ) > 0:
       next_nodes = self._dag.get_next_nodes( traversal_list )
       for node in next_nodes:
-        self.actions[node].config["host_file"] = self.hosts[self._current_host].save_file
-        self.actions[node]._verbose = self.verbose
-        self.actions[node]._dry_run = self.dry_run
+        if self.actions[node].state == sane.action.ActionState.PENDING:
+          # Gather all dependency nodes
+          dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
+          # Check requirements met
+          if self.actions[node].requirements_met( dependencies ):
+            self.actions[node].config["host_file"] = self.hosts[self._current_host].save_file
+            self.actions[node].verbose = self.verbose
+            self.actions[node].dry_run = self.dry_run
+            self.actions[node].save_location = self.save_location
+            self.actions[node].save()
+            self.actions[node].launch( self._working_directory )
+          else:
+            self.log(
+                      f"Unable to run Action '{node}', requirements not met",
+                      level=40 - int(skip_unrunnable) * 10
+                      )
+        else:
+          self.log( f"Action '{node}' already has {{state, status}} {{{self.actions[node].state.value}, {self.actions[node].status.value}}}")
 
-        self.actions[node].save_location = self._save_location
-        self.actions[node].save()
-
-        self.actions[node].launch( self._working_directory )
-        self._dag.node_complete( node, traversal_list )
+        if self.actions[node].state == sane.action.ActionState.FINISHED or skip_unrunnable:
+          self._dag.node_complete( node, traversal_list )
+        else:
+          # If we get here, we DO want to error
+          msg = f"Action {node} did not return finished state"
+          self.log( msg, level=50 )
+          raise Exception( msg )
 
   def load_py_files( self, files ):
     for file in files:
@@ -236,3 +271,62 @@ class Orchestrator( jconfig.JSONConfig ):
       action.load_config( action_config )
 
       self.add_action( action )
+
+  def save( self ):
+    save_dict = {
+                  "actions" :
+                  {
+                    action.id :
+                    {
+                      "state"  : action.state.value,
+                      "status" : action.status.value
+                    } for id, action in self.actions.items()
+                  },
+                  "dry_run" : self.dry_run,
+                  "verbose" : self.verbose,
+                  "host" : self._current_host,
+                  "save_location" : self.save_location,
+                  "working_directory" : self.working_directory
+                }
+    with open( self.save_file, "w" ) as f:
+      json.dump( save_dict, f, indent=2 )
+
+  def load( self, clear_errors=True, clear_failures=True ):
+    if not os.path.isfile( self.save_file ):
+      self.log( "No previous save file to load" )
+      return
+    else:
+      self.log( f"Loading save file {self.save_file}" )
+
+    save_dict = {}
+    try:
+      with open( self.save_file, "r" ) as f:
+        save_dict = json.load( f, cls=JSONCDecoder )
+    except Exception as e:
+      self.log( f"Could not open {self.save_file}", level=50 )
+      raise e
+
+    self.dry_run = save_dict["dry_run"]
+    self.verbose = save_dict["verbose"]
+
+    self._current_host = save_dict["host"]
+
+    self.save_location = save_dict["save_location"]
+    self.working_directory = save_dict["working_directory"]
+
+    for action, action_dict in save_dict["actions"].items():
+      state  = sane.action.ActionState(action_dict["state"])
+      status = sane.action.ActionStatus(action_dict["status"])
+
+      # THIS IS THE ONLY TIME WE SHOULD EVERY DIRECTLY SET STATUS/STATE
+      self.actions[action]._state = state
+      self.actions[action]._status = status
+
+      if (
+          # We never finished so reset
+             ( state == sane.action.ActionState.RUNNING )
+          # We would like to re-attempt
+          or ( clear_errors and state == sane.action.ActionState.ERROR )
+          or ( clear_failures and status == sane.action.ActionStatus.FAILURE )
+          ):
+        self.actions[action].set_state_pending()

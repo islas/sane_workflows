@@ -32,13 +32,39 @@ class DependencyType( str, Enum ):
 
 
 class ActionState( Enum ):
-  PENDING  = 0
-  RUNNING  = 1
-  FINISHED = 2
-  INACTIVE = 3
-  ERROR    = 4  # This should not be used for errors in running the action (status),
-                # Instead this should be reserved for internal errors of the action
+  PENDING  = "pending"
+  RUNNING  = "running"
+  FINISHED = "finished"
+  INACTIVE = "inactive"
+  SKIPPED  = "skipped"
+  ERROR    = "error"    # This should not be used for errors in running the action (status),
+                        # Instead this should be reserved for internal errors of the action
 
+
+class ActionStatus( Enum ):
+  SUCCESS   = "success"
+  FAILURE   = "failure"
+  SUBMITTED = "submitted"
+  NONE      = "none"
+
+
+def _dependency_met( dep_type, state, status ):
+  if dep_type != DependencyType.AFTER:
+    if state == ActionState.FINISHED:
+      if dep_type == DependencyType.AFTERANY:
+        return True
+      else:
+        # Writing out the checks explicitly, submitted is an ambiguous state and
+        # so can count for both... maybe this should be reconsidered later
+        if dep_type == DependencyType.AFTEROK:
+          return status == ActionStatus.SUCCESS or status == ActionStatus.SUBMITTED
+        elif dep_type == DependencyType.AFTERNOTOK:
+          return status == ActionStatus.FAILURE or status == ActionStatus.SUBMITTED
+  elif dep_type == DependencyType.AFTER:
+    if state == ActionState.RUNNING or state == ActionState.FINISHED:
+      return True
+  # Everything else
+  return False
 
 class Action( state.SaveState, jconfig.JSONConfig ):
   CONFIG_TYPE = "Action"
@@ -48,11 +74,12 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self.config = {}
     self.environment = None
 
-    self._verbose = False
-    self._dry_run = False
+    self.verbose = False
+    self.dry_run = False
 
     self._logfile          = None
     self._state            = ActionState.INACTIVE
+    self._status           = ActionStatus.NONE
     self._dependencies     = {}
 
     super().__init__( name=id, filename=f"action_{id}", base=Action )
@@ -64,6 +91,14 @@ class Action( state.SaveState, jconfig.JSONConfig ):
   @property
   def state( self ):
     return self._state
+
+  def set_state_pending( self ):
+    self._state  = ActionState.PENDING
+    self._status = ActionStatus.NONE
+
+  @property
+  def status( self ):
+    return self._status
 
   @property
   def dependencies( self ):
@@ -83,6 +118,21 @@ class Action( state.SaveState, jconfig.JSONConfig ):
         self.log( msg )
         raise Exception( msg )
 
+  def requirements_met( self, dependency_actions ):
+    met = True
+    for dependency, dep_type in self._dependencies.items():
+      action = dependency_actions[dependency]
+      dep_met = _dependency_met( dep_type, action.state, action.status )
+      if not dep_met:
+        self.log( f"Unmet dependency {dependency}, required {dep_type} but Action is {{{action.state}, {action.status}}}" )
+      met = ( met and dep_met )
+
+    met = met and self.extra_requirements_met( dependency_actions )
+    return met
+
+  def extra_requirements_met( self, dependency_actions ):
+    return True
+
   def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False ):
     args = [cmd]
     inpath = shutil.which( cmd ) is not None
@@ -99,9 +149,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     retval  = -1
     content = None
 
-    # if self._verbose:
+    # if self.verbose:
     #   self.log(  "*" * 15 + "{:^15}".format( "START launch " + self.id ) + "*" * 15 )
-    # if self._verbose:
+    # if self.verbose:
     #   self.log(  "*" * 15 + "{:^15}".format( "STOP launch " + self.id ) + "*" * 15 )
 
     if not dry_run:
@@ -173,6 +223,11 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     return retval, content
 
   def launch( self, working_directory ):
+    # Set current state of this instance
+    self._state = ActionState.RUNNING
+    self._status = ActionStatus.NONE
+
+
     # Immediately save the current state of this action
     self.save()
 
@@ -184,7 +239,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       # if need to submit
       #   get submit cmd and args
       #   put Action.py cmd and config at the end
-      if self._logfile is None and not self._verbose:
+      if self._logfile is None and not self.verbose:
         self.log( "Action will not be printed to screen or saved to logfile" )
         self.log( "Consider modifying the action to use one of these two options" )
       retval, content = self.execute_subprocess(
@@ -192,8 +247,8 @@ class Action( state.SaveState, jconfig.JSONConfig ):
                                                 [ working_directory, self.save_file ],
                                                 logfile=self._logfile,
                                                 capture=True,
-                                                verbose=self._verbose,
-                                                dry_run=self._dry_run
+                                                verbose=self.verbose,
+                                                dry_run=self.dry_run
                                                 )
 
       # if need to submit
@@ -205,6 +260,14 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
       # and propagate
       raise e
+
+    self._state = ActionState.FINISHED
+    if retval != 0:
+      self._status = ActionStatus.FAILURE
+    else:
+      # If HPC type submission
+      # self._status = ActionStatus.SUBMITTED
+      self._status = ActionStatus.SUCCESS
 
     return retval, content
 
