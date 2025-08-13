@@ -135,7 +135,7 @@ class Orchestrator( jconfig.JSONConfig ):
         f( self )
     self.restore_logname()
 
-  def check_hostenv( self, as_host, traversal_list ):
+  def check_host( self, as_host, traversal_list ):
     for host_name, host in self.hosts.items():
       self.log( f"Checking host \"{host_name}\"" )
       if host.valid_host( as_host ):
@@ -148,6 +148,8 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.log( f"Running as {self._current_host}" )
     host = self.hosts[self._current_host]
+    self.log_push()
+    host.log_push()
 
     # Check action needs
     check_list = traversal_list.copy()
@@ -166,12 +168,30 @@ class Orchestrator( jconfig.JSONConfig ):
         self._dag.node_complete( node, check_list )
 
     if len( missing_env ) > 0:
-      self.log( f"Error: Missing environments in Host( \"{self._current_host}\" )" )
+      self.log( f"Missing environments in Host( \"{self._current_host}\" )", level=50 )
       self.log_push()
       for node, env_name in missing_env:
         self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )" )
       self.log_pop()
       raise Exception( f"Missing environments {missing_env}" )
+
+    runnable = True
+    missing_resources = []
+    for node in traversal_list:
+      can_run = host.resources_available( self.actions[node].resources, requestor=node )
+      runnable = runnable and can_run
+      if not can_run:
+        missing_resources.append( node )
+
+    if not runnable:
+      self.log( "Found Actions that would not be able to run due to resource limitations:" )
+      self.log_push()
+      print_actions( missing_resources, print=self.log )
+      self.log_pop()
+      raise Exception( f"Missing resources to run {missing_resources}" )
+
+    self.log_pop()
+    host.log_pop()
 
   def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
     self.log( "Running actions:" )
@@ -182,13 +202,14 @@ class Orchestrator( jconfig.JSONConfig ):
 
     traversal_list = self._dag.traversal_list( action_id_list )
 
-    self.check_hostenv( as_host, traversal_list )
+    self.check_host( as_host, traversal_list )
 
     os.makedirs( self.save_location, exist_ok=True )
 
     # We have a valid host for all actions slated to run
-    self.hosts[self._current_host].save_location = self.save_location
-    self.hosts[self._current_host].save()
+    host = self.hosts[self._current_host]
+    host.save_location = self.save_location
+    host.save()
 
     # Mark all actions to be run as pending if not already run
     for node in traversal_list:
@@ -196,21 +217,29 @@ class Orchestrator( jconfig.JSONConfig ):
         self.actions[node].set_state_pending()
 
     self.save()
-
-    while len( traversal_list ) > 0:
-      next_nodes = self._dag.get_next_nodes( traversal_list )
-      for node in next_nodes:
+    next_nodes = []
+    while len( traversal_list ) > 0 or len( next_nodes ) > 0:
+      next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
+      for node in next_nodes.copy():
         if self.actions[node].state == sane.action.ActionState.PENDING:
           # Gather all dependency nodes
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
           # Check requirements met
           if self.actions[node].requirements_met( dependencies ):
-            self.actions[node].config["host_file"] = self.hosts[self._current_host].save_file
-            self.actions[node].verbose = self.verbose
-            self.actions[node].dry_run = self.dry_run
-            self.actions[node].save_location = self.save_location
-            self.actions[node].save()
-            self.actions[node].launch( self._working_directory )
+            if host.acquire_resource( self.actions[node].resources, requestor=node ):
+              # host.acquire_resource( self.actions[node].resources )
+              self.actions[node].config["host_file"] = host.save_file
+              self.actions[node].verbose = self.verbose
+              self.actions[node].dry_run = self.dry_run
+              self.actions[node].save_location = self.save_location
+              self.actions[node].save()
+              self.actions[node].launch( self._working_directory )
+              # Regardless, return resources
+              host.release_resources( self.actions[node].resources, requestor=node )
+            else:
+              self.log( "Not enough resources in host right now, continuing and retrying later" )
+              continue
+
           else:
             self.log(
                       f"Unable to run Action '{node}', requirements not met",
@@ -223,6 +252,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
         if self.actions[node].state == sane.action.ActionState.FINISHED or skip_unrunnable:
           self._dag.node_complete( node, traversal_list )
+          next_nodes.remove( node )
         else:
           # If we get here, we DO want to error
           msg = f"Action {node} did not return finished state"
@@ -335,10 +365,10 @@ class Orchestrator( jconfig.JSONConfig ):
       self.actions[action]._status = status
 
       if (
-          # We never finished so reset
-             ( state == sane.action.ActionState.RUNNING )
-          # We would like to re-attempt
-          or ( clear_errors and state == sane.action.ActionState.ERROR )
-          or ( clear_failures and status == sane.action.ActionStatus.FAILURE )
+            # We never finished so reset
+              ( state == sane.action.ActionState.RUNNING )
+            # We would like to re-attempt
+            or ( clear_errors and state == sane.action.ActionState.ERROR )
+            or ( clear_failures and status == sane.action.ActionStatus.FAILURE )
           ):
         self.actions[action].set_state_pending()

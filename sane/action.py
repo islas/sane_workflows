@@ -66,6 +66,7 @@ def _dependency_met( dep_type, state, status ):
   # Everything else
   return False
 
+
 class Action( state.SaveState, jconfig.JSONConfig ):
   CONFIG_TYPE = "Action"
 
@@ -81,6 +82,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self._state            = ActionState.INACTIVE
     self._status           = ActionStatus.NONE
     self._dependencies     = {}
+    self._resources        = {}
 
     super().__init__( name=id, filename=f"action_{id}", base=Action )
 
@@ -99,6 +101,10 @@ class Action( state.SaveState, jconfig.JSONConfig ):
   @property
   def status( self ):
     return self._status
+
+  @property
+  def resources( self ):
+    return self._resources.copy()
 
   @property
   def dependencies( self ):
@@ -124,7 +130,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       action = dependency_actions[dependency]
       dep_met = _dependency_met( dep_type, action.state, action.status )
       if not dep_met:
-        self.log( f"Unmet dependency {dependency}, required {dep_type} but Action is {{{action.state}, {action.status}}}" )
+        msg  = f"Unmet dependency {dependency}, required {dep_type} "
+        msg += f"but Action is {{{action.state}, {action.status}}}"
+        self.log( msg )
       met = ( met and dep_met )
 
     met = met and self.extra_requirements_met( dependency_actions )
@@ -207,7 +215,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       output = "12345"
 
     # self.log( "\n" )
-    print( "\n", flush=True, end="" )
+    # print( "\n", flush=True, end="" )
 
     if not dry_run:
       if capture:
@@ -226,7 +234,6 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     # Set current state of this instance
     self._state = ActionState.RUNNING
     self._status = ActionStatus.NONE
-
 
     # Immediately save the current state of this action
     self.save()
@@ -306,3 +313,12 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       self.config = act_config
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
+
+    self.add_resource_requirements( config.pop( "resources", {} ) )
+
+  def add_resource_requirements( self, resource_dict ):
+    for resource, info in resource_dict.items():
+      if resource in self._resources:
+        self.log( f"Resource '{resource}' already set, ignoring new resource setting", level=30 )
+      else:
+        self._resources[resource] = str(info)
