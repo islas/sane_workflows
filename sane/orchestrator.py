@@ -82,6 +82,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self._current_host  = None
     self._save_location = "./"
+    self._log_location  = "./"
     self._filename      = "orchestrator.json"
     self._working_directory = "./"
 
@@ -102,6 +103,14 @@ class Orchestrator( jconfig.JSONConfig ):
   @save_location.setter
   def save_location( self, path ):
     self._save_location = path
+
+  @property
+  def log_location( self ):
+    return os.path.abspath( self._log_location )
+
+  @log_location.setter
+  def log_location( self, path ):
+    self._log_location = path
 
   @property
   def save_file( self ):
@@ -205,6 +214,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.check_host( as_host, traversal_list )
 
     os.makedirs( self.save_location, exist_ok=True )
+    os.makedirs( self.log_location, exist_ok=True )
 
     # We have a valid host for all actions slated to run
     host = self.hosts[self._current_host]
@@ -232,8 +242,10 @@ class Orchestrator( jconfig.JSONConfig ):
               self.actions[node].verbose = self.verbose
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
-              self.actions[node].save()
+              self.actions[node].log_location = self.log_location
+              host.pre_launch( self.actions[node] )
               self.actions[node].launch( self._working_directory )
+              host.post_launch( self.actions[node] )
               # Regardless, return resources
               host.release_resources( self.actions[node].resources, requestor=node )
             else:
@@ -260,6 +272,7 @@ class Orchestrator( jconfig.JSONConfig ):
           raise Exception( msg )
 
         self.save()
+    self.log( "Finished running queued actions" )
 
   def load_py_files( self, files ):
     for file in files:

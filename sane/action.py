@@ -8,7 +8,7 @@ from enum import Enum
 
 import sane.save_state as state
 import sane.json_config as jconfig
-
+import sane.action_launcher as action_launcher
 
 class DependencyType( str, Enum ):
   AFTEROK    = "afterok"     # after successful run (this is the default)
@@ -77,8 +77,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
     self.verbose = False
     self.dry_run = False
-
-    self._logfile          = None
+    self._launch_cmd       = action_launcher.__file__
+    self.log_location      = None
+    self._logfile          = f"{self.id}.log"
     self._state            = ActionState.INACTIVE
     self._status           = ActionStatus.NONE
     self._dependencies     = {}
@@ -101,6 +102,13 @@ class Action( state.SaveState, jconfig.JSONConfig ):
   @property
   def status( self ):
     return self._status
+
+  @property
+  def logfile( self ):
+    if self.log_location is None:
+      return None
+    else:
+      return os.path.abspath( f"{self.log_location}/{self._logfile}" )
 
   @property
   def resources( self ):
@@ -162,6 +170,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     # if self.verbose:
     #   self.log(  "*" * 15 + "{:^15}".format( "STOP launch " + self.id ) + "*" * 15 )
 
+    # Temporarily create a very crude logger
+    log_raw = self._logger.getChild( "raw" )
+
     if not dry_run:
       ############################################################################
       ##
@@ -187,7 +198,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       if logfile is not None:
         logfileOutput = open( logfile, "w+", buffering=1 )
 
-      for c in iter( lambda: proc.stdout.read(1), b"" ):
+      for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
         if logfileOutput is not None:
           logfileOutput.write( c.decode( 'utf-8', 'replace' ) )
@@ -198,7 +209,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
         # Also duplicate output to stdout if requested
         if verbose:
-          print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
+          # Use a raw logger to ensure this also gets captured by the logging handlers
+          log_raw.info( c.decode( 'utf-8', 'replace' ).rstrip( "\n" ) )
+          # print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
           # sys.stdout.buffer.write(c)
           # sys.stdout.flush()
 
@@ -231,6 +244,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     return retval, content
 
   def launch( self, working_directory ):
+    self.pre_launch()
     # Set current state of this instance
     self._state = ActionState.RUNNING
     self._status = ActionStatus.NONE
@@ -239,7 +253,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self.save()
 
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
-    cmd = "./action_launcher.py"
+    cmd = self._launch_cmd
 
     try:
       # Get extra submission stuff
@@ -252,7 +266,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 [ working_directory, self.save_file ],
-                                                logfile=self._logfile,
+                                                logfile=self.logfile,
                                                 capture=True,
                                                 verbose=self.verbose,
                                                 dry_run=self.dry_run
@@ -275,11 +289,16 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       # If HPC type submission
       # self._status = ActionStatus.SUBMITTED
       self._status = ActionStatus.SUCCESS
-
+    self.post_launch()
     return retval, content
 
   def setup( self ):
-    # Setup action-specific stuff
+    pass
+
+  def pre_launch( self ):
+    pass
+
+  def post_launch( self ):
     pass
 
   def run( self ):

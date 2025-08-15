@@ -167,3 +167,9 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
         self.log( f"Releasing resource '{resource}' : {info}" )
         self._resources[resource]["in_use"] -= amount
     self.log_pop()
+
+  def pre_launch( self, action ):
+    pass
+
+  def post_launch( self, action ):
+    pass

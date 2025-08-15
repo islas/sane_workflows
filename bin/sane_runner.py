@@ -4,6 +4,7 @@ import os
 import pathlib
 import sys
 import re
+import logging
 
 import sane
 
@@ -70,7 +71,13 @@ def get_parser():
                       "-sl", "--save_location",
                       type=str,
                       default="./tmp",
-                      help="Save location for intermediary pickling and JSON serialization of actions/hosts"
+                      help="Location for saving intermediary pickling and JSON serialization of actions/hosts"
+                      )
+  parser.add_argument(
+                      "-ll", "--log_location",
+                      type=str,
+                      default="./log",
+                      help="Location for logfiles of stdout/stderr of workflow and actions"
                       )
   parser.add_argument(
                       "-v", "--verbose",
@@ -90,6 +97,13 @@ def main():
   logger = sane.logger.Logger( "sane_runner" )
   parser  = get_parser()
   options = parser.parse_args()
+
+  logfile = os.path.abspath( f"{options.log_location}/runner.log" )
+  os.makedirs( os.path.dirname( logfile ), exist_ok=True )
+  file_handler = logging.FileHandler( logfile, mode="w" )
+  file_handler.setFormatter( sane.log_formatter )
+  sane.internal_logger.addHandler( file_handler )
+  logger.log( f"Logging output to {logfile}")
 
   if len( options.path ) == 0:
     options.path = [ "./" ]
@@ -132,6 +146,7 @@ def main():
     orchestrator.verbose = options.verbose
 
   orchestrator.save_location = options.save_location
+  orchestrator.log_location = options.log_location
 
   action_list = options.actions
   if len( action_list ) == 0:
@@ -160,6 +175,7 @@ def main():
     sane.orchestrator.print_actions( action_list, print=logger.log )
 
   orchestrator.save()
+  logger.log( "Finished" )
 
 
 if __name__ == "__main__":

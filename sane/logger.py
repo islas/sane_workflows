@@ -4,6 +4,17 @@ import logging
 LABEL_LENGTH = 18
 
 
+# https://stackoverflow.com/a/34626685
+class DispatchingFormatter:
+  def __init__(self, formatters, default_formatter):
+    self._formatters = formatters
+    self._default_formatter = default_formatter
+
+  def format(self, record):
+    formatter = self._formatters.get(record.name, self._default_formatter)
+    return formatter.format(record)
+
+
 class Logger:
   def __init__( self, name, **kwargs ):
     self._logname           = name

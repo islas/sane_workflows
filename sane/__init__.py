@@ -5,12 +5,18 @@ from .action import Action, DependencyType, ActionState
 from .environment import Environment
 from .host import Host
 from .orchestrator import Orchestrator, register
+from .logger import DispatchingFormatter
 
-
-log_formatter = logging.Formatter(
-                                  fmt='%(asctime)s %(levelname)-8s %(message)s',
-                                  datefmt='%Y-%m-%d %H:%M:%S'
-                                  )
+log_formatter = DispatchingFormatter(
+  {
+    f"{__name__}.logger" : logging.Formatter(
+                                              fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                              datefmt="%Y-%m-%d %H:%M:%S"
+                                              ),
+    f"{__name__}.raw"    : logging.Formatter()
+  },
+  logging.Formatter( "%(message)s" )
+  )
 console_handler = logging.StreamHandler( sys.stdout )
 console_handler.setFormatter( log_formatter )
 internal_logger = logging.getLogger( __name__ )
