@@ -232,15 +232,15 @@ class Orchestrator( jconfig.JSONConfig ):
           # Check requirements met
           if self.actions[node].requirements_met( dependencies ):
             if host.acquire_resource( self.actions[node].resources, requestor=node ):
-              # host.acquire_resource( self.actions[node].resources )
+              launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
               self.actions[node].config["host_file"] = host.save_file
               self.actions[node].verbose = self.verbose
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
               self.actions[node].log_location = self.log_location
               host.pre_launch( self.actions[node] )
-              self.actions[node].launch( self._working_directory )
-              host.post_launch( self.actions[node] )
+              retval, content = self.actions[node].launch( self._working_directory, launch_wrapper=launch_wrapper )
+              host.post_launch( self.actions[node], retval, content )
               # Regardless, return resources
               host.release_resources( self.actions[node].resources, requestor=node )
             else:

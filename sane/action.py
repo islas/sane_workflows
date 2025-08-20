@@ -76,6 +76,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self._id = id
     self.config = {}
     self.environment = None
+    self.local = None
 
     self.verbose = False
     self.dry_run = False
@@ -86,6 +87,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self._status           = ActionStatus.NONE
     self._dependencies     = {}
     self._resources        = {}
+    self.timelimit         = None
 
     super().__init__( name=id, filename=f"action_{id}", base=Action )
 
@@ -251,7 +253,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
     return retval, content
 
-  def launch( self, working_directory ):
+  def launch( self, working_directory, launch_wrapper=None ):
     self.pre_launch()
     # Set current state of this instance
     self._state = ActionState.RUNNING
@@ -262,18 +264,21 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
     cmd = self._launch_cmd
+    args = [ working_directory, self.save_file ]
+    if launch_wrapper is not None:
+      args.prepend( cmd )
+      cmd = launch_wrapper[0]
+      args[:0] = launch_wrapper[1]
 
+    retval = -1
+    content = ""
     try:
-      # Get extra submission stuff
-      # if need to submit
-      #   get submit cmd and args
-      #   put Action.py cmd and config at the end
       if self._logfile is None and not self.verbose:
         self.log( "Action will not be printed to screen or saved to logfile" )
         self.log( "Consider modifying the action to use one of these two options" )
       retval, content = self.execute_subprocess(
                                                 cmd,
-                                                [ working_directory, self.save_file ],
+                                                args,
                                                 logfile=self.logfile,
                                                 capture=True,
                                                 verbose=self.verbose,
@@ -297,7 +302,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       # If HPC type submission
       # self._status = ActionStatus.SUBMITTED
       self._status = ActionStatus.SUCCESS
-    self.post_launch()
+    self.post_launch( retval, content )
     return retval, content
 
   def setup( self ):
@@ -306,7 +311,7 @@ class Action( state.SaveState, jconfig.JSONConfig ):
   def pre_launch( self ):
     pass
 
-  def post_launch( self ):
+  def post_launch( self, retval, content ):
     pass
 
   def run( self ):
@@ -334,6 +339,14 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     environment = config.pop( "environment", None )
     if environment is not None:
       self.environment = environment
+
+    timelimit = config.pop( "timelimit", None )
+    if timelimit is not None:
+      self.timelimit = timelimit
+
+    local = config.pop( "local", None )
+    if local is not None:
+      self.local = local
 
     act_config = config.pop( "config", None )
     if act_config is not None:

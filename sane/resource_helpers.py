@@ -1,5 +1,5 @@
 import re
-
+from datetime import time
 
 # Format using PBS-stye
 # http://docs.adaptivecomputing.com/torque/4-1-3/Content/topics/2-jobs/requestingRes.htm
@@ -7,6 +7,11 @@ _res_size_regex_str = r"(?P<numeric>\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>b|
 _res_size_regex     = re.compile( _res_size_regex_str, re.I )
 _multipliers    = { "" : 1, "k" : 1024, "m" : 1024**2, "g" : 1024**3, "t" : 1024**4 }
 
+
+
+_timelimit_regex_str    = r"^(?P<hh>\d+):(?P<mm>\d+):(?P<ss>\d+)$"
+_timelimit_regex        = re.compile( _timelimit_regex_str )
+_timelimit_format_str   = "{:02}:{:02}:{:02}"
 
 def res_size_dict( resource ) :
   match = _res_size_regex.match( resource )
@@ -62,3 +67,25 @@ def res_size_reduce( res_dict ) :
                     "unit"    : res_dict["unit"]
                   }
   return reduced_dict
+
+
+def timelimit_to_timedelta( timelimit ) :
+  time_match = _timelimit_regex.match( timelimit )
+  if time_match is not None :
+    groups = time_match.groupdict()
+    return timedelta(
+                      hours  =int( groups["hh"] ),
+                      minutes=int( groups["mm"] ),
+                      seconds=int( groups["ss"] )
+                    )
+  else :
+    return None
+
+
+def timedelta_to_timelimit( timedelta ) :
+  totalSeconds = timelimit.total_seconds()
+  return '{:02}:{:02}:{:02}'.format(
+                                    int(totalSeconds//3600),
+                                    int(totalSeconds%3600//60),
+                                    int(totalSeconds%60)
+                                    )

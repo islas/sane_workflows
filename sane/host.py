@@ -1,4 +1,6 @@
 import socket
+from abc import ABCMeta, abstractmethod
+import re
 
 import sane.config as config
 import sane.environment
@@ -7,6 +9,7 @@ import sane.logger as logger
 import sane.resource_helpers as reshelpers
 import sane.save_state as state
 import sane.utdict as utdict
+import sane.action
 
 
 class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
@@ -18,6 +21,9 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
     self.environments  = utdict.UniqueTypedDict( sane.environment.Environment )
     self.lmod_path     = None
     self._resources    = {}
+    # self._kw_resources = { "cpus" : 0, "gpus" : 0, "mem" : 0 }
+    # for kw_res in self._kw_resources:
+    #   self.add_resources( self._kw_resources )
 
     self._default_env  = None
 
@@ -171,5 +177,222 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
   def pre_launch( self, action ):
     pass
 
-  def post_launch( self, action ):
+  def post_launch( self, action, retval, content ):
     pass
+
+  def launch_wrapper( self, action, dependencies ):
+    pass
+
+
+class HPCHost( Host ):
+  def __init__( self, name, aliases=[] ):
+    super().__init__( name=name, aliases=aliases )
+    # Maybe find a better way to do this
+    self._base = HPCHost
+
+    self.default_local = False
+
+    self._job_ids = {}
+
+    # These must be filled out by derived classes
+    self._status_cmd = None
+    self._submit_cmd = None
+    self._resources_delim = None
+    self._amount_delim = None
+    self._submit_format = {}
+
+  def _format_resources( resources ):
+    resources = []
+    for option, resource_dict in resources:
+      output = self._resources_delim.join(
+                                            [
+                                              resource + ( "" if amount == "" else f"{self._amount_delim}{amount}" )
+                                              for resource, amount in resource_dict.items()
+                                            ]
+                                          )
+      resources.extend( [ option, output ] )
+    return " ".join( resources )
+
+  def _format_dependencies( self, dependencies ):
+    return ",".join(
+                      [
+                        dep_type.value + ":" + ":".join( [ str( job_id ) for job_id in dep_jobs ] )
+                        for dep_type, dep_jobs in dependencies.items() if len( dep_jobs ) > 0
+                      ]
+                    )
+
+  def _format_submission( self, submit_values ):
+    submission = []
+    for key, value in submit_values.items():
+      if key in self._submit_format:
+        submission.extend( self._submit_format[key].format( value ).split( " " ) )
+    return submission
+
+  def _launch_local( self, action ):
+    return action.local or ( action.local is None and self.default_local )
+
+
+  def post_launch( self, action, retval, content ):
+    if not self._launch_local( action ):
+      if retval != 0:
+        msg = f"Submission of Action {action.id} failed. Will not have job id"
+        self.log( msg, level=40 )
+        raise Exception( msg )
+      self._job_ids[action.id] = self.extract_job_id( content )
+
+  def job_complete( self, job_id ):
+    proc = subprocess.Popen(
+                            [ self._status_cmd, str( job_id ) ],
+                            stdin =subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE
+                            )
+    output, err = proc.communicate()
+    retval    = proc.returncode
+    ouptut    = output.decode( "utf-8" )
+    return self.check_job_status( retval, output )
+
+  def launch_wrapper( self, action, dependencies ):
+    """A launch wrapper must be defined for HPC submissions"""
+    if self._launch_local( action ):
+      return None
+
+    specific_resources = self.convert_to_host_resources( action.resources )
+    dep_jobs = {}
+    for id, dep_action in dependencies.items():
+      if not self._launch_local( dep_action ):
+        if action.dependencies[id] not in dep_jobs:
+          dep_jobs[action.dependencies[id]] = []
+        # Construct dependency type -> job id
+        dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+
+    submit_values = self.get_submit_values(
+                                            action,
+                                            self._format_resources( specific_resources ),
+                                            self._format_dependencies( dep_jobs )
+                                            )
+    return self._format_submission( submit_values )
+
+  @abstractmethod
+  def check_job_status( self, retval, status ):
+    """Tell us how to evaluate the job status command output
+
+    The return value should be a bool noting whether a job has completed, 
+    regardless of pass or fail.
+    """
+    pass
+
+  @abstractmethod
+  def extract_job_id( self, content ):
+    """Tell us how to extract the job id from the return stdout of submission
+
+    The return value should be the job id used in dependency and status checks
+    """
+    pass
+
+  @abstractmethod
+  def convert_to_host_resources( self, resource_dict ):
+    """Tell us how to interpret action resource request for this host
+
+    The return value should be a list of tuples with flag/option and dict
+    of resource and any amount as a str: [ ( flag : { res0 : "amount", res1 : "" } ), (...) ]
+
+    This should be able to be passed directly into format_resources()
+    """
+    pass
+
+  @abstractmethod
+  def get_submit_values( self, action, resource_str, dependency_str ):
+    """Tell us the values to use when populating the submit_format template
+
+    The return value should be a dict with keys being a subset of the internal
+    submit_format template of this host. Not all keys must be present in the return
+    value, however all keys in the return value dict should be `in` the internal
+    submit_format template.
+    """
+    pass
+
+
+class PBSHost( HPCHost ):
+  CONFIG_TYPE = "PBSHost"
+
+  def __init__( self, name, aliases=[] ):
+    super().__init__( name=name, aliases=aliases )
+    # Maybe find a better way to do this
+    self._base = PBSHost
+
+    # Job ID finder
+    self._job_id_regex  = re.compile( r"(\d{5,})" )
+
+    self._status_cmd = "qstat"
+    self._submit_cmd = "qsub"
+    self._resources_delim = ":"
+    self._amount_delim = "="
+    self._submit_format = {
+                            "resources"  : "{0}",
+                            "name"       : "-N {0}",
+                            "dependency" : "-W depend={0}",
+                            "queue"      : "-q {0}",
+                            "account"    : "-A {0}",
+                            "output"     : "-j oe -o {0}",
+                            "time"       : "-l walltime={0}",
+                            "wait"       : "-W block=true"
+                            }
+
+    # Defaults
+    self.queue   = None
+    self.account = None
+
+  def load_core_config( self, config ):
+    queue = config.pop( "queue", None )
+    if queue is not None:
+      self.queue = queue
+
+    account = config.pop( "account", None )
+    if account is not None:
+      self.account = account
+
+  def check_job_status( self, retval, status ):
+    return ( retVal > 0 or output == "" )
+
+  def extract_job_id( self, content ):
+    found = self._job_id_regex.match( content )
+    if found is None:
+      self.log( "No job id found in output from job submission", level=40 )
+      return -1
+    else:
+      return int( found.group( 1 ) )
+
+  # You must still provide this host
+  # @abstractmethod
+  # def convert_to_host_resources( self, resource_dict ):
+
+  @abstractmethod
+  def get_submit_values( self, action, resource_str, dependency_str ):
+    queue = self._queue
+    account = self._account
+    if f"{self.name}:queue" in action.config:
+      queue = action.config[f"{self.name}:queue"]
+
+    if f"{self.name}:account" in action.config:
+      account = action.config[f"{self.name}:account"]
+
+    if queue is None or account is None:
+      missing = "queue" if queue is None else "account"
+      msg = f"No {missing} provided for Host {host.name} or Action {action.id} in HPC submission"
+      self.log( msg, level=40 )
+      raise Exception( msg )
+
+    submit_values = {
+                      "name"       : f"sane.{action.id}-{self._job_ids[action.id]}",
+                      "queue"      : queue,
+                      "account"    : account,
+                      "output"     : action.logfile,
+                    }
+
+    if action.timelimit is not None:
+      submit_values["time"] = action.timelimit
+    if resource_str:
+      submit_values["resources"] = resource_str
+    if dependency_str:
+      submit_values["dependency"] = dependency_str

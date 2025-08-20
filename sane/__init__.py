@@ -3,7 +3,7 @@ import sys
 
 from .action import Action, DependencyType, ActionState
 from .environment import Environment
-from .host import Host
+from .host import Host, HPCHost, PBSHost
 from .orchestrator import Orchestrator, register
 from .logger import DispatchingFormatter
 
