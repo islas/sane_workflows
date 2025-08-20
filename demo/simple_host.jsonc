@@ -1,0 +1,7 @@
+{
+  "hosts" :
+  {
+    // No env
+    "unique_host_config" : {}
+  }
+}
