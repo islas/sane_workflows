@@ -3,9 +3,15 @@ import sys
 import os
 import pickle
 
-import sane
 
 if __name__ == "__main__":
+  filepath = os.path.dirname( os.path.abspath( __file__ ) )
+  package_path = os.path.abspath( os.path.join( filepath, ".." ) )
+  if package_path not in sys.path:
+      sys.path.append( package_path )
+
+  import sane
+
   working_directory = sys.argv[1]
   action_file       = sys.argv[2]
 

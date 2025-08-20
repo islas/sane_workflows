@@ -6,8 +6,6 @@ import sys
 import re
 import logging
 
-import sane
-
 
 def get_parser():
   parser = argparse.ArgumentParser(
@@ -94,6 +92,13 @@ def get_parser():
   return parser
 
 def main():
+  filepath = os.path.dirname( os.path.abspath( __file__ ) )
+  package_path = os.path.abspath( os.path.join( filepath, ".." ) )
+  if package_path not in sys.path:
+      sys.path.append( package_path )
+
+  import sane
+
   logger = sane.logger.Logger( "sane_runner" )
   parser  = get_parser()
   options = parser.parse_args()
