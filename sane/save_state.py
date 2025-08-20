@@ -43,7 +43,7 @@ class SaveState:
 
     # Make sure anything derived will save using this class
     # copyreg.pickle( type( self ), SaveState.__reduce__ )
-    self._source_dict   = self._get_class_definitions()
+    # self._source_dict   = self._get_class_definitions()
 
   @property
   def file_basename( self ):
@@ -69,7 +69,8 @@ class SaveState:
     with open( self.pickle_file, "wb" ) as f:
       pickle.dump( self, f )
 
-    state = { "pickle_file" : self.pickle_file, "source" : self._source_dict }
+    source_dict = self._get_class_definitions()
+    state = { "pickle_file" : self.pickle_file, "source" : source_dict }
     with open( self.save_file, "w" ) as f:
       json.dump( state, f, indent=2 )
 

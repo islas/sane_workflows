@@ -4,13 +4,23 @@ import shutil
 import sys
 import io
 import subprocess
-from enum import Enum
+from enum import Enum, EnumMeta
 
 import sane.save_state as state
 import sane.json_config as jconfig
 import sane.action_launcher as action_launcher
 
-class DependencyType( str, Enum ):
+
+class ValueMeta( EnumMeta ):
+  def __contains__( cls, item ):
+    try:
+      cls( item )
+    except ValueError:
+      return False
+    return True
+
+
+class DependencyType( str, Enum, metaclass=ValueMeta ):
   AFTEROK    = "afterok"     # after successful run (this is the default)
   AFTERNOTOK = "afternotok"  # after failure
   AFTERANY   = "afterany"    # after either failure or success
@@ -21,14 +31,6 @@ class DependencyType( str, Enum ):
 
   def __repr__( self ):
     return str( self.value )
-
-  @classmethod
-  def __contains__(cls, item):
-    try:
-      cls(item)
-    except ValueError:
-      return False
-    return True
 
 
 class ActionState( Enum ):
@@ -124,8 +126,12 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       arg_idx += 1
       if isinstance( arg, str ):
         self._dependencies[arg] = DependencyType.AFTEROK
-      elif isinstance( arg, tuple ) and len(arg) == 2 and isinstance( arg[0], str ) and arg[1] in DependencyType:
-        self._dependencies[arg[0]] = DependencyType[arg[1]]
+      elif (
+                isinstance( arg, tuple )
+            and len(arg) == 2 
+            and isinstance( arg[0], str )
+            and arg[1] in DependencyType ):
+        self._dependencies[arg[0]] = DependencyType( arg[1] )
       else:
         msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
         msg += f", must be of type str or tuple( str, DependencyType.value->str )"
@@ -157,6 +163,8 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
     if arguments is not None:
       args.extend( arguments )
+
+    args = [ str( arg ) for arg in args ]
 
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
     self.log( "Running command:" )

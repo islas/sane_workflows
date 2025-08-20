@@ -77,7 +77,7 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
     for id, env_config in env_configs.items():
       env_typename = env_config.pop( "type", sane.environment.Environment.CONFIG_TYPE )
       env_type = sane.environment.Environment
-      if env_typename == sane.environment.Environment.CONFIG_TYPE:
+      if env_typename != sane.environment.Environment.CONFIG_TYPE:
         env_type = self.search_type( env_typename )
 
       env = env_type( id )
@@ -87,7 +87,7 @@ class Host( config.Config, state.SaveState, jconfig.JSONConfig ):
 
   def add_resources( self, resource_dict ):
     for resource, info in resource_dict.items():
-      if resource in self._resources:
+      if resource in self._resources and self._resources[resource]["numeric"] > 0:
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
         self._resources[resource] = reshelpers.res_size_expand( reshelpers.res_size_dict( str(info) ) )

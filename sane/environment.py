@@ -22,13 +22,15 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
   def find_lmod( self, required=True ):
     if self._lmod is None and self.lmod_path is not None:
-      if self.lmod_path not in sys.path:
-        sys.path.append( self.lmod_path )
-
       # Find if module available
       spec = importlib.util.find_spec( Environment.LMOD_MODULE )
+      if spec is None:
+        # Try to load it manually
+        spec = importlib.util.spec_from_file_location( Environment.LMOD_MODULE, self.lmod_path )
+
       if spec is not None:
         self._lmod = importlib.util.module_from_spec( spec )
+        sys.modules[Environment.LMOD_MODULE] = self._lmod
         spec.loader.exec_module( self._lmod )
 
     if required and self._lmod is None:
@@ -48,7 +50,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
     os.environ[var] = "{1}:{0}".format( val, os.environ[var] )
 
   def env_var_set( self, var, val ):
-    os.environ[var] = val
+    os.environ[var] = str( val )
 
   def env_var_unset( self, var ):
     os.environ.pop( var, None )

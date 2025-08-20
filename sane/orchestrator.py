@@ -163,18 +163,13 @@ class Orchestrator( jconfig.JSONConfig ):
     # Check action needs
     check_list = traversal_list.copy()
     missing_env = []
-    while len( check_list ) > 0:
-      next_nodes = self._dag.get_next_nodes( check_list )
-      for node in next_nodes:
-        env = host.has_environment( self.actions[node].environment )
-
-        if env is None:
-          env_name = self.actions[node].environment
-          if self.actions[node].environment is None:
-            env_name = "default"
-          missing_env.append( ( node, env_name ) )
-
-        self._dag.node_complete( node, check_list )
+    for node in traversal_list:
+      env = host.has_environment( self.actions[node].environment )
+      if env is None:
+        env_name = self.actions[node].environment
+        if self.actions[node].environment is None:
+          env_name = "default"
+        missing_env.append( ( node, env_name ) )
 
     if len( missing_env ) > 0:
       self.log( f"Missing environments in Host( \"{self._current_host}\" )", level=50 )
@@ -304,7 +299,7 @@ class Orchestrator( jconfig.JSONConfig ):
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
       host_type = sane.host.Host
-      if host_typename == sane.host.Host.CONFIG_TYPE:
+      if host_typename != sane.host.Host.CONFIG_TYPE:
         host_type = self.search_type( host_typename )
 
       host = host_type( id )
