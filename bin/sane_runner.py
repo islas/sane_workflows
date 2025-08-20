@@ -24,7 +24,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, if not specified default is [*.json, *.py], Use multiple times for many patterns"
+                      help="Search pattern used to find workflows, if not specified default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
                       )
   act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
   act_list = act_group.add_mutually_exclusive_group()
@@ -114,7 +114,7 @@ def main():
     options.path = [ "./" ]
 
   if len( options.search_pattern ) == 0:
-    options.search_pattern = [ "*.json", "*.py" ]
+    options.search_pattern = [ "*.json", "*.jsonc", "*.py" ]
 
   logger.log( "Searching for workflow files..." )
   files = []
@@ -146,6 +146,9 @@ def main():
   # Then finally do config files
   if ".json" in files_sorted:
     orchestrator.load_config_files( files_sorted[".json"] )
+
+  if ".jsonc" in files_sorted:
+    orchestrator.load_config_files( files_sorted[".jsonc"] )
 
   if options.verbose is not None:
     orchestrator.verbose = options.verbose
