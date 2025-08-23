@@ -12,7 +12,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
   CONFIG_TYPE = "Environment"
 
   def __init__( self, name, aliases=[], lmod_path=None ):
-    super().__init__( name, aliases )
+    super().__init__( name=name, logname=name, aliases=aliases )
 
     self.lmod_path  = lmod_path
     self._lmod     = None

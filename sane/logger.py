@@ -16,8 +16,8 @@ class DispatchingFormatter:
 
 
 class Logger:
-  def __init__( self, name, **kwargs ):
-    self._logname           = name
+  def __init__( self, logname, **kwargs ):
+    self._logname           = logname
     self._level_indentation = "  "
     self._level             = 0
     self._label             = ""

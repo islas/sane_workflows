@@ -86,7 +86,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self._filename      = "orchestrator.json"
     self._working_directory = "./"
 
-    super().__init__( name="orchestrator" )
+    super().__init__( logname="orchestrator" )
 
   @property
   def working_directory( self ):
@@ -182,7 +182,7 @@ class Orchestrator( jconfig.JSONConfig ):
     runnable = True
     missing_resources = []
     for node in traversal_list:
-      can_run = host.resources_available( self.actions[node].resources, requestor=node )
+      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=node )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
@@ -231,9 +231,10 @@ class Orchestrator( jconfig.JSONConfig ):
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
           # Check requirements met
           if self.actions[node].requirements_met( dependencies ):
-            if host.acquire_resource( self.actions[node].resources, requestor=node ):
+            if host.acquire_resource( self.actions[node].resources( host.name ), requestor=node ):
               launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
               self.actions[node].config["host_file"] = host.save_file
+              self.actions[node].config["host_name"] = host.name
               self.actions[node].verbose = self.verbose
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
@@ -242,7 +243,7 @@ class Orchestrator( jconfig.JSONConfig ):
               retval, content = self.actions[node].launch( self._working_directory, launch_wrapper=launch_wrapper )
               host.post_launch( self.actions[node], retval, content )
               # Regardless, return resources
-              host.release_resources( self.actions[node].resources, requestor=node )
+              host.release_resources( self.actions[node].resources( host.name ), requestor=node )
             else:
               self.log( "Not enough resources in host right now, continuing and retrying later" )
               continue

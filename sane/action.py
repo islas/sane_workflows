@@ -4,11 +4,13 @@ import shutil
 import sys
 import io
 import subprocess
+import collections.abc
 from enum import Enum, EnumMeta
 
 import sane.save_state as state
 import sane.json_config as jconfig
 import sane.action_launcher as action_launcher
+import sane.resources as res
 
 
 class ValueMeta( EnumMeta ):
@@ -69,7 +71,7 @@ def _dependency_met( dep_type, state, status ):
   return False
 
 
-class Action( state.SaveState, jconfig.JSONConfig ):
+class Action( state.SaveState, res.ResourceRequestor ):
   CONFIG_TYPE = "Action"
 
   def __init__( self, id ):
@@ -87,9 +89,9 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     self._status           = ActionStatus.NONE
     self._dependencies     = {}
     self._resources        = {}
-    self.timelimit         = None
+    self._host_resources   = {}
 
-    super().__init__( name=id, filename=f"action_{id}", base=Action )
+    super().__init__( filename=f"action_{id}", logname=id, base=Action )
 
   @property
   def id( self ):
@@ -113,10 +115,6 @@ class Action( state.SaveState, jconfig.JSONConfig ):
       return None
     else:
       return os.path.abspath( f"{self.log_location}/{self._logfile}" )
-
-  @property
-  def resources( self ):
-    return self._resources.copy()
 
   @property
   def dependencies( self ):
@@ -340,10 +338,6 @@ class Action( state.SaveState, jconfig.JSONConfig ):
     if environment is not None:
       self.environment = environment
 
-    timelimit = config.pop( "timelimit", None )
-    if timelimit is not None:
-      self.timelimit = timelimit
-
     local = config.pop( "local", None )
     if local is not None:
       self.local = local
@@ -354,11 +348,5 @@ class Action( state.SaveState, jconfig.JSONConfig ):
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
 
-    self.add_resource_requirements( config.pop( "resources", {} ) )
+    super().load_core_config( config )
 
-  def add_resource_requirements( self, resource_dict ):
-    for resource, info in resource_dict.items():
-      if resource in self._resources:
-        self.log( f"Resource '{resource}' already set, ignoring new resource setting", level=30 )
-      else:
-        self._resources[resource] = str(info)

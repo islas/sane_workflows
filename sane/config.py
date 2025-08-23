@@ -5,8 +5,7 @@ class Config( metaclass=ABCMeta ):
   def __init__( self, name, aliases=[], **kwargs ):
     self._name    = name
     self._aliases = list(set(aliases))
-    # Put name back into kwargs
-    super().__init__( name=name, **kwargs )
+    super().__init__( **kwargs )
 
   @property
   def name( self ):

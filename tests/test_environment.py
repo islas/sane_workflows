@@ -49,25 +49,25 @@ class EnvironmentTests( unittest.TestCase ):
     self.assertEqual( self.environment._setup_lmod_cmds, {} )
 
     env = dict( os.environ.copy() )
-    self.environment.load_config(
-                                  {
-                                    "aliases" : [ "foo", "bar" ],
-                                    "lmod_path" : f"{self.root}/tests/mock_lmod.py",
-                                    "env_vars" :
-                                    [
-                                      { "cmd" : "set", "var" : "foo", "val" : 1 },
-                                      { "cmd" : "append", "var" : "foo", "val" : 3 }
-                                    ],
-                                    "lmod_cmds" :
-                                    [
-                                      { "cmd" : "load", "args" : [ "gcc", "netcdf" ] }
-                                    ]
-                                  }
-                                )
+    config = {
+                "aliases" : [ "foo", "bar" ],
+                "lmod_path" : f"{self.root}/tests/mock_lmod.py",
+                "env_vars" :
+                [
+                  { "cmd" : "set", "var" : "foo", "val" : 1 },
+                  { "cmd" : "append", "var" : "foo", "val" : 3 }
+                ],
+                "lmod_cmds" :
+                [
+                  { "cmd" : "load", "args" : [ "gcc", "netcdf" ] }
+                ]
+              }
+    self.environment.load_config( config )
     post_env = dict( os.environ.copy() )
     self.assertEqual( env, post_env )
     self.assertNotEqual( self.environment._setup_env_vars, {} )
     self.assertNotEqual( self.environment._setup_lmod_cmds, {} )
+    self.assertEqual( config, {} )
     self.environment.setup()
     self.assertIn( "foo", self.environment.aliases )
     self.assertIn( "bar", self.environment.aliases )

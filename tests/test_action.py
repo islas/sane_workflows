@@ -121,3 +121,38 @@ class ActionTests( unittest.TestCase ):
     self.assertIn( test_str, content )
 
     self.remove_save_files( host )
+
+  def test_action_from_config( self ):
+    """Test setting up an action from a config dict"""
+    config = {
+                "environment" : "foobar",
+                "local"       : True,
+                "config"      : { "one" : 1, "two" : [2], "three" : { "foo" : 3 } },
+                "dependencies" :
+                {
+                  "dep_action0" : "afterok",
+                  "dep_action1" : sane.action.DependencyType.AFTERNOTOK,
+                  "dep_action2" : "afterany",
+                  "dep_action3" : sane.action.DependencyType.AFTER,
+                },
+                "resources" :
+                {
+                  "cpus" : 1,
+                  "gpus" : 999,
+                  "memory" : "1234gb",
+                  "gpus:a100" : 9999,
+                  "timelimit"   : "12:34:56",
+                  "host" : { "cpus" : 20, "account" : "foo", "queue" : "bar", "select" : "select=2:mpiprocs4:ncpus:128+3:ncpus=4" }
+                }
+              }
+    self.action.load_config( config )
+    self.assertEqual( config, {} )
+    self.assertIn( "dep_action0", self.action.dependencies )
+    self.assertIn( "dep_action1", self.action.dependencies )
+    self.assertIn( "dep_action2", self.action.dependencies )
+    self.assertIn( "dep_action3", self.action.dependencies )
+    self.assertEqual( self.action.dependencies["dep_action0"], sane.action.DependencyType.AFTEROK )
+    self.assertEqual( self.action.dependencies["dep_action1"], sane.action.DependencyType.AFTERNOTOK )
+    self.assertEqual( self.action.dependencies["dep_action2"], sane.action.DependencyType.AFTERANY )
+    self.assertEqual( self.action.dependencies["dep_action3"], sane.action.DependencyType.AFTER )
+    self.assertEqual( self.action.environment, "foobar" )
