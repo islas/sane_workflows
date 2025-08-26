@@ -1,0 +1,433 @@
+from abc import abstractmethod
+import re
+import math
+
+import sane.action
+import sane.resources
+import sane.host
+
+
+class HPCHost( sane.Host ):
+  def __init__( self, name, aliases=[] ):
+    super().__init__( name=name, aliases=aliases )
+    # Maybe find a better way to do this
+    self._base = HPCHost
+
+    # Defaults
+    self.queue   = None
+    self.account = None
+    self.default_local = False
+
+    self._job_ids = {}
+
+    # These must be filled out by derived classes
+    self._status_cmd = None
+    self._submit_cmd = None
+    self._resources_delim = None
+    self._amount_delim = None
+    self._submit_format =  {
+                            "arguments"  : "",
+                            "name"       : "",
+                            "dependency" : "",
+                            "queue"      : "",
+                            "account"    : "",
+                            "output"     : "",
+                            "time"       : "",
+                            "wait"       : ""
+                            }
+
+  def load_core_config( self, config ):
+    queue = config.pop( "queue", None )
+    if queue is not None:
+      self.queue = queue
+
+    account = config.pop( "account", None )
+    if account is not None:
+      self.account = account
+
+    super().load_core_config( config )
+
+  def _format_arguments( self, arguments ):
+    resources = []
+    for option, resource_list in arguments:
+      output = self._resources_delim.join(
+                                            [
+                                              resource + ( "" if amount == "" else f"{self._amount_delim}{amount}" )
+                                              for resource, amount in resource_list
+                                            ]
+                                          )
+      resources.extend( [ option, output ] )
+    return " ".join( resources )
+
+  def _format_dependencies( self, dependencies ):
+    return ",".join(
+                      [
+                        dep_type.value + ":" + ":".join( [ str( job_id ) for job_id in dep_jobs ] )
+                        for dep_type, dep_jobs in dependencies.items() if len( dep_jobs ) > 0
+                      ]
+                    )
+
+  def _format_submission( self, submit_values ):
+    submission = []
+    for key, value in submit_values.items():
+      if key in self._submit_format and value is not None:
+        submission.extend( self._submit_format[key].format( value ).split( " " ) )
+    return submission
+
+  def _launch_local( self, action ):
+    return action.local or ( action.local is None and self.default_local )
+
+  def post_launch( self, action, retval, content ):
+    if not self._launch_local( action ):
+      if retval != 0:
+        msg = f"Submission of Action {action.id} failed. Will not have job id"
+        self.log( msg, level=40 )
+        raise Exception( msg )
+      self._job_ids[action.id] = self.extract_job_id( content )
+    super().post_launch( action, retval, content )
+
+  def job_complete( self, job_id ):
+    proc = subprocess.Popen(
+                            [ self._status_cmd, str( job_id ) ],
+                            stdin =subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE
+                            )
+    output, err = proc.communicate()
+    retval    = proc.returncode
+    ouptut    = output.decode( "utf-8" )
+    return self.check_job_status( retval, output )
+
+  def launch_wrapper( self, action, dependencies ):
+    """A launch wrapper must be defined for HPC submissions"""
+    if self._launch_local( action ):
+      return None
+
+    dep_jobs = {}
+    for id, dep_action in dependencies.items():
+      if not self._launch_local( dep_action ):
+        if action.dependencies[id] not in dep_jobs:
+          dep_jobs[action.dependencies[id]] = []
+        # Construct dependency type -> job id
+        dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+
+    specific_resources = action.resources( host=self.name ) 
+    queue = specific_resources.get( "queue", self.queue )
+    account = specific_resources.get( "account", self.account )
+    timelimit = specific_resources.get( "timelimit", None )
+
+    if queue is None or account is None:
+      missing = "queue" if queue is None else "account"
+      msg = f"No {missing} provided for Host {host.name} or Action {action.id} in HPC submission"
+      self.log( msg, level=40 )
+      raise Exception( msg )
+
+    submit_args = self.hpc_submit_args( specific_resources, action.id )
+
+    submit_values = self.get_submit_values(
+                                            action,
+                                            {
+                                              "arguments"  : self._format_arguments( submit_args ),
+                                              "dependency" : self._format_dependencies( dep_jobs ),
+                                              "name"       : f"sane.workflow.{action.id}",
+                                              "output"     : action.logfile,
+                                              "queue"      : queue,
+                                              "account"    : account,
+                                              "time"       : timelimit,
+                                            }
+                                          )
+    return self._format_submission( submit_values )
+
+  def get_submit_values( self, action, initial_submit_values ):
+    """Tell us the values to use when populating the submit_format template
+
+    The return value should be a dict with keys being a subset of the internal
+    submit_format template of this host. Not all keys must be present in the return
+    value, however all keys in the return value dict should be `in` the internal
+    submit_format template.
+    """
+    # Normally this should be enough
+    return initial_submit_values
+
+  @abstractmethod
+  def check_job_status( self, retval, status ):
+    """Tell us how to evaluate the job status command output
+
+    The return value should be a bool noting whether a job has completed, 
+    regardless of pass or fail.
+    """
+    pass
+
+  @abstractmethod
+  def extract_job_id( self, content ):
+    """Tell us how to extract the job id from the return stdout of submission
+
+    The return value should be the job id used in dependency and status checks
+    """
+    pass
+
+  @abstractmethod
+  def submit_args( resource_dict, requestor ):
+    """Convert the resource dict from the requestor into hpc submission arguments
+
+    The return should be of the format acceptable by _format_arguments()
+    """
+    pass
+
+  @abstractmethod
+  def resources_available( self, resource_dict, requestor ):
+    """Tell us how to determine if HPC resources are available"""
+    pass
+
+  def acquire_resource( self, resource_dict, requestor ):
+    """Tell us how to acquire HPC resources"""
+    pass
+
+  @abstractmethod
+  def release_resources( self, resource_dict, requestor ):
+    """Tell us how to release HPC resources"""
+    pass
+
+
+
+class PBSHost( HPCHost ):
+  def __init__( self, name, aliases=[] ):
+    super().__init__( name=name, aliases=aliases )
+    # Maybe find a better way to do this
+    self._base = PBSHost
+
+    # Job ID finder
+    self._job_id_regex  = re.compile( r"(\d{5,})" )
+
+    # Cache previous submissions
+    self._requisitions = {}
+
+    self._status_cmd = "qstat"
+    self._submit_cmd = "qsub"
+    self._resources_delim = ":"
+    self._amount_delim = "="
+    self._submit_format["arguments"]  = "{0}",
+    self._submit_format["name"]       = "-N {0}",
+    self._submit_format["dependency"] = "-W depend={0}",
+    self._submit_format["queue"]      = "-q {0}",
+    self._submit_format["account"]    = "-A {0}",
+    self._submit_format["output"]     = "-j oe -o {0}",
+    self._submit_format["time"]       = "-l walltime={0}",
+    self._submit_format["wait"]       = "-W block=true"
+
+
+  def load_core_config( self, config ):
+    # Note: This is very delicate and maybe should be restructured
+    # Pull out resources first to override
+    resources = config.pop( "resources", {} )
+
+    # Now read rest of config *first* in case we have mappings
+    super().load_core_config( config )
+
+    # Finally process resources
+    for node_type, hardware_info in resources.items():
+      if not isinstance( hardware_info, dict ) or "nodes" not in hardware_info or "resources" not in hardware_info:
+        raise TypeError( "HPC node resources must be a dict { 'nodes' : int, 'exclusive' : bool|false, 'resources' : {<resource dict>} }" )
+      else:
+        nodes = int( hardware_info["nodes"] )
+        exclusive = hardware_info.get( "exclusive", False )
+        node_resource_dict = hardware_info["resources"]
+        self.add_resources( node_type, node_resource_dict, nodes, exclusive )
+
+  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False ):
+    if node_type in self._resources:
+      self.log( f"Node type '{node_type}' already exists" )
+    else:
+      self.log( f"Adding homogeneous node resources for '{node_type}'" )
+      self._resources[node_type] = {
+                                      "exclusive" : exclusive,
+                                      "node" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" ),
+                                      "total" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" )
+                                    }
+      self._resources[node_type]["node"].add_resources( node_resource_dict )
+      self._resources[node_type]["total"].add_resources(
+                                                        { 
+                                                          res_name : (res.acquirable * nodes).total_str
+                                                          for res_name, res in self._resources[node_type]["node"].resources.items()
+                                                        }
+                                                      )
+      self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
+
+
+
+  def check_job_status( self, retval, status ):
+    return ( retVal > 0 or output == "" )
+
+  def extract_job_id( self, content ):
+    found = self._job_id_regex.match( content )
+    if found is None:
+      self.log( "No job id found in output from job submission", level=40 )
+      return -1
+    else:
+      return int( found.group( 1 ) )
+
+  def pbs_resource_requisition( self, resource_dict, requestor ):
+    self.log( f"Original resource request from '{requestor}' : {resource_dict}" )
+
+    resource_dicts = [ self.map_resource_dict( resource_dict ) ]
+    # Manual specification has been made, ignore everything else
+    if "select" in resource_dict:
+      selections = [
+                    "nodes=" + options
+                    for options in list(
+                                        filter(
+                                                None,
+                                                resource_dict["select"].replace( "+", "select=" ).split( "select=" )
+                                                )
+                                        )
+                  ]
+      resource_dicts = []
+      for select in selections:
+        select_dict = {}
+        for iter_match in re.finditer( r"(?P<res>\w+)=(?P<amount>.*?)(?=:|$)", select ):
+          select_dict[iter_match.group( "res" )] = iter_match.group( "amount" )
+        resource_dicts.append( select_dict )
+
+    requisition = {}
+
+    for res_dict in resource_dicts:
+      # These are the resources we *can* provide
+      available_resources = set()
+      for homogeneous_nodes, node_resources in self._resources.items():
+        available_resources = available_resources | set( node_resources["node"].resources.keys() )
+
+      specified_resource_dict = res_dict.copy()
+      # Map to specific name-mapped resources, converting generics to specifics
+      # Use list to get the instantaneous resources
+      for resource in list( specified_resource_dict.keys() ):
+        for available_resource in available_resources:
+          if resource != available_resource and resource == available_resource.split( ":" )[0]:
+            specified_resource_dict[available_resource] = res_dict[resource]
+            del specified_resource_dict[resource]
+            # this generic resource has been specified, move to the next
+            break
+
+      # Only operate on numeric resources
+      numeric_resources = []
+      for resource in specified_resource_dict.keys():
+        if sane.resources.Resource.is_resource( specified_resource_dict[resource] ):
+          specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
+          numeric_resources.append( resource )
+
+      self.log( f"Finding resources for '{requestor}' : {specified_resource_dict}" )
+
+      # These are the resources that should be provided by the end of this
+      required_resources = available_resources & set( numeric_resources )
+
+      resources_satisfied = {}
+      node_pool_visited = {}
+      while len( resources_satisfied ) != len( required_resources ):
+        nodeset_resources = set()
+        nodeset_name  = None
+
+        for homogeneous_nodes, node_resources in self._resources.items():
+          # Skip nodes that already provided resources and thus cannot provide more
+          if homogeneous_nodes in node_pool_visited:
+            continue
+          # Naively find node type that best matches
+          resources_provided = set( node_resources["node"].resources.keys() ) & required_resources
+          if len( resources_provided ) > len( nodeset_resources ):
+            nodeset_resources = resources_provided
+            nodeset_name = homogeneous_nodes
+
+        if nodeset_name is None:
+          # Unsatisfied
+          break
+
+        # Find max nodes needed for this homogeneous selection
+        node_pool_visited[nodeset_name] = True
+        nodes = specified_resource_dict.pop( "nodes", 0 )
+        if nodes == 0:
+          for resource in nodeset_resources:
+            available = self._resources[nodeset_name]["total"].resources_available( { resource : specified_resource_dict[resource] }, requestor=requestor, log=False )
+            if available:
+              nodes_for_res = max( specified_resource_dict[resource] / self._resources[nodeset_name]["node"].resources[resource].total, 1 )
+              nodes = max( nodes, math.ceil(nodes_for_res) )
+
+        if not self._resources[nodeset_name]["total"].resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
+          return False, {}
+
+        # Find total amounts and select amounts to be used in submission which differ if using multiple nodes
+        select_amounts = {}
+        amounts = {}
+        # Use all applicable resources
+        for resource in self._resources[nodeset_name]["node"].resources.keys():
+          amount = specified_resource_dict.get( resource, 0 )
+          select_amount = math.ceil( amount / nodes )
+          if self._resources[nodeset_name]["exclusive"]:
+            exclusive_amount = self._resources[nodeset_name]["node"].resources[resource].acquirable * nodes
+            if exclusive_amount.total != amount:
+              original_mount = sane.resources.Resource( resource, amount, unit=exclusive_amount.unit )
+              msg  = f"Current node is exclusive, changing resource '{resource}' acquisition amount "
+              msg += f"from {original_mount.total_str} to {exclusive_amount.total_str}"
+              self.log( msg )
+              amount = exclusive_amount.total
+
+          # Check if available
+          if self._resources[nodeset_name]["total"].resources_available( { resource : amount }, requestor=requestor, log=False ):
+            amounts[resource] = amount
+            if select_amount > 0:
+              select_amounts[resource] = select_amount
+          # else
+          # do not error out as this may be provided by another homogeneous select
+
+        amounts["nodes"] = nodes
+        requisition[nodeset_name] = { "amounts" : amounts, "select_amounts" : select_amounts, "nodes" : nodes }
+
+        # Note how much we have resolved from the specified resource dict so that
+        for resource, amount in amounts.items():
+          if resource in specified_resource_dict:
+            specified_resource_dict[resource] -= amounts[resource]
+            if specified_resource_dict[resource] <= 0:
+              resources_satisfied[resource] = True
+              del specified_resource_dict[resource]
+
+    return len( resources_satisfied ) != len( required_resources ), requisition
+
+  def submit_args( resource_dict, requestor ):
+    return self.requisition_to_submit_args( self._requisitions[requestor] )
+
+  def requisition_to_submit_args( self, requisition ):
+    host_arguments = []
+    for nodeset, req in requisition.items():
+      submit_args = []
+      if len( host_arguments ) == 0:
+        # First select
+        submit_args.append( ( "select", req["nodes"] ) )
+      else:
+        # Next homogeneous select
+        submit_args.append( ( "+", req["nodes"] ) )
+        
+      for resource, amount in req["select_amounts"].items():
+        submit_args.append( ( resource, amount ) )
+
+      # Keep it specialized so others downstream know what we tried to solve
+      if len( host_arguments ) == 0:
+        host_arguments.append( ( "-l", submit_args ) )
+      else:
+        host_arguments[0][1].extend( submit_args )
+
+    return host_arguments
+
+  def resources_available( resource_dict, requestor ):
+    available, *_ = self.pbs_resource_requisition( resource_dict, requestor )
+    return available
+
+  def acquire_resources( resource_dict, requestor ):
+    available, requisition = self.pbs_resource_requisition( resource_dict, requestor )
+
+    for nodeset, req in requisition.items():
+      self._resources[nodeset]["total"].acquire_resource( req["amounts"] )
+
+    self._requisitions[requestor] = requisition
+
+  def release_resources( resource_dict, requestor ):
+    requisition = self._requisitions[requestor]
+    for nodeset, req in requisition.items():
+      self._resources[nodeset]["total"].release_resources( req["amounts"] )
+    del self._requisitions[requestor]

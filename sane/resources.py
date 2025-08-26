@@ -22,11 +22,18 @@ _timelimit_format_str   = "{:02}:{:02}:{:02}"
 
 
 class Resource:
-  def __init__( self, resource, amount=0 ):
+  def __init__( self, resource, amount=0, unit="" ):
     self._resource = resource
     self._original_amount = None
     self._res_dict = None
     self.amount = amount
+    if unit != "":
+      self._res_dict["unit"] = unit
+
+  @staticmethod
+  def is_resource( potential_resource ):
+    res_dict = res_size_dict( potential_resource )
+    return res_dict is not None
 
   @property
   def resource( self ):
@@ -272,33 +279,40 @@ def recursive_update( dest, source ):
 
 
 class ResourceProvider( jconfig.JSONConfig ):
-  def __init__( self, **kwargs ):
+  def __init__( self, mapper=None, **kwargs ):
     super().__init__( **kwargs )
     self._resources    = {}
+    if mapper is None:
+      self._mapper = ResourceMapper()
+    else:
+      self._mapper = mapper
 
   @property
   def resources( self ):
     return self._resources.copy()
 
   def add_resources( self, resource_dict ):
-    for resource, info in resource_dict.items():
+    mapped_resource_dict = self.map_resource_dict( resource_dict )
+    for resource, info in mapped_resource_dict.items():
       if resource in self._resources and self._resources[resource].total > 0:
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
         self._resources[resource] = AcquirableResource( resource, info )
-        # self._resources[resource]["in_use"] = 0.0
 
-  def resources_available( self, resource_dict, requestor=None ):
-    origin_msg = ""
-    if requestor is not None:
-      origin_msg = f" for {requestor}"
+  def resources_available( self, resource_dict, requestor, log=True ):
+    mapped_resource_dict = self.map_resource_dict( resource_dict )
+    origin_msg = f" for {requestor}"
 
-    self.log( f"Checking if resources available{origin_msg}..." )
-    self.log_push()
+    if log:
+      self.log( f"Checking if resources available{origin_msg}..." )
+      self.log_push()
     can_aquire = True
-    for resource, info in resource_dict.items():
-      res = Resource( resource, info )
-      # res_dict = res_size_dict( info )
+    for resource, info in mapped_resource_dict.items():
+      res = None
+      if isinstance( info, Resource ):
+        res = info
+      else:
+        res = Resource( resource, info, unit=self._resources[resource].unit )
       if resource not in self._resources:
         msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
         msg += "host does not possess this resource"
@@ -306,33 +320,38 @@ class ResourceProvider( jconfig.JSONConfig ):
         self.log_pop()
         raise Exception( msg )
 
-      # req_amount = res_size_base( res_dict )
       if res.total > self._resources[resource].total:
         msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
-        msg += "requested amount is greater than available total " + res_size_str(self._resources[resource])
+        msg += "requested amount is greater than available total " + self._resources[resource].total_str
         self.log( msg, level=50 )
         self.log_pop()
         raise Exception( msg )
 
       acquirable = res.total <= self._resources[resource].current
-      if not acquirable:
+      if not acquirable and log:
         self.log( f"Resource '{resource}' : {amount}{base_unit} not acquirable right now..." )
       can_aquire = can_aquire and acquirable
-    self.log( f"All resources{origin_msg} available" )
-    self.log_pop()
+    
+    if log:
+      self.log( f"All resources{origin_msg} available" )
+      self.log_pop()
     return can_aquire
 
-  def acquire_resource( self, resource_dict, requestor=None ):
-    origin_msg = ""
-    if requestor is not None:
-      origin_msg = f" for {requestor}"
+  def acquire_resource( self, resource_dict, requestor ):
+    mapped_resource_dict = self.map_resource_dict( resource_dict )
+    origin_msg = f" for {requestor}"
 
     self.log( f"Acquiring resources{origin_msg}..." )
     self.log_push()
-    if self.resources_available( resource_dict, requestor ):
-      for resource, info in resource_dict.items():
+    if self.resources_available( mapped_resource_dict, requestor ):
+      for resource, info in mapped_resource_dict.items():
+        res = None
+        if isinstance( info, Resource ):
+          res = info
+        else:
+          res = Resource( resource, info, unit=self._resources[resource].unit )
         self.log( f"Acquiring resource '{resource}' : {info}")
-        self._resources[resource] -= Resource( resource, info )
+        self._resources[resource] -= res
     else:
       self.log( f"Could not acquire resources{origin_msg}", level=30 )
       self.log_pop()
@@ -341,14 +360,13 @@ class ResourceProvider( jconfig.JSONConfig ):
     self.log_pop()
     return True
 
-  def release_resources( self, resource_dict, requestor=None ):
-    origin_msg = ""
-    if requestor is not None:
-      origin_msg = f" from {requestor}"
+  def release_resources( self, resource_dict, requestor ):
+    mapped_resource_dict = self.map_resource_dict( resource_dict )
+    origin_msg = f" from {requestor}"
 
     self.log( f"Releasing resources{origin_msg}..." )
     self.log_push()
-    for resource, info in resource_dict.items():
+    for resource, info in mapped_resource_dict.items():
       if resource not in self._resources:
         self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
 
@@ -363,8 +381,43 @@ class ResourceProvider( jconfig.JSONConfig ):
     self.log_pop()
 
   def load_core_config( self, config ):
-    self.add_resources( config.pop( "resources", {} ) )
+    resources = config.pop( "resources", {} )
+    if len( resources ) > 0:
+      self.add_resources( resources )
+
+    mapping = config.pop( "mapping", {} )
+    for resource, aliases in mapping.items():
+      self._mapper.add_mapping( resource, aliases )
+
     super().load_core_config( config )
+
+  
+  def map_resource( self, resource ):
+    """Map everything to internal name"""
+    mapped_resource = self._mapper.name( resource )
+    res_split = resource.split( ":" )
+    if len( res_split ) == 2:
+      mapped_resource = "{0}:{1}".format( self._mapper.name( res_split[0] ), res_split[1] )
+    return mapped_resource
+
+  def map_resource_dict( self, resource_dict, log=False ):
+    """Map entire dict to internal names"""
+    output_log = ( log and self._mapper.num_maps > 0 )
+    if output_log:
+      self.log( "Mapping resources with internal names..." )
+      self.log_push()
+    mapped_resource_dict = resource_dict.copy()
+    for resource in resource_dict:
+      mapped_resource = self.map_resource( resource )
+
+      if mapped_resource != resource:
+        if output_log:
+          self.log( f"Mapping {resource} to internal name {mapped_resource}" )
+        mapped_resource_dict[mapped_resource] = resource_dict[resource]
+        del mapped_resource_dict[resource]
+    if output_log:
+      self.log_pop()
+    return mapped_resource_dict
 
 
 class ResourceRequestor( jconfig.JSONConfig ):
@@ -391,7 +444,7 @@ class ResourceRequestor( jconfig.JSONConfig ):
             if override in self._override_resources[resource]:
               self.log( f"Resource '{override}' already set in {resource}, ignoring new resource setting", level=30 )
             else:
-              self._override_resources[resource] = override_info
+              self._override_resources[resource][override] = override_info
         else:
           self._resources[resource] = info
 
