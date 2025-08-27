@@ -264,7 +264,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     cmd = self._launch_cmd
     args = [ working_directory, self.save_file ]
     if launch_wrapper is not None:
-      args.prepend( cmd )
+      args.insert( 0, cmd )
       cmd = launch_wrapper[0]
       args[:0] = launch_wrapper[1]
 

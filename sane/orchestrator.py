@@ -231,7 +231,7 @@ class Orchestrator( jconfig.JSONConfig ):
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
           # Check requirements met
           if self.actions[node].requirements_met( dependencies ):
-            if host.acquire_resource( self.actions[node].resources( host.name ), requestor=node ):
+            if host.acquire_resources( self.actions[node].resources( host.name ), requestor=node ):
               launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
               self.actions[node].config["host_file"] = host.save_file
               self.actions[node].config["host_name"] = host.name

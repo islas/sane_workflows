@@ -3,6 +3,7 @@ from datetime import time
 import math
 import operator
 import copy
+import collections
 
 import sane.logger as logger
 import sane.json_config as jconfig
@@ -337,7 +338,7 @@ class ResourceProvider( jconfig.JSONConfig ):
       self.log_pop()
     return can_aquire
 
-  def acquire_resource( self, resource_dict, requestor ):
+  def acquire_resources( self, resource_dict, requestor ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     origin_msg = f" for {requestor}"
 
@@ -350,7 +351,7 @@ class ResourceProvider( jconfig.JSONConfig ):
           res = info
         else:
           res = Resource( resource, info, unit=self._resources[resource].unit )
-        self.log( f"Acquiring resource '{resource}' : {info}")
+        self.log( f"Acquiring resource '{resource}' : {res.total_str}")
         self._resources[resource] -= res
     else:
       self.log( f"Could not acquire resources{origin_msg}", level=30 )
@@ -372,11 +373,11 @@ class ResourceProvider( jconfig.JSONConfig ):
 
       res = Resource( resource, info )
       if res.total > self._resources[resource].used:
-        msg  = f"Cannot return resource '{resource}' : {info}, "
+        msg  = f"Cannot return resource '{resource}' : {res.total_str}, "
         msg += "amount is greater than current in use " + self._resources[resource].used_str
         self.log( msg, level=30 )
       else:
-        self.log( f"Releasing resource '{resource}' : {info}" )
+        self.log( f"Releasing resource '{resource}' : {res.total_str}" )
         self._resources[resource] += res
     self.log_pop()
 

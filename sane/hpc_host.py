@@ -111,32 +111,32 @@ class HPCHost( sane.Host ):
         # Construct dependency type -> job id
         dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
 
-    specific_resources = action.resources( host=self.name ) 
+    specific_resources = action.resources( override=self.name ) 
     queue = specific_resources.get( "queue", self.queue )
     account = specific_resources.get( "account", self.account )
     timelimit = specific_resources.get( "timelimit", None )
 
     if queue is None or account is None:
       missing = "queue" if queue is None else "account"
-      msg = f"No {missing} provided for Host {host.name} or Action {action.id} in HPC submission"
+      msg = f"No {missing} provided for Host {self.name} or Action {action.id} in HPC submission resources"
       self.log( msg, level=40 )
-      raise Exception( msg )
+      raise KeyError( msg )
 
-    submit_args = self.hpc_submit_args( specific_resources, action.id )
+    submit_args = self.submit_args( specific_resources, action.id )
+    default_submit = {
+                              "name"       : f"sane.workflow.{action.id}",
+                              "output"     : action.logfile,
+                              "queue"      : queue,
+                              "account"    : account,
+                              "time"       : timelimit,
+                            }
+    if len( submit_args ) > 0:
+      default_submit["arguments"] = self._format_arguments( submit_args )
+    if len( dep_jobs ) > 0:
+      default_submit["dependency"] = self._format_dependencies( dep_jobs )
 
-    submit_values = self.get_submit_values(
-                                            action,
-                                            {
-                                              "arguments"  : self._format_arguments( submit_args ),
-                                              "dependency" : self._format_dependencies( dep_jobs ),
-                                              "name"       : f"sane.workflow.{action.id}",
-                                              "output"     : action.logfile,
-                                              "queue"      : queue,
-                                              "account"    : account,
-                                              "time"       : timelimit,
-                                            }
-                                          )
-    return self._format_submission( submit_values )
+    submit_values = self.get_submit_values( action, default_submit )
+    return self._submit_cmd, self._format_submission( submit_values )
 
   def get_submit_values( self, action, initial_submit_values ):
     """Tell us the values to use when populating the submit_format template
@@ -167,7 +167,7 @@ class HPCHost( sane.Host ):
     pass
 
   @abstractmethod
-  def submit_args( resource_dict, requestor ):
+  def submit_args( self, resource_dict, requestor ):
     """Convert the resource dict from the requestor into hpc submission arguments
 
     The return should be of the format acceptable by _format_arguments()
@@ -179,7 +179,8 @@ class HPCHost( sane.Host ):
     """Tell us how to determine if HPC resources are available"""
     pass
 
-  def acquire_resource( self, resource_dict, requestor ):
+  @abstractmethod
+  def acquire_resources( self, resource_dict, requestor ):
     """Tell us how to acquire HPC resources"""
     pass
 
@@ -206,13 +207,13 @@ class PBSHost( HPCHost ):
     self._submit_cmd = "qsub"
     self._resources_delim = ":"
     self._amount_delim = "="
-    self._submit_format["arguments"]  = "{0}",
-    self._submit_format["name"]       = "-N {0}",
-    self._submit_format["dependency"] = "-W depend={0}",
-    self._submit_format["queue"]      = "-q {0}",
-    self._submit_format["account"]    = "-A {0}",
-    self._submit_format["output"]     = "-j oe -o {0}",
-    self._submit_format["time"]       = "-l walltime={0}",
+    self._submit_format["arguments"]  = "{0}"
+    self._submit_format["name"]       = "-N {0}"
+    self._submit_format["dependency"] = "-W depend={0}"
+    self._submit_format["queue"]      = "-q {0}"
+    self._submit_format["account"]    = "-A {0}"
+    self._submit_format["output"]     = "-j oe -o {0}"
+    self._submit_format["time"]       = "-l walltime={0}"
     self._submit_format["wait"]       = "-W block=true"
 
 
@@ -247,7 +248,7 @@ class PBSHost( HPCHost ):
       self._resources[node_type]["node"].add_resources( node_resource_dict )
       self._resources[node_type]["total"].add_resources(
                                                         { 
-                                                          res_name : (res.acquirable * nodes).total_str
+                                                          res_name : (res.acquirable * nodes).amount
                                                           for res_name, res in self._resources[node_type]["node"].resources.items()
                                                         }
                                                       )
@@ -289,7 +290,7 @@ class PBSHost( HPCHost ):
         resource_dicts.append( select_dict )
 
     requisition = {}
-
+    resolved = True
     for res_dict in resource_dicts:
       # These are the resources we *can* provide
       available_resources = set()
@@ -379,6 +380,14 @@ class PBSHost( HPCHost ):
         amounts["nodes"] = nodes
         requisition[nodeset_name] = { "amounts" : amounts, "select_amounts" : select_amounts, "nodes" : nodes }
 
+        # This is a duplication of the logic above, but just a whole check
+        available = self._resources[nodeset_name]["total"].resources_available( amounts, requestor=requestor )
+        # mark not available this time as amounts has already been filtered
+        resolved = resolved and available 
+        if not available:
+          self.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=30 )
+
+
         # Note how much we have resolved from the specified resource dict so that
         for resource, amount in amounts.items():
           if resource in specified_resource_dict:
@@ -387,9 +396,15 @@ class PBSHost( HPCHost ):
               resources_satisfied[resource] = True
               del specified_resource_dict[resource]
 
-    return len( resources_satisfied ) != len( required_resources ), requisition
+      current_resolved = ( len( specified_resource_dict ) == 0 )
+      resolved = resolved and current_resolved
+      if not current_resolved:
+        self.log( f"Did not fully resolve resource request : {res_dict}", level=30 )
+        self.log( f"  Remaining : {specified_resource_dict}", level=30 )
 
-  def submit_args( resource_dict, requestor ):
+    return resolved, requisition
+
+  def submit_args( self, resource_dict, requestor ):
     return self.requisition_to_submit_args( self._requisitions[requestor] )
 
   def requisition_to_submit_args( self, requisition ):
@@ -414,20 +429,31 @@ class PBSHost( HPCHost ):
 
     return host_arguments
 
-  def resources_available( resource_dict, requestor ):
-    available, *_ = self.pbs_resource_requisition( resource_dict, requestor )
+  def remove_hpc_kw( self, resource_dict ):
+    res_dict = resource_dict.copy()
+    res_dict.pop( "account", None )
+    res_dict.pop( "queue", None )
+    res_dict.pop( "timelimit", None )
+    return res_dict
+
+  def resources_available( self, resource_dict, requestor ):
+    available, *_ = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     return available
 
-  def acquire_resources( resource_dict, requestor ):
-    available, requisition = self.pbs_resource_requisition( resource_dict, requestor )
+  def acquire_resources( self, resource_dict, requestor ):
+    available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
+    if not available:
+      self.log( f"Could not acquire resources for {requestor}" )
+      return available
 
     for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].acquire_resource( req["amounts"] )
+      self._resources[nodeset]["total"].acquire_resources( req["amounts"], requestor )
 
     self._requisitions[requestor] = requisition
+    return available
 
-  def release_resources( resource_dict, requestor ):
+  def release_resources( self, resource_dict, requestor ):
     requisition = self._requisitions[requestor]
     for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].release_resources( req["amounts"] )
+      self._resources[nodeset]["total"].release_resources( req["amounts"], requestor )
     del self._requisitions[requestor]
