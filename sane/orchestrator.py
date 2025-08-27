@@ -11,6 +11,7 @@ import sys
 import sane.action
 import sane.dag as dag
 import sane.host
+import sane.hpc_host
 import sane.json_config as jconfig
 import sane.user_space as uspace
 import sane.utdict as utdict
@@ -155,7 +156,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "No valid host configuration found" )
       raise Exception( f"No valid host configuration found" )
 
-    self.log( f"Running as {self._current_host}" )
+    self.log( f"Running as '{self._current_host}', checking ability to run all actions..." )
     host = self.hosts[self._current_host]
     self.log_push()
     host.log_push()
@@ -163,6 +164,7 @@ class Orchestrator( jconfig.JSONConfig ):
     # Check action needs
     check_list = traversal_list.copy()
     missing_env = []
+    self.log( f"Checking environments..." )
     for node in traversal_list:
       env = host.has_environment( self.actions[node].environment )
       if env is None:
@@ -181,11 +183,14 @@ class Orchestrator( jconfig.JSONConfig ):
 
     runnable = True
     missing_resources = []
+    self.log( f"Checking resource availability..." )
+    host.log_push()
     for node in traversal_list:
       can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=node )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
+    host.log_pop()
 
     if not runnable:
       self.log( "Found Actions that would not be able to run due to resource limitations:" )
@@ -196,6 +201,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.log_pop()
     host.log_pop()
+    self.log( f"All prerun checks for '{host.name}' passed" )
 
   def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
     self.log( "Running actions:" )
@@ -205,6 +211,8 @@ class Orchestrator( jconfig.JSONConfig ):
     self.construct_dag()
 
     traversal_list = self._dag.traversal_list( action_id_list )
+    self.log( "Full action set:" )
+    print_actions( list(traversal_list.keys()), print=self.log )
 
     self.check_host( as_host, traversal_list )
 
@@ -214,8 +222,10 @@ class Orchestrator( jconfig.JSONConfig ):
     # We have a valid host for all actions slated to run
     host = self.hosts[self._current_host]
     host.save_location = self.save_location
+    self.log( "Saving host information..." )
     host.save()
 
+    self.log( "Setting state of all inactive actions to pending" )
     # Mark all actions to be run as pending if not already run
     for node in traversal_list:
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
@@ -223,9 +233,11 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.save()
     next_nodes = []
+    self.log( "Running actions..." )
     while len( traversal_list ) > 0 or len( next_nodes ) > 0:
       next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
       for node in next_nodes.copy():
+        self.log( f"Running '{node}' on '{host.name}'" )
         if self.actions[node].state == sane.action.ActionState.PENDING:
           # Gather all dependency nodes
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
@@ -300,7 +312,9 @@ class Orchestrator( jconfig.JSONConfig ):
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
       host_type = sane.host.Host
-      if host_typename != sane.host.Host.CONFIG_TYPE:
+      if host_typename == sane.hpc_host.PBSHost.CONFIG_TYPE:
+        host_type = sane.hpc_host.PBSHost
+      elif host_typename != sane.host.Host.CONFIG_TYPE:
         host_type = self.search_type( host_typename )
 
       host = host_type( id )

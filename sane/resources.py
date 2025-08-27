@@ -371,7 +371,11 @@ class ResourceProvider( jconfig.JSONConfig ):
       if resource not in self._resources:
         self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
 
-      res = Resource( resource, info )
+      res = None
+      if isinstance( info, Resource ):
+        res = info
+      else:
+        res = Resource( resource, info, unit=self._resources[resource].unit )
       if res.total > self._resources[resource].used:
         msg  = f"Cannot return resource '{resource}' : {res.total_str}, "
         msg += "amount is greater than current in use " + self._resources[resource].used_str

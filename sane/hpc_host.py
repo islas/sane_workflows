@@ -192,6 +192,8 @@ class HPCHost( sane.Host ):
 
 
 class PBSHost( HPCHost ):
+  CONFIG_TYPE = "PBSHost"
+
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases )
     # Maybe find a better way to do this
@@ -340,39 +342,61 @@ class PBSHost( HPCHost ):
           # Unsatisfied
           break
 
+        self.log( f"Checking resources from '{nodeset_name}'" )
+        node  = self._resources[nodeset_name]["node"]
+        total = self._resources[nodeset_name]["total"]
+        total.log_push( 2 )
+
         # Find max nodes needed for this homogeneous selection
         node_pool_visited[nodeset_name] = True
         nodes = specified_resource_dict.pop( "nodes", 0 )
         if nodes == 0:
           for resource in nodeset_resources:
-            available = self._resources[nodeset_name]["total"].resources_available( { resource : specified_resource_dict[resource] }, requestor=requestor, log=False )
+            available = total.resources_available( { resource : specified_resource_dict[resource] }, requestor=requestor, log=False )
             if available:
-              nodes_for_res = max( specified_resource_dict[resource] / self._resources[nodeset_name]["node"].resources[resource].total, 1 )
+              nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
               nodes = max( nodes, math.ceil(nodes_for_res) )
 
-        if not self._resources[nodeset_name]["total"].resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
-          return False, {}
+        if not total.resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
+          total.log( "Not enough nodes" )
+          total.log_pop( 2 )
+          continue
 
         # Find total amounts and select amounts to be used in submission which differ if using multiple nodes
         select_amounts = {}
         amounts = {}
         # Use all applicable resources
-        for resource in self._resources[nodeset_name]["node"].resources.keys():
+        for resource in node.resources.keys():
           amount = specified_resource_dict.get( resource, 0 )
+          unit = node.resources[resource].unit
+          if unit:
+            # Convert to usable unit amount then back to base in case it went up
+            amount = sane.resources.Resource(
+                                              resource,
+                                              sane.resources.Resource(
+                                                                      resource,
+                                                                      amount,
+                                                                      unit=unit
+                                                                      ).total_str
+                                              ).total
+
           select_amount = math.ceil( amount / nodes )
           if self._resources[nodeset_name]["exclusive"]:
-            exclusive_amount = self._resources[nodeset_name]["node"].resources[resource].acquirable * nodes
+            exclusive_amount = node.resources[resource].acquirable * nodes
             if exclusive_amount.total != amount:
               original_mount = sane.resources.Resource( resource, amount, unit=exclusive_amount.unit )
               msg  = f"Current node is exclusive, changing resource '{resource}' acquisition amount "
               msg += f"from {original_mount.total_str} to {exclusive_amount.total_str}"
-              self.log( msg )
+              total.log( msg )
               amount = exclusive_amount.total
 
           # Check if available
-          if self._resources[nodeset_name]["total"].resources_available( { resource : amount }, requestor=requestor, log=False ):
+          if total.resources_available( { resource : amount }, requestor=requestor, log=False ):
             amounts[resource] = amount
             if select_amount > 0:
+              if unit:
+                select_amount = sane.resources.Resource( resource, select_amount, unit=unit ).total_str
+
               select_amounts[resource] = select_amount
           # else
           # do not error out as this may be provided by another homogeneous select
@@ -381,11 +405,11 @@ class PBSHost( HPCHost ):
         requisition[nodeset_name] = { "amounts" : amounts, "select_amounts" : select_amounts, "nodes" : nodes }
 
         # This is a duplication of the logic above, but just a whole check
-        available = self._resources[nodeset_name]["total"].resources_available( amounts, requestor=requestor )
+        available = total.resources_available( amounts, requestor=requestor )
         # mark not available this time as amounts has already been filtered
         resolved = resolved and available 
         if not available:
-          self.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=30 )
+          total.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=30 )
 
 
         # Note how much we have resolved from the specified resource dict so that
@@ -396,12 +420,15 @@ class PBSHost( HPCHost ):
               resources_satisfied[resource] = True
               del specified_resource_dict[resource]
 
+        total.log_pop( 2 )
+
       current_resolved = ( len( specified_resource_dict ) == 0 )
       resolved = resolved and current_resolved
       if not current_resolved:
         self.log( f"Did not fully resolve resource request : {res_dict}", level=30 )
         self.log( f"  Remaining : {specified_resource_dict}", level=30 )
-
+    if resolved:
+      self.log( f"HPC resources available for '{requestor}'" )
     return resolved, requisition
 
   def submit_args( self, resource_dict, requestor ):
@@ -417,7 +444,7 @@ class PBSHost( HPCHost ):
       else:
         # Next homogeneous select
         submit_args.append( ( "+", req["nodes"] ) )
-        
+
       for resource, amount in req["select_amounts"].items():
         submit_args.append( ( resource, amount ) )
 
@@ -441,15 +468,21 @@ class PBSHost( HPCHost ):
     return available
 
   def acquire_resources( self, resource_dict, requestor ):
+    self.log( f"Acquiring HPC resources for {requestor}..." )
+    self.log_push()
     available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     if not available:
       self.log( f"Could not acquire resources for {requestor}" )
+      self.log_pop()
       return available
 
     for nodeset, req in requisition.items():
+      self._resources[nodeset]["total"].log_push()
       self._resources[nodeset]["total"].acquire_resources( req["amounts"], requestor )
+      self._resources[nodeset]["total"].log_pop()
 
     self._requisitions[requestor] = requisition
+    self.log_pop()
     return available
 
   def release_resources( self, resource_dict, requestor ):
