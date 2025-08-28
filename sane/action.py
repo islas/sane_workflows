@@ -280,8 +280,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
     content = ""
     try:
       if self._logfile is None and not self.verbose:
-        self.log( "Action will not be printed to screen or saved to logfile" )
-        self.log( "Consider modifying the action to use one of these two options" )
+        self.log( "Action will not be printed to screen or saved to logfile", level=30 )
+        self.log( "Consider modifying the action to use one of these two options", level=30 )
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,

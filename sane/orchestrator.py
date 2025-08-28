@@ -203,7 +203,15 @@ class Orchestrator( jconfig.JSONConfig ):
     host.log_pop()
     self.log( f"All prerun checks for '{host.name}' passed" )
 
+  def setup( self ):
+    self.construct_dag()
+    os.makedirs( self.save_location, exist_ok=True )
+    os.makedirs( self.log_location, exist_ok=True )
+
   def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
+    # Setup does not take that long so make sure it is always run
+    self.setup()
+
     for action in action_id_list:
       if action not in self.actions:
         msg = f"Action '{action}' does not exist in current workflow"
@@ -214,16 +222,11 @@ class Orchestrator( jconfig.JSONConfig ):
     print_actions( action_id_list, print=self.log )
     self.log( "and any necessary dependencies" )
 
-    self.construct_dag()
-
     traversal_list = self._dag.traversal_list( action_id_list )
     self.log( "Full action set:" )
     print_actions( list(traversal_list.keys()), print=self.log )
 
     self.check_host( as_host, traversal_list )
-
-    os.makedirs( self.save_location, exist_ok=True )
-    os.makedirs( self.log_location, exist_ok=True )
 
     # We have a valid host for all actions slated to run
     host = self.hosts[self._current_host]

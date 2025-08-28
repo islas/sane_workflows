@@ -181,6 +181,8 @@ def main():
   if not options.new:
     orchestrator.load()
 
+  orchestrator.setup()
+
   if options.run:
     orchestrator.run_actions( action_list, options.specific_host )
   if options.dry_run:
