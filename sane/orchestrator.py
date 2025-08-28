@@ -132,7 +132,7 @@ class Orchestrator( jconfig.JSONConfig ):
     nodes, valid = self._dag.topological_sort()
     if not valid:
       msg = f"Error: In {Orchestrator.construct_dag.__name__}() DAG construction failed, invalid topology"
-      self.log( msg )
+      self.log( msg, level=50 )
       raise Exception( msg )
 
   def process_registered( self ):
@@ -153,7 +153,7 @@ class Orchestrator( jconfig.JSONConfig ):
         break
 
     if self._current_host is None:
-      self.log( "No valid host configuration found" )
+      self.log( "No valid host configuration found", level=50 )
       raise Exception( f"No valid host configuration found" )
 
     self.log( f"Running as '{self._current_host}', checking ability to run all actions..." )
@@ -177,7 +177,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( f"Missing environments in Host( \"{self._current_host}\" )", level=50 )
       self.log_push()
       for node, env_name in missing_env:
-        self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )" )
+        self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )", level=40 )
       self.log_pop()
       raise Exception( f"Missing environments {missing_env}" )
 
@@ -193,7 +193,7 @@ class Orchestrator( jconfig.JSONConfig ):
     host.log_pop()
 
     if not runnable:
-      self.log( "Found Actions that would not be able to run due to resource limitations:" )
+      self.log( "Found Actions that would not be able to run due to resource limitations:", level=50 )
       self.log_push()
       print_actions( missing_resources, print=self.log )
       self.log_pop()
@@ -204,6 +204,12 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( f"All prerun checks for '{host.name}' passed" )
 
   def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
+    for action in action_id_list:
+      if action not in self.actions:
+        msg = f"Action '{action}' does not exist in current workflow"
+        self.log( msg, level=50 )
+        raise KeyError( msg )
+
     self.log( "Running actions:" )
     print_actions( action_id_list, print=self.log )
     self.log( "and any necessary dependencies" )
@@ -351,6 +357,7 @@ class Orchestrator( jconfig.JSONConfig ):
                   "verbose" : self.verbose,
                   "host" : self._current_host,
                   "save_location" : self.save_location,
+                  "log_location" : self.log_location,
                   "working_directory" : self.working_directory
                 }
     with open( self.save_file, "w" ) as f:
@@ -377,6 +384,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self._current_host = save_dict["host"]
 
     self.save_location = save_dict["save_location"]
+    self.log_location = save_dict["log_location"]
     self.working_directory = save_dict["working_directory"]
 
     for action, action_dict in save_dict["actions"].items():

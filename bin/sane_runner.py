@@ -20,6 +20,12 @@ def get_parser():
                       help="Path to search for workflows, if not specified default is ./. Use multiple times for many paths"
                       )
   parser.add_argument(
+                      "-w", "--working_dir",
+                      type=str,
+                      default="./",
+                      help="Location for actions to be run from, superseded by any action-specific working directory"
+                      )
+  parser.add_argument(
                       "-s", "--search_pattern",
                       action="append",
                       type=str,
@@ -155,6 +161,7 @@ def main():
 
   orchestrator.save_location = options.save_location
   orchestrator.log_location = options.log_location
+  orchestrator.working_dir = options.working_dir
 
   action_list = options.actions
   if len( action_list ) == 0:
@@ -167,6 +174,7 @@ def main():
   # Still nothing
   if len( action_list ) == 0:
     logger.log( "No actions selected" )
+    parser.print_help()
     exit( 1 )
 
   # Load any previous statefulness

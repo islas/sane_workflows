@@ -82,6 +82,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.verbose = False
     self.dry_run = False
+    self.working_directory = "./"
     self._launch_cmd       = action_launcher.__file__
     self.log_location      = None
     self._logfile          = f"{self.id}.log"
@@ -262,7 +263,14 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     # Self-submission of execute, but allowing more complex handling by re-entering into this script
     cmd = self._launch_cmd
-    args = [ working_directory, self.save_file ]
+    action_dir = working_directory
+    if os.path.isabs( self.working_directory ):
+      action_dir = self.working_directory
+    else:
+      # Evaluate relative path from passed in path
+      action_dir = os.path.abspath( os.path.join( working_directory, self.working_directory ) )
+
+    args = [ action_dir, self.save_file ]
     if launch_wrapper is not None:
       args.insert( 0, cmd )
       cmd = launch_wrapper[0]
@@ -341,6 +349,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     local = config.pop( "local", None )
     if local is not None:
       self.local = local
+
+    dir = config.pop( "working_directory", None )
+    if dir is not None:
+      self.working_directory = working_directory
 
     act_config = config.pop( "config", None )
     if act_config is not None:
