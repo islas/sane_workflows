@@ -1,10 +1,9 @@
 import os
-import json
 import shutil
-import sys
+# import sys
 import io
 import subprocess
-import collections.abc
+import threading
 from enum import Enum, EnumMeta
 
 import sane.save_state as state
@@ -92,7 +91,36 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._resources        = {}
     self._host_resources   = {}
 
+    # These two are provided by the orchestrator upon begin setup
+    # Use the run lock for mutually exclusive run logic (eg. clean logging)
+    self._run_lock = None
+    # This is to be used to wake the orchestrator only when the action has completed
+    self.__wake__    = None
+
     super().__init__( filename=f"action_{id}", logname=id, base=Action )
+
+  def save( self ):
+    # Quickly remove sync objects then restore
+    tmp_run_lock = self._run_lock
+    tmp_wake     = self.__wake__
+    self._run_lock = None
+    self.__wake__  = None
+    super().save()
+    # Now restore
+    self._run_lock = tmp_run_lock
+    self.__wake__  = tmp_wake
+
+  def __orch_wake__( self ):
+    if self.__wake__ is not None:
+      self.__wake__.set()
+
+  def _acquire( self ):
+    if self._run_lock is not None:
+      self._run_lock.acquire()
+
+  def _release( self ):
+    if self._run_lock is not None:
+      self._run_lock.release()
 
   @property
   def id( self ):
@@ -168,16 +196,13 @@ class Action( state.SaveState, res.ResourceRequestor ):
     args = [ str( arg ) for arg in args ]
 
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
+    self._acquire()
     self.log( "Running command:" )
     self.log( "  {0}".format( command ) )
+    self._release()
 
     retval  = -1
     content = None
-
-    # if self.verbose:
-    #   self.log(  "*" * 15 + "{:^15}".format( "START launch " + self.id ) + "*" * 15 )
-    # if self.verbose:
-    #   self.log(  "*" * 15 + "{:^15}".format( "STOP launch " + self.id ) + "*" * 15 )
 
     # Temporarily create a very crude logger
     log_raw = self._logger.getChild( "raw" )
@@ -253,35 +278,41 @@ class Action( state.SaveState, res.ResourceRequestor ):
     return retval, content
 
   def launch( self, working_directory, launch_wrapper=None ):
-    self.pre_launch()
-    # Set current state of this instance
-    self._state = ActionState.RUNNING
-    self._status = ActionStatus.NONE
-
-    # Immediately save the current state of this action
-    self.save()
-
-    # Self-submission of execute, but allowing more complex handling by re-entering into this script
-    cmd = self._launch_cmd
-    action_dir = working_directory
-    if os.path.isabs( self.working_directory ):
-      action_dir = self.working_directory
-    else:
-      # Evaluate relative path from passed in path
-      action_dir = os.path.abspath( os.path.join( working_directory, self.working_directory ) )
-
-    args = [ action_dir, self.save_file ]
-    if launch_wrapper is not None:
-      args.insert( 0, cmd )
-      cmd = launch_wrapper[0]
-      args[:0] = launch_wrapper[1]
-
-    retval = -1
-    content = ""
     try:
+      thread_name = threading.current_thread().name
+      if thread_name is not None:
+        self.override_logname( f"{self.id}[{thread_name}]" )
+      self.pre_launch()
+      # Set current state of this instance
+      self._state = ActionState.RUNNING
+      self._status = ActionStatus.NONE
+
+      # Immediately save the current state of this action
+      self.save()
+
+      # Self-submission of execute, but allowing more complex handling by re-entering into this script
+      cmd = self._launch_cmd
+      action_dir = working_directory
+      if os.path.isabs( self.working_directory ):
+        action_dir = self.working_directory
+      else:
+        # Evaluate relative path from passed in path
+        action_dir = os.path.abspath( os.path.join( working_directory, self.working_directory ) )
+
+      args = [ action_dir, self.save_file ]
+      if launch_wrapper is not None:
+        args.insert( 0, cmd )
+        cmd = launch_wrapper[0]
+        args[:0] = launch_wrapper[1]
+
+      retval = -1
+      content = ""
+
       if self._logfile is None and not self.verbose:
+        self._acquire()
         self.log( "Action will not be printed to screen or saved to logfile", level=30 )
         self.log( "Consider modifying the action to use one of these two options", level=30 )
+        self._release()
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,
@@ -291,25 +322,25 @@ class Action( state.SaveState, res.ResourceRequestor ):
                                                 dry_run=self.dry_run
                                                 )
 
-      # if need to submit
-      #   get job id from content
-
-      # Communicate up the chain
+      self._state = ActionState.FINISHED
+      if retval != 0:
+        self._status = ActionStatus.FAILURE
+      else:
+        if launch_wrapper is None:
+          self._status = ActionStatus.SUCCESS
+        else:
+          # No idea what the wrapper might do, this is our best guess
+          self._status = ActionStatus.SUBMITTED
+      self.post_launch( retval, content )
+      # notify we have finished
+      if thread_name is not None:
+        self.restore_logname()
+      self.__orch_wake__()
+      return retval, content
     except Exception as e:
-      # Communicate up the chain that we failed :(
-
-      # and propagate
+      # We failed :( still notify the orchestrator
+      self.__orch_wake__()
       raise e
-
-    self._state = ActionState.FINISHED
-    if retval != 0:
-      self._status = ActionStatus.FAILURE
-    else:
-      # If HPC type submission
-      # self._status = ActionStatus.SUBMITTED
-      self._status = ActionStatus.SUCCESS
-    self.post_launch( retval, content )
-    return retval, content
 
   def setup( self ):
     pass

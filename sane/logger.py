@@ -50,8 +50,12 @@ class Logger:
     # self._console_handler.flush()
     return self._label + self._level_indentation * self._level + contents
 
-  def log_push( self, levels=1 ) :
+  def log_push( self, levels=1 ):
     self._level += levels
 
-  def log_pop( self, levels=1 ) :
+  def log_pop( self, levels=1 ):
     self._level -= levels
+
+  def log_flush( self ):
+    for handler in self._logger.handlers:
+      handler.flush()

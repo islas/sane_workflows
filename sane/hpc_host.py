@@ -219,6 +219,18 @@ class PBSHost( HPCHost ):
     self._submit_format["wait"]       = "-W block=true"
 
 
+  def log_push( self, levels=1 ):
+    super().log_push( levels )
+    for nodeset_name, nodeset in self._resources.items():
+      nodeset["total"].log_push( levels )
+      nodeset["node"].log_push( levels )
+
+  def log_pop( self, levels=1 ):
+    super().log_pop( levels )
+    for nodeset_name, nodeset in self._resources.items():
+      nodeset["total"].log_pop( levels )
+      nodeset["node"].log_pop( levels )
+
   def load_core_config( self, config ):
     # Note: This is very delicate and maybe should be restructured
     # Pull out resources first to override
@@ -464,11 +476,14 @@ class PBSHost( HPCHost ):
     return res_dict
 
   def resources_available( self, resource_dict, requestor ):
+    self.log( f"Checking resources for '{requestor}'" )
+    self.log_push()
     available, *_ = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
+    self.log_pop()
     return available
 
   def acquire_resources( self, resource_dict, requestor ):
-    self.log( f"Acquiring HPC resources for {requestor}..." )
+    self.log( f"Acquiring HPC resources for '{requestor}'..." )
     self.log_push()
     available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     if not available:

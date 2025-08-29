@@ -4,8 +4,9 @@ import importlib.util
 import json
 import os
 import pathlib
-import pickle
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 
 import sane.action
@@ -86,6 +87,9 @@ class Orchestrator( jconfig.JSONConfig ):
     self._log_location  = "./"
     self._filename      = "orchestrator.json"
     self._working_directory = "./"
+
+    self.__run_lock__ = threading.Lock()
+    self.__wake__     = threading.Event()
 
     super().__init__( logname="orchestrator" )
 
@@ -201,12 +205,18 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.log_pop()
     host.log_pop()
-    self.log( f"All prerun checks for '{host.name}' passed" )
+    self.log( "* " * 50 )
+    self.log( "* " * 10 + "{0:^60}".format( f" All prerun checks for '{host.name}' passed " ) + "* " * 10 )
+    self.log( "* " * 50 )
+
 
   def setup( self ):
     self.construct_dag()
     os.makedirs( self.save_location, exist_ok=True )
     os.makedirs( self.log_location, exist_ok=True )
+    for name, action in self.actions.items():
+      action._run_lock = self.__run_lock__
+      action.__wake__  = self.__wake__
 
   def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
     # Setup does not take that long so make sure it is always run
@@ -242,8 +252,12 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.save()
     next_nodes = []
+    processed_nodes = []
+    executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
+    results = {}
+
     self.log( "Running actions..." )
-    while len( traversal_list ) > 0 or len( next_nodes ) > 0:
+    while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
       next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
       for node in next_nodes.copy():
         self.log( f"Running '{node}' on '{host.name}'" )
@@ -251,20 +265,30 @@ class Orchestrator( jconfig.JSONConfig ):
           # Gather all dependency nodes
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
           # Check requirements met
-          if self.actions[node].requirements_met( dependencies ):
-            if host.acquire_resources( self.actions[node].resources( host.name ), requestor=node ):
-              launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
+          requirements_met = False
+          with self.__run_lock__: # protect logs
+            requirements_met = self.actions[node].requirements_met( dependencies )
+
+          if requirements_met:
+            resources_available = False
+            with self.__run_lock__: # protect logs
+              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
+            if resources_available:
+              launch_wrapper = None
+              with self.__run_lock__: # protect logs
+                launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
               self.actions[node].config["host_file"] = host.save_file
               self.actions[node].config["host_name"] = host.name
               self.actions[node].verbose = self.verbose
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
               self.actions[node].log_location = self.log_location
-              host.pre_launch( self.actions[node] )
-              retval, content = self.actions[node].launch( self._working_directory, launch_wrapper=launch_wrapper )
-              host.post_launch( self.actions[node], retval, content )
-              # Regardless, return resources
-              host.release_resources( self.actions[node].resources( host.name ), requestor=node )
+              with self.__run_lock__:
+                host.pre_launch( self.actions[node] )
+              self.log_flush()
+              results[node] = executor.submit( self.actions[node].launch, self._working_directory, launch_wrapper=launch_wrapper )
+              next_nodes.remove( node )
+              processed_nodes.append( node )
             else:
               self.log( "Not enough resources in host right now, continuing and retrying later" )
               continue
@@ -274,21 +298,48 @@ class Orchestrator( jconfig.JSONConfig ):
                       f"Unable to run Action '{node}', requirements not met",
                       level=40 - int(skip_unrunnable) * 10
                       )
-        else:
+            next_nodes.remove( node )
+            processed_nodes.append( node )
+            # Force evaluation
+            self.__wake__.set()
+        elif self.actions[node].state != sane.action.ActionState.RUNNING:
           msg  = "Action {0:<24} already has {{state, status}} ".format( f"'{node}'" )
           msg += f"{{{self.actions[node].state.value}, {self.actions[node].status.value}}}"
           self.log( msg )
-
-        if self.actions[node].state == sane.action.ActionState.FINISHED or skip_unrunnable:
-          self._dag.node_complete( node, traversal_list )
           next_nodes.remove( node )
-        else:
+          processed_nodes.append( node )
+          # Force evaluation even though nothing was done we may get new actions to run
+          self.__wake__.set()
+
+      # We submitted everything we could so now wait for at least one action to wake us
+      self.__wake__.wait()
+      self.__wake__.clear()
+      for node in processed_nodes.copy():
+        if node in results and results[node].done():
+          try:
+            retval, content = results[node].result()
+            host.post_launch( self.actions[node], retval, content )
+            # Regardless, return resources
+            host.release_resources( self.actions[node].resources( host.name ), requestor=node )
+            del results[node]
+          except Exception as e:
+            for k, v in results.items(): v.cancel()
+            executor.shutdown( wait=True )
+            raise e
+
+        if ( self.actions[node].state == sane.action.ActionState.FINISHED or
+           ( skip_unrunnable and self.actions[node].state != sane.action.ActionState.RUNNING ) ):
+          self._dag.node_complete( node, traversal_list )
+          processed_nodes.remove( node )
+        elif self.actions[node].state != sane.action.ActionState.RUNNING:
           # If we get here, we DO want to error
-          msg = f"Action {node} did not return finished state"
+          msg = f"Action {node} did not return finished state : {self.actions[node].state.value}"
           self.log( msg, level=50 )
           raise Exception( msg )
 
+        # We are in a good spot to save
         self.save()
+
     self.log( "Finished running queued actions" )
 
   def load_py_files( self, files ):

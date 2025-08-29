@@ -302,7 +302,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
   def resources_available( self, resource_dict, requestor, log=True ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" for {requestor}"
+    origin_msg = f" for '{requestor}'"
 
     if log:
       self.log( f"Checking if resources available{origin_msg}..." )
@@ -340,7 +340,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
   def acquire_resources( self, resource_dict, requestor ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" for {requestor}"
+    origin_msg = f" for '{requestor}'"
 
     self.log( f"Acquiring resources{origin_msg}..." )
     self.log_push()
@@ -363,7 +363,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
   def release_resources( self, resource_dict, requestor ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" from {requestor}"
+    origin_msg = f" from '{requestor}'"
 
     self.log( f"Releasing resources{origin_msg}..." )
     self.log_push()
