@@ -241,6 +241,7 @@ class Orchestrator( jconfig.JSONConfig ):
     # We have a valid host for all actions slated to run
     host = self.hosts[self._current_host]
     host.save_location = self.save_location
+    host.dry_run = self.dry_run
     self.log( "Saving host information..." )
     host.save()
 
@@ -255,6 +256,9 @@ class Orchestrator( jconfig.JSONConfig ):
     processed_nodes = []
     executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
     results = {}
+    self.log( f"Using working directory : '{self.working_directory}'" )
+
+    host.pre_run()
 
     self.log( "Running actions..." )
     while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
@@ -286,7 +290,7 @@ class Orchestrator( jconfig.JSONConfig ):
               with self.__run_lock__:
                 host.pre_launch( self.actions[node] )
               self.log_flush()
-              results[node] = executor.submit( self.actions[node].launch, self._working_directory, launch_wrapper=launch_wrapper )
+              results[node] = executor.submit( self.actions[node].launch, self.working_directory, launch_wrapper=launch_wrapper )
               next_nodes.remove( node )
               processed_nodes.append( node )
             else:
@@ -327,11 +331,12 @@ class Orchestrator( jconfig.JSONConfig ):
             executor.shutdown( wait=True )
             raise e
 
+        run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
         if ( self.actions[node].state == sane.action.ActionState.FINISHED or
-           ( skip_unrunnable and self.actions[node].state != sane.action.ActionState.RUNNING ) ):
+           ( skip_unrunnable and not run_state ) ):
           self._dag.node_complete( node, traversal_list )
           processed_nodes.remove( node )
-        elif self.actions[node].state != sane.action.ActionState.RUNNING:
+        elif not run_state:
           # If we get here, we DO want to error
           msg = f"Action {node} did not return finished state : {self.actions[node].state.value}"
           self.log( msg, level=50 )
@@ -339,6 +344,8 @@ class Orchestrator( jconfig.JSONConfig ):
 
         # We are in a good spot to save
         self.save()
+
+    host.post_run()
 
     self.log( "Finished running queued actions" )
 

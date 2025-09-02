@@ -8,6 +8,8 @@ import sane.host
 
 
 class HPCHost( sane.Host ):
+  HPC_DELAY_PERIOD_SECONDS = 60
+
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases )
     # Maybe find a better way to do this
@@ -85,6 +87,25 @@ class HPCHost( sane.Host ):
         raise Exception( msg )
       self._job_ids[action.id] = self.extract_job_id( content )
     super().post_launch( action, retval, content )
+
+  def post_run( self ):
+    if not self.dry_run and len( self._job_ids ) > 0:
+      self.log( "Waiting for HPC jobs to complete" )
+      self.log_push()
+      self.log( "*ATTENTION* : This is a blocking/sync phase to wait for all jobs to complete - BE PATIENT" )
+      completed = {}
+      while len( completed ) != len( self._job_ids ):
+        time.sleep( HPC_DELAY_PERIOD_SECONDS )
+        for action_name, job_id in self._job_ids.items().copy():
+          if self.job_complete( job_id ):
+            self.log( f"Job ID {job_id} complete" )
+            completed[action_name] = job_id
+      self.log_pop()
+      self.log( "All HPC jobs complete" )
+    elif self.dry_run:
+      self.log( "Dry run, no HPC jobs to wait for" )
+    else:
+      self.log( "No HPC jobs to wait for" )
 
   def job_complete( self, job_id ):
     proc = subprocess.Popen(

@@ -161,7 +161,7 @@ def main():
 
   orchestrator.save_location = options.save_location
   orchestrator.log_location = options.log_location
-  orchestrator.working_dir = options.working_dir
+  orchestrator.working_directory = options.working_dir
 
   action_list = options.actions
   if len( action_list ) == 0:

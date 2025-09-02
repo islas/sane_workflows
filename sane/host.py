@@ -18,6 +18,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     self.environments  = utdict.UniqueTypedDict( sane.environment.Environment )
     self.lmod_path     = None
     self._resources    = {}
+    self.dry_run       = False
 
     self._default_env  = None
 
@@ -92,5 +93,11 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     pass
 
   def launch_wrapper( self, action, dependencies ):
+    pass
+
+  def pre_run( self ):
+    pass
+
+  def post_run( self ):
     pass
 

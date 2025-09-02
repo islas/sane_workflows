@@ -42,7 +42,9 @@ class ActionState( Enum ):
   SKIPPED  = "skipped"
   ERROR    = "error"    # This should not be used for errors in running the action (status),
                         # Instead this should be reserved for internal errors of the action
-
+  @classmethod
+  def valid_run_state( cls, state ):
+    return state == cls.PENDING or state == cls.RUNNING
 
 class ActionStatus( Enum ):
   SUCCESS   = "success"
@@ -184,11 +186,17 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def extra_requirements_met( self, dependency_actions ):
     return True
 
+  def _find_cmd( self, cmd, working_dir ):
+    inpath = shutil.which( cmd ) is not None
+    found_cmd = cmd
+
+    if not inpath and not os.path.isabs( cmd ):
+      found_cmd = os.path.abspath( os.path.join( working_dir, cmd ) )
+
+    return found_cmd
+
   def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False ):
     args = [cmd]
-    inpath = shutil.which( cmd ) is not None
-    if not inpath:
-      args[0] = os.path.abspath( cmd )
 
     if arguments is not None:
       args.extend( arguments )
@@ -291,18 +299,20 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.save()
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
-      cmd = self._launch_cmd
       action_dir = working_directory
       if os.path.isabs( self.working_directory ):
         action_dir = self.working_directory
       else:
         # Evaluate relative path from passed in path
         action_dir = os.path.abspath( os.path.join( working_directory, self.working_directory ) )
+      self.log( f"Using working directory : '{action_dir}'" )
+
+      cmd = self._find_cmd( self._launch_cmd, action_dir )
 
       args = [ action_dir, self.save_file ]
       if launch_wrapper is not None:
         args.insert( 0, cmd )
-        cmd = launch_wrapper[0]
+        cmd = self._find_cmd( launch_wrapper[0], action_dir )
         args[:0] = launch_wrapper[1]
 
       retval = -1
@@ -339,6 +349,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
+      self.restore_logname()
       self.__orch_wake__()
       raise e
 
@@ -356,7 +367,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     # The default will simply launch an underlying command using a subprocess
     command = None
     if "command" in self.config:
-      command = self.config["command"]
+      command = self._find_cmd( self.config["command"], "./" )
 
     if command is None:
       self.log( "No command provided for default Action" )
