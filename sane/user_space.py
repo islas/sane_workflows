@@ -1,3 +1,2 @@
 
-module = "user_workflow"
-loaded_modules = {}
+user_modules = {}

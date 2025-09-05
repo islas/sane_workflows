@@ -387,7 +387,7 @@ class Orchestrator( jconfig.JSONConfig ):
       user_module = importlib.util.module_from_spec( spec )
       sys.modules[module_name] = user_module
       spec.loader.exec_module( user_module )
-      uspace.loaded_modules[module_name] = user_module
+      uspace.user_modules[module_name] = user_module
 
   def load_config_files( self, files ):
     for file in files:

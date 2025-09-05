@@ -26,7 +26,7 @@ class JSONConfig( logger.Logger ):
 
   def search_type( self, type_str, noexcept=False ):
     module_name, class_name = type_str.split( ".", maxsplit=1 )
-    tinfo = getattr( uspace.loaded_modules[module_name], class_name, None )
+    tinfo = getattr( uspace.user_modules[module_name], class_name, None )
     if tinfo is None:
       msg = f"Could not find type <'{type_str}'> in {module_name}"
       self.log( msg, level=50 )

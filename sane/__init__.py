@@ -7,6 +7,7 @@ from .host import Host
 from .hpc_host import HPCHost, PBSHost
 from .orchestrator import Orchestrator, register
 from .logger import DispatchingFormatter
+from .user_space import user_modules
 
 log_formatter = DispatchingFormatter(
   {
