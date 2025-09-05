@@ -2,7 +2,7 @@
 import sys
 import os
 import pickle
-
+import logging
 
 if __name__ == "__main__":
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
@@ -36,6 +36,10 @@ if __name__ == "__main__":
   environment.setup()
 
   action.setup()
+  if action.wrap_stdout:
+    logging.addLevelName( 25, "STDOUT" )
+    action.__exec_raw__ = False
+
   retval = action.run()
   if retval is None:
     retval = -1

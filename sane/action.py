@@ -83,6 +83,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.verbose = False
     self.dry_run = False
+    self.wrap_stdout = True
+
     self.working_directory = "./"
     self._launch_cmd       = action_launcher.__file__
     self.log_location      = None
@@ -92,6 +94,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._dependencies     = {}
     self._resources        = {}
     self._host_resources   = {}
+
+    self.__exec_raw__      = True
 
     # These two are provided by the orchestrator upon begin setup
     # Use the run lock for mutually exclusive run logic (eg. clean logging)
@@ -212,9 +216,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     retval  = -1
     content = None
 
-    # Temporarily create a very crude logger
-    log_raw = self._logger.getChild( "raw" )
-
     if not dry_run:
       ############################################################################
       ##
@@ -240,6 +241,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if logfile is not None:
         logfileOutput = open( logfile, "w+", buffering=1 )
 
+      # Temporarily sway in a very crude logger
+      log = lambda *args: self.log( *args, level=25 )
+      if self.__exec_raw__:
+        log = lambda msg: self._logger.getChild( "raw" ).log( 25, msg )
+
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
         if logfileOutput is not None:
@@ -252,7 +258,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
         # Also duplicate output to stdout if requested
         if verbose:
           # Use a raw logger to ensure this also gets captured by the logging handlers
-          log_raw.info( c.decode( 'utf-8', 'replace' ).rstrip( "\n" ) )
+          log( c.decode( 'utf-8', 'replace' ).rstrip( "\n" ) )
           # print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
           # sys.stdout.buffer.write(c)
           # sys.stdout.flush()
