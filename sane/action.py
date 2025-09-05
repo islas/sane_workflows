@@ -1,6 +1,6 @@
 import os
 import shutil
-# import sys
+import re
 import io
 import subprocess
 import threading
@@ -74,6 +74,9 @@ def _dependency_met( dep_type, state, status ):
 
 class Action( state.SaveState, res.ResourceRequestor ):
   CONFIG_TYPE = "Action"
+  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:\w+(?:\[\d+\])?\.)*\w+(?:\[\d+\])?)[ ]*}})" )
+  IDX_RE = re.compile( r"(?P<attr>\w+)(?:\[(?P<idx>\d+)\])?" )
+
 
   def __init__( self, id ):
     self._id = id
@@ -302,6 +305,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self._status = ActionStatus.NONE
 
       # Immediately save the current state of this action
+      self.log( "Saving action information for launch..." )
       self.save()
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
@@ -359,8 +363,57 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.__orch_wake__()
       raise e
 
-  def setup( self ):
-    pass
+  def dereference_str( self, input_str ):
+    matches = Action.REF_RE.finditer( input_str )
+    output_str = input_str
+    for match in matches:
+      substr = match.group( "substr" )
+      attrs  = match.group( "attrs" )
+
+      curr = self
+      for attr in attrs.split( "." ):
+        attr_groups = Action.IDX_RE.fullmatch( attr ).groupdict()
+        get_attr = None
+        if isinstance( curr, dict ):
+          get_attr = curr.get
+        else:
+          get_attr = lambda x: getattr( curr, x, None )
+
+        curr = get_attr( attr_groups["attr"] )
+
+        ########################################################################
+        # Special cases
+        if callable( curr ):
+          if attr == "resources" and "host_name" in self.config:
+            curr = curr( self.config["host_name"] )
+          else:
+            curr = curr()
+        ########################################################################
+        if curr is None:
+          raise Exception( "Dereferencing yielded None for " + attr_groups["attr"] + f" in {substr}" )
+
+        if attr_groups["idx"] is not None:
+          curr = curr[ int(attr_groups["idx"]) ]
+      output_str = output_str.replace( substr, str( curr ) )
+    if output_str != input_str:
+      self.log( f"Dereferenced '{input_str}' to '{output_str}'" )
+    return output_str
+
+  def dereference( self, obj ):
+    if isinstance( obj, dict ):
+      for key in obj.keys():
+        output = self.dereference( obj[key] )
+        if output is not None:
+          obj[key] = output
+    elif isinstance( obj, list ):
+      for i in range( len( obj ) ):
+        output = self.dereference( obj[i] )
+        if output is not None:
+          obj[i] = output
+    elif isinstance( obj, str ):
+      return self.dereference_str( obj )
+    else:
+      return None
 
   def pre_launch( self ):
     pass
@@ -377,6 +430,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def run( self ):
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
+    self.dereference( self.config )
+
     command = None
     if "command" in self.config:
       command = self._find_cmd( self.config["command"], "./" )
@@ -389,7 +444,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     if "arguments" in self.config:
       arguments = self.config["arguments"]
 
-    retval, content = self.execute_subprocess( command, arguments, verbose=True )
+    retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
     return retval
 
   def __str__( self ):
