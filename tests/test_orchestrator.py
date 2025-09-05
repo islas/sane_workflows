@@ -56,3 +56,19 @@ class OrchestratorTests( unittest.TestCase ):
     with self.assertRaises( FileNotFoundError ):
       self.orch.load_py_files( [ f"{self.root}/nosuchfile/in/this/project.py"] )
 
+  def test_orchestrator_patch_config( self ):
+    """Test the ability to patch config files with other config"""
+    self.test_orchestrator_load_config_host()
+    self.test_orchestrator_load_config_action()
+    self.orch.load_config( { "patches" : { "priority" : 10, "hosts" : { "unique_host_config" : { "default_env" : "soup" } } } } )
+    self.orch.process_patches()
+    self.assertEqual( "soup", self.orch.hosts["unique_host_config"]._default_env )
+
+    self.orch.load_config( { "patches" : { "priority" : 10, "hosts" : { "unique_host_wrong" : { "aliases" : ["soup"] } } } } )
+    self.orch.process_patches()
+    self.assertNotIn( "unique_host_wrong", self.orch.hosts )
+    self.assertNotEqual( ["soup"], self.orch.hosts["unique_host_config"].aliases )
+
+    self.orch.load_config( { "patches" : { "actions" : { "unique_action_config" : { "environment" : "soup" } } } } )
+    self.orch.process_patches()
+    self.assertEqual( "soup", self.orch.actions["unique_action_config"].environment )

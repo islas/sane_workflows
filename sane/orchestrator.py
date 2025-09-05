@@ -87,6 +87,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self._log_location  = "./"
     self._filename      = "orchestrator.json"
     self._working_directory = "./"
+    self._patch_configs = {}
 
     self.__run_lock__ = threading.Lock()
     self.__wake__     = threading.Event()
@@ -147,6 +148,32 @@ class Orchestrator( jconfig.JSONConfig ):
     for key in keys:
       for f in _registered_functions[key]:
         f( self )
+    self.restore_logname()
+
+  def process_patches( self ):
+    # Higher number equals higher priority
+    # this makes default registered generally go last
+    self.override_logname( f"{self.logname}::patch" )
+    keys = sorted( self._patch_configs.keys(), reverse=True )
+    for key in keys:
+      for patch in self._patch_configs[key]:
+        hosts = patch.pop( "hosts", {} )
+        for id, host_config in hosts.items():
+          if id not in self.hosts:
+            self.log( f"Host '{id}' does not exist, cannot patch", level=30 )
+          else:
+            self.hosts[id].load_config( host_config )
+
+        actions = patch.pop( "actions", {} )
+        for id, action_config in actions.items():
+          if id not in self.actions:
+            self.log( f"Action '{id}' does not exist, cannot patch", level=30 )
+          else:
+            self.actions[id].load_config( action_config )
+
+        if len( patch ) > 0:
+          self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
+
     self.restore_logname()
 
   def check_host( self, as_host, traversal_list ):
@@ -403,6 +430,13 @@ class Orchestrator( jconfig.JSONConfig ):
       action.log_pop()
 
       self.add_action( action )
+
+    # Handle very similar to the register functions, including priority
+    patches = config.pop( "patches", {} )
+    priority = patches.pop( "priority", 0 )
+    if priority not in self._patch_configs:
+      self._patch_configs[priority] = []
+    self._patch_configs[priority].append( patches )
 
   def save( self ):
     save_dict = {

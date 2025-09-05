@@ -156,6 +156,8 @@ def main():
   if ".jsonc" in files_sorted:
     orchestrator.load_config_files( files_sorted[".jsonc"] )
 
+  orchestrator.process_patches()
+
   if options.verbose is not None:
     orchestrator.verbose = options.verbose
 
