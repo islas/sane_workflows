@@ -368,6 +368,12 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def post_launch( self, retval, content ):
     pass
 
+  def pre_run( self ):
+    pass
+
+  def post_run( self, retval ):
+    pass
+
   def run( self ):
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess

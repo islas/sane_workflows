@@ -88,7 +88,7 @@ class HPCHost( sane.Host ):
       self._job_ids[action.id] = self.extract_job_id( content )
     super().post_launch( action, retval, content )
 
-  def post_run( self ):
+  def post_run_actions( self ):
     if not self.dry_run and len( self._job_ids ) > 0:
       self.log( "Waiting for HPC jobs to complete" )
       self.log_push()

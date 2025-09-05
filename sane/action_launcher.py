@@ -35,12 +35,14 @@ if __name__ == "__main__":
   action.log( f"Using Environment \"{environment.name}\"" )
   environment.setup()
 
-  action.setup()
   if action.wrap_stdout:
     logging.addLevelName( 25, "STDOUT" )
     action.__exec_raw__ = False
 
+  action.pre_run()
   retval = action.run()
+  action.post_run( retval )
+
   if retval is None:
     retval = -1
     action.log( f"No return value provided by Action {action.id}", level=40 )

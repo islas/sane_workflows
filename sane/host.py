@@ -95,9 +95,9 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
   def launch_wrapper( self, action, dependencies ):
     pass
 
-  def pre_run( self ):
+  def pre_run_actions( self ):
     pass
 
-  def post_run( self ):
+  def post_run_actions( self ):
     pass
 
