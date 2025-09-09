@@ -305,7 +305,7 @@ class ResourceProvider( jconfig.JSONConfig ):
     origin_msg = f" for '{requestor}'"
 
     if log:
-      self.log( f"Checking if resources available{origin_msg}..." )
+      self.log( f"Checking if resources available{origin_msg}...", level=10 )
       self.log_push()
     can_aquire = True
     for resource, info in mapped_resource_dict.items():
@@ -330,11 +330,14 @@ class ResourceProvider( jconfig.JSONConfig ):
 
       acquirable = res.total <= self._resources[resource].current
       if not acquirable and log:
-        self.log( f"Resource '{resource}' : {amount}{base_unit} not acquirable right now..." )
+        self.log( f"Resource '{resource}' : {res.total_str} not acquirable right now...", level=10 )
       can_aquire = can_aquire and acquirable
     
     if log:
-      self.log( f"All resources{origin_msg} available" )
+      if can_aquire:
+        self.log( f"All resources{origin_msg} available", level=10 )
+      else:
+        self.log( f"Not all resources available", level=10 )
       self.log_pop()
     return can_aquire
 
@@ -342,7 +345,7 @@ class ResourceProvider( jconfig.JSONConfig ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     origin_msg = f" for '{requestor}'"
 
-    self.log( f"Acquiring resources{origin_msg}..." )
+    self.log( f"Acquiring resources{origin_msg}...", level=10 )
     self.log_push()
     if self.resources_available( mapped_resource_dict, requestor ):
       for resource, info in mapped_resource_dict.items():
@@ -351,10 +354,10 @@ class ResourceProvider( jconfig.JSONConfig ):
           res = info
         else:
           res = Resource( resource, info, unit=self._resources[resource].unit )
-        self.log( f"Acquiring resource '{resource}' : {res.total_str}")
+        self.log( f"Acquiring resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] -= res
     else:
-      self.log( f"Could not acquire resources{origin_msg}", level=30 )
+      self.log( f"Could not acquire resources{origin_msg}", level=10 )
       self.log_pop()
       return False
 
@@ -365,7 +368,7 @@ class ResourceProvider( jconfig.JSONConfig ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     origin_msg = f" from '{requestor}'"
 
-    self.log( f"Releasing resources{origin_msg}..." )
+    self.log( f"Releasing resources{origin_msg}...", level=10 )
     self.log_push()
     for resource, info in mapped_resource_dict.items():
       if resource not in self._resources:
@@ -381,7 +384,7 @@ class ResourceProvider( jconfig.JSONConfig ):
         msg += "amount is greater than current in use " + self._resources[resource].used_str
         self.log( msg, level=30 )
       else:
-        self.log( f"Releasing resource '{resource}' : {res.total_str}" )
+        self.log( f"Releasing resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] += res
     self.log_pop()
 

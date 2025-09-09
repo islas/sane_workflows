@@ -184,19 +184,21 @@ def main():
     orchestrator.load()
 
   orchestrator.setup()
-
+  success = True
   if options.run:
-    orchestrator.run_actions( action_list, options.specific_host )
+    success = orchestrator.run_actions( action_list, options.specific_host )
   if options.dry_run:
     orchestrator.dry_run = True
-    orchestrator.run_actions( action_list, options.specific_host )
+    success = orchestrator.run_actions( action_list, options.specific_host )
   elif options.list:
     logger.log( "Actions:" )
     sane.orchestrator.print_actions( action_list, print=logger.log )
 
   orchestrator.save()
   logger.log( "Finished" )
-
+  # Flip success as 1 == True and 0 == False
+  # but exit codes 0 == ok anything else not ok
+  exit( not int(success) )
 
 if __name__ == "__main__":
   main()

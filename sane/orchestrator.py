@@ -50,8 +50,10 @@ def register( f, priority=0 ):
 
 
 def print_actions( action_list, n_per_line=4, print=print ):
-  n_per_line = 4
   longest_action = len( max( action_list, key=len ) )
+  max_line = 100
+  n_per_line = int( max_line / longest_action )
+
   for i in range( 0, int( len( action_list ) / n_per_line ) + 1 ):
     line = "  "
     for j in range( n_per_line ):
@@ -261,7 +263,8 @@ class Orchestrator( jconfig.JSONConfig ):
 
     traversal_list = self._dag.traversal_list( action_id_list )
     self.log( "Full action set:" )
-    print_actions( list(traversal_list.keys()), print=self.log )
+    action_set = list(traversal_list.keys())
+    print_actions( action_set, print=self.log )
 
     self.check_host( as_host, traversal_list )
 
@@ -291,7 +294,6 @@ class Orchestrator( jconfig.JSONConfig ):
     while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
       next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
       for node in next_nodes.copy():
-        self.log( f"Running '{node}' on '{host.name}'" )
         if self.actions[node].state == sane.action.ActionState.PENDING:
           # Gather all dependency nodes
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
@@ -314,6 +316,7 @@ class Orchestrator( jconfig.JSONConfig ):
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
               self.actions[node].log_location = self.log_location
+              self.log( f"Running '{node}' on '{host.name}'" )
               with self.__run_lock__:
                 host.pre_launch( self.actions[node] )
               self.log_flush()
@@ -321,7 +324,7 @@ class Orchestrator( jconfig.JSONConfig ):
               next_nodes.remove( node )
               processed_nodes.append( node )
             else:
-              self.log( "Not enough resources in host right now, continuing and retrying later" )
+              self.log( "Not enough resources in host right now, continuing and retrying later", level=10 )
               continue
 
           else:
@@ -361,6 +364,9 @@ class Orchestrator( jconfig.JSONConfig ):
         run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
         if ( self.actions[node].state == sane.action.ActionState.FINISHED or
            ( skip_unrunnable and not run_state ) ):
+          msg  = "{{state}} Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
+          msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
+          self.log( msg )
           self._dag.node_complete( node, traversal_list )
           processed_nodes.remove( node )
         elif not run_state:
@@ -375,6 +381,16 @@ class Orchestrator( jconfig.JSONConfig ):
     host.post_run_actions()
 
     self.log( "Finished running queued actions" )
+    # Report final statuses
+    longest_action = len( max( action_set, key=len ) )
+    statuses = [ f"{node:<{longest_action}}: " + self.actions[node].status.value for node in action_set ]
+    print_actions( statuses, print=self.log )
+    status = all( [ self.actions[node].status == sane.action.ActionStatus.SUCCESS for node in action_set ] )
+    if status:
+      self.log( "All actions finished with success" )
+    else:
+      self.log( "Not all actions finished with success" )
+    return status
 
   def load_py_files( self, files ):
     for file in files:

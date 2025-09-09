@@ -225,8 +225,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ## Call subprocess
       ##
       # https://stackoverflow.com/a/18422264
-      if logfile is not None and verbose:
-        self.log( "Local step will also be captured to logfile {0}".format( logfile ) )
+      if logfile is not None:
+        self.log( "Local step will be captured to logfile {0}".format( logfile ) )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
@@ -396,7 +396,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
           curr = curr[ int(attr_groups["idx"]) ]
       output_str = output_str.replace( substr, str( curr ) )
     if output_str != input_str:
-      self.log( f"Dereferenced '{input_str}' to '{output_str}'" )
+      self.log( f"Dereferenced '{input_str}'" )
+      self.log( f"     into => '{output_str}'" )
     return output_str
 
   def dereference( self, obj ):

@@ -89,10 +89,12 @@ class Environment( config.Config, jconfig.JSONConfig ):
     # environment manipulation
     for category, lmod_cmd in self._setup_lmod_cmds.items():
       for cmd, args, kwargs in lmod_cmd:
+        self.log( f"Running lmod cmd: '{cmd}' with args: '{args}' and kwargs: '{kwargs}'" )
         self.module( cmd, *args, **kwargs )
 
     for category, env_cmd in self._setup_env_vars.items():
       for cmd, var, val in env_cmd:
+        self.log( f"Running env cmd: '{cmd}' with var: '{var}' and val: '{val}'" )
         if cmd == "set":
           self.env_var_set( var, val )
         elif cmd == "unset":
@@ -101,6 +103,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
           self.env_var_append( var, val )
         elif cmd == "prepend":
           self.env_var_prepend( var, val )
+        self.log( f"  Environment variable {var}=" + os.environ[var] )
 
     self.post_setup()
 
