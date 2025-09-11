@@ -1,6 +1,8 @@
 from abc import abstractmethod
 import re
 import math
+import time
+import subprocess
 
 import sane.action
 import sane.resources
@@ -23,6 +25,7 @@ class HPCHost( sane.Host ):
     self._job_ids = {}
 
     # These must be filled out by derived classes
+    self._state_cmd = None
     self._status_cmd = None
     self._submit_cmd = None
     self._resources_delim = None
@@ -91,36 +94,56 @@ class HPCHost( sane.Host ):
       self._job_ids[action.id] = self.extract_job_id( content )
     super().post_launch( action, retval, content )
 
-  def post_run_actions( self ):
+  def post_run_actions( self, actions ):
     if not self.dry_run and len( self._job_ids ) > 0:
       self.log( "Waiting for HPC jobs to complete" )
       self.log_push()
       self.log( "*ATTENTION* : This is a blocking/sync phase to wait for all jobs to complete - BE PATIENT" )
       completed = {}
       while len( completed ) != len( self._job_ids ):
-        time.sleep( HPC_DELAY_PERIOD_SECONDS )
-        for action_name, job_id in self._job_ids.items().copy():
+        time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
+        for action_name, job_id in self._job_ids.items():
           if self.job_complete( job_id ):
-            self.log( f"Job ID {job_id} complete" )
             completed[action_name] = job_id
+            status = self.job_status( job_id )
+            self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}" )
+            if status:
+              actions[action_name].set_status_success()
+            else:
+              actions[action_name].set_status_failure()
       self.log_pop()
       self.log( "All HPC jobs complete" )
     elif self.dry_run:
-      self.log( "Dry run, no HPC jobs to wait for" )
+      self.log( "Dry run, no HPC jobs to wait for, marking all as success" )
+      for action_name, job_id in self._job_ids.items():
+        actions[action_name].set_status_success()
     else:
       self.log( "No HPC jobs to wait for" )
+    super().post_run_actions( actions )
 
   def job_complete( self, job_id ):
     proc = subprocess.Popen(
-                            [ self._status_cmd, str( job_id ) ],
+                            ( self._state_cmd + f" {job_id}" ).split( " " ),
                             stdin =subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE
                             )
     output, err = proc.communicate()
     retval    = proc.returncode
-    ouptut    = output.decode( "utf-8" )
-    return self.check_job_status( retval, output )
+    output    = output.decode( "utf-8" )
+    return self.check_job_complete( job_id, retval, output )
+
+  def job_status( self, job_id ):
+    proc = subprocess.Popen(
+                            ( self._status_cmd + f" {job_id}" ).split( " " ),
+                            stdin =subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE
+                            )
+    output, err = proc.communicate()
+    retval    = proc.returncode
+    output    = output.decode( "utf-8" )
+    return self.check_job_status( job_id, retval, output )
 
   def launch_wrapper( self, action, dependencies ):
     """A launch wrapper must be defined for HPC submissions"""
@@ -174,11 +197,20 @@ class HPCHost( sane.Host ):
     return initial_submit_values
 
   @abstractmethod
-  def check_job_status( self, retval, status ):
-    """Tell us how to evaluate the job status command output
+  def check_job_complete( self, job_id, retval, status ):
+    """Tell us how to evaluate the job complete command output
 
     The return value should be a bool noting whether a job has completed, 
     regardless of pass or fail.
+    """
+    pass
+
+  @abstractmethod
+  def check_job_status( self, job_id, retval, status ):
+    """Tell us how to evaluate the job status command output
+
+    The return value should be a bool noting whether a job exit status
+    was successful, returning False if not
     """
     pass
 
@@ -229,7 +261,11 @@ class PBSHost( HPCHost ):
     # Cache previous submissions
     self._requisitions = {}
 
-    self._status_cmd = "qstat"
+    # Keep job info around after query
+    self._job_info = {}
+
+    self._state_cmd = "qstat -f -x"
+    self._status_cmd = self._state_cmd # same thing
     self._submit_cmd = "qsub"
     self._resources_delim = ":"
     self._amount_delim = "="
@@ -295,14 +331,44 @@ class PBSHost( HPCHost ):
 
 
 
-  def check_job_status( self, retval, status ):
-    return ( retVal > 0 or output == "" )
+  def check_job_complete( self, job_id, retval, status ):
+    if retval != 0:
+      return False
+
+    info = {}
+    last_key = None
+    for line in status.splitlines():
+      kv = re.match( r"[ ]*(?P<key>(?:\w|[.-])+)[ ]*=[ ]*(?P<val>.*?)$", line )
+      if kv is not None:
+        info[kv.group("key").lower()] = kv.group("val")
+        last_key = kv.group("key").lower()
+      elif last_key is not None:
+        info[last_key] += line.lstrip()
+
+    self._job_info[job_id] = info
+    if "job_state" in self._job_info[job_id] and self._job_info[job_id]["job_state"] == "F":
+      return True
+    else:
+      return False
+
+  def check_job_status( self, job_id, retval, status ):
+    # Mostly call this again to reprocess output to latest
+    complete = self.check_job_complete( job_id, retval, status )
+    if not complete:
+      # Something happened such that we thought we were complete but now aren't
+      # Just mark as failure
+      return False
+
+    if "exit_status" in self._job_info[job_id]:
+      return int(self._job_info[job_id]["exit_status"]) == 0
+    else:
+      return False
 
   def extract_job_id( self, content ):
     found = self._job_id_regex.match( content )
     if found is None:
       self.log( "No job id found in output from job submission", level=40 )
-      return -1
+      raise RuntimeError( "No job id found" )
     else:
       return int( found.group( 1 ) )
 

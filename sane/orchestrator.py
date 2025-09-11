@@ -290,7 +290,7 @@ class Orchestrator( jconfig.JSONConfig ):
     results = {}
     self.log( f"Using working directory : '{self.working_directory}'" )
 
-    host.pre_run_actions()
+    host.pre_run_actions( { node : self.actions[node] for node in action_set } )
 
     self.log( "Running actions..." )
     while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
@@ -383,7 +383,7 @@ class Orchestrator( jconfig.JSONConfig ):
         # We are in a good spot to save
         self.save()
 
-    host.post_run_actions()
+    host.post_run_actions( { node : self.actions[node] for node in action_set } )
 
     self.log( "Finished running queued actions" )
     # Report final statuses
