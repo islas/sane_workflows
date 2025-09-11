@@ -54,6 +54,8 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
   def __init__( self, name, aliases=[], lmod_path=None ):
     super().__init__( name=name, logname=name, aliases=aliases )
+    # This should only be set by the parent host
+    self._base = None
 
     self.lmod_path  = lmod_path
     self._lmod     = None
@@ -135,6 +137,10 @@ class Environment( config.Config, jconfig.JSONConfig ):
   def setup_scripts( self, script ):
     self._setup_scripts.append( script )
 
+  def _copy_from_base( self ):
+    self.lmod_path = self._base.lmod_path
+    self._lmod     = self._base._lmod
+
   def pre_setup( self ):
     pass
 
@@ -143,6 +149,12 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
   def setup( self ):
     self.pre_setup()
+
+    # Use base to get initially up and running
+    if self._base is not None:
+      self.log( f"Setting up base '{self._base.name}'" )
+      self._base.setup()
+      self._copy_from_base()
 
     # Scripts FIRST
     for script in self._setup_scripts:

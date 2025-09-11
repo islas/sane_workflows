@@ -15,11 +15,11 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases, logname=name, filename=f"host_{name}", base=Host )
 
-    self.environments  = utdict.UniqueTypedDict( sane.environment.Environment )
-    self.lmod_path     = None
-    self._resources    = {}
-    self.dry_run       = False
+    self.environments = utdict.UniqueTypedDict( sane.environment.Environment )
+    self.dry_run = False
 
+    self._base_environment = None
+    self._resources    = {}
     self._default_env  = None
 
   def match( self, requested_host ):
@@ -54,9 +54,18 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
   def default_env( self, env ):
     self._default_env = env
 
+  @property
+  def base_env( self ):
+    return self._base_environment
+
+  @base_env.setter
+  def base_env( self, env ):
+    self._base_environment = env
+    for env_name, env in self.environments.items():
+      env._base = self.base_env
+
   def add_environment( self, env ):
-    if env.lmod_path is None and self.lmod_path is not None:
-      env.lmod_path = self.lmod_path
+    env._base = self.base_env
     self.environments[env.name] = env
 
   def load_core_config( self, config ):
@@ -68,9 +77,16 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     if default_env is not None:
       self.default_env = default_env
 
-    lmod_path = config.pop( "lmod_path", None )
-    if lmod_path is not None:
-      self.lmod_path = lmod_path
+    base_env = config.pop( "base_env", None )
+    if base_env is not None:
+      env_typename = base_env.pop( "type", sane.environment.Environment.CONFIG_TYPE )
+      env_type = sane.environment.Environment
+      if env_typename != sane.environment.Environment.CONFIG_TYPE:
+        env_type = self.search_type( env_typename )
+
+      env = env_type( self.name + "_env" )
+      env.load_config( base_env )
+      self.base_env = env
 
     env_configs      = config.pop( "environments", {} )
     for id, env_config in env_configs.items():
