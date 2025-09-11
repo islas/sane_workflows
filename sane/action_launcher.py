@@ -12,6 +12,8 @@ if __name__ == "__main__":
 
   import sane
 
+  logging.addLevelName( 25, "STDOUT" )
+
   working_directory = sys.argv[1]
   action_file       = sys.argv[2]
 
@@ -36,7 +38,6 @@ if __name__ == "__main__":
   environment.setup()
 
   if action.wrap_stdout:
-    logging.addLevelName( 25, "STDOUT" )
     action.__exec_raw__ = False
 
   action.pre_run()

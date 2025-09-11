@@ -1,10 +1,51 @@
 import importlib
 import sys
 import os
+import contextlib
+import io
 from collections import OrderedDict
+from subprocess import PIPE, Popen
+
 
 import sane.config as config
 import sane.json_config as jconfig
+
+
+
+def env_from_script( script, *arguments, **kwargs ):
+  """
+  Execute a script, compare environment changes and then apply to
+  the current Python environment (i.e. os.environ).
+
+  Raises an exception in case script execution returned a non-zero
+  exit code.
+
+  Use with keyword argument show_environ_updates=True to show the actual
+  changes made to os.environ (mostly for debugging).
+
+  Modeled after lmod env_modules_python
+  """
+  numArgs = len(arguments)
+  A = [ os.path.abspath( os.path.join( os.path.dirname( __file__ ), "./env_from_script.sh" ) ), script ]
+  if (numArgs == 1):
+    A += arguments[0].split()
+  else:
+    A += list(arguments)
+
+  proc           = Popen(A, stdout=PIPE, stderr=PIPE)
+  stdout, stderr = proc.communicate()
+  status         = proc.returncode
+  err_out        = sys.stderr
+  print(stderr.decode(),file=err_out)
+
+  if ('show_environ_updates' in kwargs):
+    print(stdout.decode())
+  if status == 0:
+    exec(stdout.decode())
+  else:
+    print( stdout.decode() )
+    raise RuntimeError( "Failed to run env_from_script" )
+  return status, stderr.decode()
 
 
 class Environment( config.Config, jconfig.JSONConfig ):
@@ -19,6 +60,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
     self._setup_env_vars  = OrderedDict()
     self._setup_lmod_cmds = OrderedDict()
+    self._setup_scripts   = []
 
   def find_lmod( self, required=True ):
     if self._lmod is None and self.lmod_path is not None:
@@ -41,7 +83,12 @@ class Environment( config.Config, jconfig.JSONConfig ):
   # Just a simple wrappers to facilitate deferred environment setting
   def module( self, cmd, *args, **kwargs ):
     self.find_lmod()
-    self._lmod.module( cmd, *args, **kwargs )
+    output = io.StringIO()
+    with contextlib.redirect_stdout( output ) as fs:
+      with contextlib.redirect_stderr( output ) as fe:
+        self._lmod.module( cmd, *args, **kwargs )
+    for line in output.getvalue().splitlines():
+      self.log( line, level=25 )
 
   def env_var_prepend( self, var, val ):
     os.environ[var] = "{0}:{1}".format( val, os.environ[var] )
@@ -55,9 +102,18 @@ class Environment( config.Config, jconfig.JSONConfig ):
   def env_var_unset( self, var ):
     os.environ.pop( var, None )
 
+  def env_script( self, script ):
+    output = io.StringIO()
+    with contextlib.redirect_stdout( output ) as fs:
+      with contextlib.redirect_stderr( output ) as fe:
+        env_from_script( script )
+    for line in output.getvalue().splitlines():
+      self.log( line, level=25 )
+
   def reset_env_setup( self ):
     self._setup_lmod_cmds.clear()
     self._setup_env_vars.clear()
+    self._setup_scripts.clear()
 
   def setup_lmod_cmds( self, cmd, *args, category="unassigned", **kwargs ):
     if category not in self._setup_lmod_cmds:
@@ -76,6 +132,9 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
     self._setup_env_vars[category].append( ( cmd, var, val ) )
 
+  def setup_scripts( self, script ):
+    self._setup_scripts.append( script )
+
   def pre_setup( self ):
     pass
 
@@ -85,7 +144,12 @@ class Environment( config.Config, jconfig.JSONConfig ):
   def setup( self ):
     self.pre_setup()
 
-    # LMOD first to ensure any mass environment changes are seen before user-specific
+    # Scripts FIRST
+    for script in self._setup_scripts:
+      self.log( f"Running script {script}" )
+      self.env_script( script )
+
+    # LMOD next to ensure any mass environment changes are seen before user-specific
     # environment manipulation
     for category, lmod_cmd in self._setup_lmod_cmds.items():
       for cmd, args, kwargs in lmod_cmd:
@@ -114,6 +178,9 @@ class Environment( config.Config, jconfig.JSONConfig ):
     aliases = list( set( config.pop( "aliases", [] ) ) )
     if aliases != []:
       self._aliases = aliases
+
+    for script in config.pop( "env_scripts", [] ):
+      self.setup_scripts( script )
 
     lmod_path = config.pop( "lmod_path", None )
     if lmod_path is not None:
