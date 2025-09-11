@@ -143,6 +143,14 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._state  = ActionState.PENDING
     self._status = ActionStatus.NONE
 
+  def set_status_success( self ):
+    self._state  = ActionState.FINISHED
+    self._status = ActionStatus.SUCCESS
+
+  def set_status_failure( self ):
+    self._state  = ActionState.FINISHED
+    self._status = ActionStatus.FAILURE
+
   @property
   def status( self ):
     return self._status
