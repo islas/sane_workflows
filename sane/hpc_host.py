@@ -37,6 +37,7 @@ class HPCHost( sane.Host ):
                             "time"       : "",
                             "wait"       : ""
                             }
+    self._cmd_delim = None
 
   def load_core_config( self, config ):
     queue = config.pop( "queue", None )
@@ -74,6 +75,8 @@ class HPCHost( sane.Host ):
     for key, value in submit_values.items():
       if key in self._submit_format and value is not None:
         submission.extend( self._submit_format[key].format( value ).split( " " ) )
+    if self._cmd_delim is not None:
+      submission.append( self._cmd_delim )
     return submission
 
   def _launch_local( self, action ):
@@ -238,6 +241,7 @@ class PBSHost( HPCHost ):
     self._submit_format["output"]     = "-j oe -o {0}"
     self._submit_format["time"]       = "-l walltime={0}"
     self._submit_format["wait"]       = "-W block=true"
+    self._cmd_delim = "--"
 
 
   def log_push( self, levels=1 ):
