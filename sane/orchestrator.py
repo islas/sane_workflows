@@ -309,15 +309,18 @@ class Orchestrator( jconfig.JSONConfig ):
             with self.__run_lock__: # protect logs
               resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
             if resources_available:
-              launch_wrapper = None
-              with self.__run_lock__: # protect logs
-                launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
+              # Set info first
               self.actions[node].config["host_file"] = host.save_file
               self.actions[node].config["host_name"] = host.name
               self.actions[node].verbose = self.verbose
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
               self.actions[node].log_location = self.log_location
+
+              launch_wrapper = None
+              with self.__run_lock__: # protect logs
+                launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
+
               self.log( f"Running '{node}' on '{host.name}'" )
               with self.__run_lock__:
                 host.pre_launch( self.actions[node] )
