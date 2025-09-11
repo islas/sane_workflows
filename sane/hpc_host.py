@@ -307,7 +307,7 @@ class PBSHost( HPCHost ):
       return int( found.group( 1 ) )
 
   def pbs_resource_requisition( self, resource_dict, requestor ):
-    self.log( f"Original resource request from '{requestor}' : {resource_dict}" )
+    self.log( f"Original resource request from '{requestor}' : {resource_dict}", level=15 )
 
     resource_dicts = [ self.map_resource_dict( resource_dict ) ]
     # Manual specification has been made, ignore everything else
@@ -354,7 +354,7 @@ class PBSHost( HPCHost ):
           specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
           numeric_resources.append( resource )
 
-      self.log( f"Finding resources for '{requestor}' : {specified_resource_dict}" )
+      self.log( f"Finding resources for '{requestor}' : {specified_resource_dict}", level=15 )
 
       # These are the resources that should be provided by the end of this
       required_resources = available_resources & set( numeric_resources )
@@ -379,7 +379,7 @@ class PBSHost( HPCHost ):
           # Unsatisfied
           break
 
-        self.log( f"Checking resources from '{nodeset_name}'" )
+        self.log( f"Checking resources from '{nodeset_name}'", level=15 )
         node  = self._resources[nodeset_name]["node"]
         total = self._resources[nodeset_name]["total"]
         total.log_push( 2 )
@@ -395,7 +395,7 @@ class PBSHost( HPCHost ):
               nodes = max( nodes, math.ceil(nodes_for_res) )
 
         if not total.resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
-          total.log( "Not enough nodes" )
+          total.log( "Not enough nodes", level=15 )
           total.log_pop( 2 )
           continue
 
@@ -424,7 +424,7 @@ class PBSHost( HPCHost ):
               original_mount = sane.resources.Resource( resource, amount, unit=exclusive_amount.unit )
               msg  = f"Current node is exclusive, changing resource '{resource}' acquisition amount "
               msg += f"from {original_mount.total_str} to {exclusive_amount.total_str}"
-              total.log( msg )
+              total.log( msg, level=15 )
               amount = exclusive_amount.total
 
           # Check if available
@@ -446,7 +446,7 @@ class PBSHost( HPCHost ):
         # mark not available this time as amounts has already been filtered
         resolved = resolved and available 
         if not available:
-          total.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=30 )
+          total.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=15 )
 
 
         # Note how much we have resolved from the specified resource dict so that
@@ -462,10 +462,10 @@ class PBSHost( HPCHost ):
       current_resolved = ( len( specified_resource_dict ) == 0 )
       resolved = resolved and current_resolved
       if not current_resolved:
-        self.log( f"Did not fully resolve resource request : {res_dict}", level=30 )
-        self.log( f"  Remaining : {specified_resource_dict}", level=30 )
+        self.log( f"Did not fully resolve resource request : {res_dict}", level=15 )
+        self.log( f"  Remaining : {specified_resource_dict}", level=15 )
     if resolved:
-      self.log( f"HPC resources available for '{requestor}'" )
+      self.log( f"HPC resources available for '{requestor}'", level=15 )
     return resolved, requisition
 
   def submit_args( self, resource_dict, requestor ):
@@ -501,18 +501,18 @@ class PBSHost( HPCHost ):
     return res_dict
 
   def resources_available( self, resource_dict, requestor ):
-    self.log( f"Checking resources for '{requestor}'" )
+    self.log( f"Checking resources for '{requestor}'", level=15 )
     self.log_push()
     available, *_ = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     self.log_pop()
     return available
 
   def acquire_resources( self, resource_dict, requestor ):
-    self.log( f"Acquiring HPC resources for '{requestor}'..." )
+    self.log( f"Acquiring HPC resources for '{requestor}'...", level=15 )
     self.log_push()
     available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     if not available:
-      self.log( f"Could not acquire resources for {requestor}" )
+      self.log( f"Could not acquire resources for {requestor}", level=15 )
       self.log_pop()
       return available
 

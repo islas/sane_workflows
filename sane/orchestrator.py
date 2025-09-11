@@ -164,6 +164,7 @@ class Orchestrator( jconfig.JSONConfig ):
           if id not in self.hosts:
             self.log( f"Host '{id}' does not exist, cannot patch", level=30 )
           else:
+            self.log( f"Applying patch to Host '{id}'" )
             self.hosts[id].load_config( host_config )
 
         actions = patch.pop( "actions", {} )
@@ -171,6 +172,7 @@ class Orchestrator( jconfig.JSONConfig ):
           if id not in self.actions:
             self.log( f"Action '{id}' does not exist, cannot patch", level=30 )
           else:
+            self.log( f"Applying patch to Action '{id}'" )
             self.actions[id].load_config( action_config )
 
         if len( patch ) > 0:
