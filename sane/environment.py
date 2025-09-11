@@ -203,5 +203,5 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
     for lmod_cmd in config.pop( "lmod_cmds", [] ):
       cmd  = lmod_cmd.pop( "cmd" )
-      args = lmod_cmd.pop( "args", None )
+      args = lmod_cmd.pop( "args", [] )
       self.setup_lmod_cmds( cmd, *args, **lmod_cmd )
