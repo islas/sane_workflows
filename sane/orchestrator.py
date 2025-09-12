@@ -240,7 +240,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( "* " * 10 + "{0:^60}".format( f" All prerun checks for '{host.name}' passed " ) + "* " * 10 )
     self.log( "* " * 50 )
 
-
   def setup( self ):
     self.construct_dag()
     os.makedirs( self.save_location, exist_ok=True )
@@ -301,12 +300,12 @@ class Orchestrator( jconfig.JSONConfig ):
           dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
           # Check requirements met
           requirements_met = False
-          with self.__run_lock__: # protect logs
+          with self.__run_lock__:  # protect logs
             requirements_met = self.actions[node].requirements_met( dependencies )
 
           if requirements_met:
             resources_available = False
-            with self.__run_lock__: # protect logs
+            with self.__run_lock__:  # protect logs
               resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
             if resources_available:
               # Set info first
@@ -318,14 +317,18 @@ class Orchestrator( jconfig.JSONConfig ):
               self.actions[node].log_location = self.log_location
 
               launch_wrapper = None
-              with self.__run_lock__: # protect logs
+              with self.__run_lock__:  # protect logs
                 launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
 
               self.log( f"Running '{node}' on '{host.name}'" )
               with self.__run_lock__:
                 host.pre_launch( self.actions[node] )
               self.log_flush()
-              results[node] = executor.submit( self.actions[node].launch, self.working_directory, launch_wrapper=launch_wrapper )
+              results[node] = executor.submit(
+                                              self.actions[node].launch,
+                                              self.working_directory,
+                                              launch_wrapper=launch_wrapper
+                                              )
               next_nodes.remove( node )
               processed_nodes.append( node )
             else:
@@ -362,13 +365,14 @@ class Orchestrator( jconfig.JSONConfig ):
             host.release_resources( self.actions[node].resources( host.name ), requestor=node )
             del results[node]
           except Exception as e:
-            for k, v in results.items(): v.cancel()
+            for k, v in results.items():
+              v.cancel()
             executor.shutdown( wait=True )
             raise e
 
         run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
-        if ( self.actions[node].state == sane.action.ActionState.FINISHED or
-           ( skip_unrunnable and not run_state ) ):
+        if ( self.actions[node].state == sane.action.ActionState.FINISHED
+           or ( skip_unrunnable and not run_state ) ):
           msg  = "{{state}} Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
           msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
           self.log( msg )

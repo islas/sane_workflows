@@ -42,9 +42,11 @@ class ActionState( Enum ):
   SKIPPED  = "skipped"
   ERROR    = "error"    # This should not be used for errors in running the action (status),
                         # Instead this should be reserved for internal errors of the action
+
   @classmethod
   def valid_run_state( cls, state ):
     return state == cls.PENDING or state == cls.RUNNING
+
 
 class ActionStatus( Enum ):
   SUCCESS   = "success"
@@ -76,7 +78,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
   CONFIG_TYPE = "Action"
   REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:\w+(?:\[\d+\])?\.)*\w+(?:\[\d+\])?)[ ]*}})" )
   IDX_RE = re.compile( r"(?P<attr>\w+)(?:\[(?P<idx>\d+)\])?" )
-
 
   def __init__( self, id ):
     self._id = id
@@ -174,7 +175,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
         self._dependencies[arg] = DependencyType.AFTEROK
       elif (
                 isinstance( arg, tuple )
-            and len(arg) == 2 
+            and len(arg) == 2
             and isinstance( arg[0], str )
             and arg[1] in DependencyType ):
         self._dependencies[arg[0]] = DependencyType( arg[1] )
@@ -479,4 +480,3 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
 
     super().load_core_config( config )
-

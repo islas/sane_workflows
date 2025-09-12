@@ -10,14 +10,14 @@ from .logger import DispatchingFormatter
 from .user_space import user_modules
 
 log_formatter = DispatchingFormatter(
-  {
-    f"{__name__}.logger" : logging.Formatter(
-                                              fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                              datefmt="%Y-%m-%d %H:%M:%S"
-                                              ),
-    f"{__name__}.raw"    : logging.Formatter()
-  },
-  logging.Formatter( "%(message)s" )
+    {
+      f"{__name__}.logger" : logging.Formatter(
+                                                fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                                datefmt="%Y-%m-%d %H:%M:%S"
+                                                ),
+      f"{__name__}.raw"    : logging.Formatter()
+    },
+    logging.Formatter( "%(message)s" )
   )
 console_handler = logging.StreamHandler( sys.stdout )
 console_handler.setFormatter( log_formatter )

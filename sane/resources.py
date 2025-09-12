@@ -15,8 +15,6 @@ _res_size_regex_str = r"(?P<numeric>-?\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>
 _res_size_regex     = re.compile( _res_size_regex_str, re.I )
 _multipliers    = { "" : 1, "k" : 1024, "m" : 1024**2, "g" : 1024**3, "t" : 1024**4 }
 
-
-
 _timelimit_regex_str    = r"^(?P<hh>\d+):(?P<mm>\d+):(?P<ss>\d+)$"
 _timelimit_regex        = re.compile( _timelimit_regex_str )
 _timelimit_format_str   = "{:02}:{:02}:{:02}"
@@ -177,7 +175,7 @@ class AcquirableResource( Resource ):
   @property
   def used( self ):
     return self.total - self.acquirable.total
-  
+
   @property
   def used_str( self ):
     res_dict = self._res_dict.copy()
@@ -252,7 +250,7 @@ def timelimit_to_timedelta( timelimit ) :
   if time_match is not None :
     groups = time_match.groupdict()
     return timedelta(
-                      hours  =int( groups["hh"] ),
+                      hours=int( groups["hh"] ),
                       minutes=int( groups["mm"] ),
                       seconds=int( groups["ss"] )
                     )
@@ -263,9 +261,9 @@ def timelimit_to_timedelta( timelimit ) :
 def timedelta_to_timelimit( timedelta ) :
   totalSeconds = timelimit.total_seconds()
   return '{:02}:{:02}:{:02}'.format(
-                                    int(totalSeconds//3600),
-                                    int(totalSeconds%3600//60),
-                                    int(totalSeconds%60)
+                                    int( totalSeconds // 3600 ),
+                                    int( totalSeconds % 3600 // 60 ),
+                                    int( totalSeconds % 60 )
                                     )
 
 
@@ -332,7 +330,7 @@ class ResourceProvider( jconfig.JSONConfig ):
       if not acquirable and log:
         self.log( f"Resource '{resource}' : {res.total_str} not acquirable right now...", level=10 )
       can_aquire = can_aquire and acquirable
-    
+
     if log:
       if can_aquire:
         self.log( f"All resources{origin_msg} available", level=10 )
@@ -399,7 +397,6 @@ class ResourceProvider( jconfig.JSONConfig ):
 
     super().load_core_config( config )
 
-  
   def map_resource( self, resource ):
     """Map everything to internal name"""
     mapped_resource = self._mapper.name( resource )

@@ -30,7 +30,7 @@ class HPCHost( sane.Host ):
     self._submit_cmd = None
     self._resources_delim = None
     self._amount_delim = None
-    self._submit_format =  {
+    self._submit_format = {
                             "arguments"  : "",
                             "name"       : "",
                             "dependency" : "",
@@ -39,7 +39,7 @@ class HPCHost( sane.Host ):
                             "output"     : "",
                             "time"       : "",
                             "wait"       : ""
-                            }
+                          }
     self._cmd_delim = None
 
   def load_core_config( self, config ):
@@ -124,25 +124,25 @@ class HPCHost( sane.Host ):
   def job_complete( self, job_id ):
     proc = subprocess.Popen(
                             ( self._state_cmd + f" {job_id}" ).split( " " ),
-                            stdin =subprocess.PIPE,
+                            stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE
                             )
     output, err = proc.communicate()
-    retval    = proc.returncode
-    output    = output.decode( "utf-8" )
+    retval = proc.returncode
+    output = output.decode( "utf-8" )
     return self.check_job_complete( job_id, retval, output )
 
   def job_status( self, job_id ):
     proc = subprocess.Popen(
                             ( self._status_cmd + f" {job_id}" ).split( " " ),
-                            stdin =subprocess.PIPE,
+                            stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE
                             )
     output, err = proc.communicate()
-    retval    = proc.returncode
-    output    = output.decode( "utf-8" )
+    retval = proc.returncode
+    output = output.decode( "utf-8" )
     return self.check_job_status( job_id, retval, output )
 
   def launch_wrapper( self, action, dependencies ):
@@ -158,7 +158,7 @@ class HPCHost( sane.Host ):
         # Construct dependency type -> job id
         dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
 
-    specific_resources = action.resources( override=self.name ) 
+    specific_resources = action.resources( override=self.name )
     queue = specific_resources.get( "queue", self.queue )
     account = specific_resources.get( "account", self.account )
     timelimit = specific_resources.get( "timelimit", None )
@@ -200,7 +200,7 @@ class HPCHost( sane.Host ):
   def check_job_complete( self, job_id, retval, status ):
     """Tell us how to evaluate the job complete command output
 
-    The return value should be a bool noting whether a job has completed, 
+    The return value should be a bool noting whether a job has completed,
     regardless of pass or fail.
     """
     pass
@@ -246,7 +246,6 @@ class HPCHost( sane.Host ):
     pass
 
 
-
 class PBSHost( HPCHost ):
   CONFIG_TYPE = "PBSHost"
 
@@ -265,7 +264,7 @@ class PBSHost( HPCHost ):
     self._job_info = {}
 
     self._state_cmd = "qstat -f -x"
-    self._status_cmd = self._state_cmd # same thing
+    self._status_cmd = self._state_cmd  # same thing
     self._submit_cmd = "qsub"
     self._resources_delim = ":"
     self._amount_delim = "="
@@ -278,7 +277,6 @@ class PBSHost( HPCHost ):
     self._submit_format["time"]       = "-l walltime={0}"
     self._submit_format["wait"]       = "-W block=true"
     self._cmd_delim = "--"
-
 
   def log_push( self, levels=1 ):
     super().log_push( levels )
@@ -303,7 +301,10 @@ class PBSHost( HPCHost ):
     # Finally process resources
     for node_type, hardware_info in resources.items():
       if not isinstance( hardware_info, dict ) or "nodes" not in hardware_info or "resources" not in hardware_info:
-        raise TypeError( "HPC node resources must be a dict { 'nodes' : int, 'exclusive' : bool|false, 'resources' : {<resource dict>} }" )
+        msg  = "HPC node resources must be a dict"
+        msg += " { 'nodes' : int, 'exclusive' : bool|false, 'resources' : {<resource dict>} }"
+        self.log( msg, level=50 )
+        raise TypeError( msg )
       else:
         nodes = int( hardware_info["nodes"] )
         exclusive = hardware_info.get( "exclusive", False )
@@ -322,14 +323,12 @@ class PBSHost( HPCHost ):
                                     }
       self._resources[node_type]["node"].add_resources( node_resource_dict )
       self._resources[node_type]["total"].add_resources(
-                                                        { 
+                                                        {
                                                           res_name : (res.acquirable * nodes).amount
                                                           for res_name, res in self._resources[node_type]["node"].resources.items()
                                                         }
                                                       )
       self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
-
-
 
   def check_job_complete( self, job_id, retval, status ):
     if retval != 0:
@@ -455,7 +454,11 @@ class PBSHost( HPCHost ):
         nodes = specified_resource_dict.pop( "nodes", 0 )
         if nodes == 0:
           for resource in nodeset_resources:
-            available = total.resources_available( { resource : specified_resource_dict[resource] }, requestor=requestor, log=False )
+            available = total.resources_available(
+                                                  { resource : specified_resource_dict[resource] },
+                                                  requestor=requestor,
+                                                  log=False
+                                                  )
             if available:
               nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
               nodes = max( nodes, math.ceil(nodes_for_res) )
@@ -510,10 +513,9 @@ class PBSHost( HPCHost ):
         # This is a duplication of the logic above, but just a whole check
         available = total.resources_available( amounts, requestor=requestor )
         # mark not available this time as amounts has already been filtered
-        resolved = resolved and available 
+        resolved = resolved and available
         if not available:
           total.log( f"Current node set '{nodeset_name}' not able to fully provide resources", level=15 )
-
 
         # Note how much we have resolved from the specified resource dict so that
         for resource, amount in amounts.items():

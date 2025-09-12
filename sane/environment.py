@@ -11,7 +11,6 @@ import sane.config as config
 import sane.json_config as jconfig
 
 
-
 def env_from_script( script, *arguments, **kwargs ):
   """
   Execute a script, compare environment changes and then apply to
@@ -36,12 +35,12 @@ def env_from_script( script, *arguments, **kwargs ):
   stdout, stderr = proc.communicate()
   status         = proc.returncode
   err_out        = sys.stderr
-  print(stderr.decode(),file=err_out)
+  print( stderr.decode(), file=err_out )
 
-  if ('show_environ_updates' in kwargs):
-    print(stdout.decode())
+  if ( 'show_environ_updates' in kwargs ):
+    print( stdout.decode() )
   if status == 0:
-    exec(stdout.decode())
+    exec( stdout.decode() )
   else:
     print( stdout.decode() )
     raise RuntimeError( "Failed to run env_from_script" )

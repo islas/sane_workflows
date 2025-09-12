@@ -118,4 +118,3 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
   def post_run_actions( self, actions ):
     pass
-
