@@ -148,6 +148,26 @@
       }
       // Anything after this is passed via config dict to load_extra_config()
     }
+  },
+  "patches" :
+  {
+    // priority of when to apply patch, similar to python @sane.register decorator
+    // highest priority goes first. If not specified default is 0
+    "priority" : 0,
+    "hosts" :
+    {
+      // matching name of host to modify
+      // all fields found in this host's type config are allowed (except "type" as you can't change the type)
+      // however not all fields may be modifiable after creation, that is dependent on the type itself and how
+      // it implements its load_config()
+      "<host-name>" : {}
+    },
+    "actions" :
+    {
+      // Same as host patch above, match the name to an existing action id
+      // and use any fields applicable with same caveat of may not be modifiable
+      "<id>" : {}
+    }
   }
   // Anything after this is passed via config dict to load_extra_config()
 }
