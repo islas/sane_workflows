@@ -72,7 +72,7 @@ def first( orch ):
 ## JSON Usage
 To utilize `sane` in a JSON config file setting, create a JSON file (config) that
 contains at least one of the keys : `"hosts"`, `"actions"`, or `"patches"`. Refer
-to the `docs/template.jsonc` on what default fields are appropriate. Note that if
+to the [`docs/template.jsonc`](docs/template.jsonc) on what default fields are appropriate. Note that if
 you define your own type (and thus add your own `load_extra_config()`), additional
 fields may be provided in the config.
 ```jsonc
