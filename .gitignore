@@ -209,3 +209,8 @@ __marimo__/
 # Pickle objects
 *.pkl
 *.pickle
+
+# Saves
+*.json
+tmp/
+log/
