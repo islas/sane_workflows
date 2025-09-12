@@ -126,7 +126,12 @@
         // The default action uses command and arguments list as a subprocess to execute in `run()`
         // If you derive your own Action and override `run()`, that instead will be executed
         "command" : "any_command",
-        "arguments" : [ "args", "to pass", "to command" ]
+        "arguments" : [ "args", "to pass", "to command" ],
+        // Include anything else in here you wish to use within your action, "config" directly sets
+        // a python dict {} within the action so any parsable values are valid.
+        "<anything>" : "<anyvalue>",
+        "<anything-else>" : { "<anykey>" : "<anyvalue>" },
+        "<anything-else2>" : [ "<anyvalue>" ]
       },
       // Resources this action needs
       "resources" :
