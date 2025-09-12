@@ -88,7 +88,8 @@
           }
         }
       },
-      // Additional fields that MUST be provided. These are NOT OPTIONAL
+      // Additional fields that SHOULD be provided. At the time an action runs, whether from these values
+      // if provided or action resource request, these values MUST be present
       "queue" : "<HPC queue to run on>",
       "account" : "<HPC account to run with>"
     },
@@ -114,6 +115,10 @@
       "type" : "Action",
       // Specific environment to select from matched host if needed
       "environment" : "preferred_env",
+      // The working directory of the action during run(). Before an action is run() it will immediately
+      // change directorry to this location. If the path is relative, it is evaluated relative to
+      // the orchestrator's working directory (default is "./" for orchestrator and action)
+      "working_directory" : "<abs or relative path from orchestrator working_directory>",
       // Any dependencies on other actions, passed directly to add_dependencies()
       "dependencies" : { "id_other" : "afterok|afternotok|afterany|after", "id_other2" : "afterok" },
       // Directly sets the config of an action
