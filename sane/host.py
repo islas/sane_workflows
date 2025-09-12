@@ -92,6 +92,8 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     for id, env_config in env_configs.items():
       env_typename = env_config.pop( "type", sane.environment.Environment.CONFIG_TYPE )
       env_type = sane.environment.Environment
+      # TODO: I think the pickling will fail for custom environments right now without
+      # also adding the source defs of the host's envs to its own
       if env_typename != sane.environment.Environment.CONFIG_TYPE:
         env_type = self.search_type( env_typename )
 
