@@ -30,7 +30,7 @@ The focus should instead be:
   * an _action_ itself is `run()` in a totally separate subprocess (not python subprocess!)
   * instance information is transferred via python pickling
 
-TODO: include picture
+[SANE Overview](docs/images/sane_overview.png)
 
 ## Python Usage
 To utilize `sane` in a python setting, create a python file (module) and import the
