@@ -255,7 +255,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if logfile is not None:
         logfileOutput = open( logfile, "w+", buffering=1 )
 
-      # Temporarily sway in a very crude logger
+      # Temporarily swap in a very crude logger
       log = lambda *args: self.log( *args, level=25 )
       if self.__exec_raw__:
         log = lambda msg: self._logger.getChild( "raw" ).log( 25, msg )
