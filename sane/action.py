@@ -234,8 +234,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ## Call subprocess
       ##
       # https://stackoverflow.com/a/18422264
+      if verbose:
+        self.log( "Command output will be printed to this terminal" )
       if logfile is not None:
-        self.log( "Local step will be captured to logfile {0}".format( logfile ) )
+        self.log( "Command output will be captured to logfile {0}".format( logfile ) )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
