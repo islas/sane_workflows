@@ -21,6 +21,7 @@ class Logger:
     self._level_indentation = "  "
     self._level             = 0
     self._label             = ""
+    self._logname_stack     = []
     self.restore_logname()
     self._logger = logging.getLogger( __name__ )
 
@@ -32,9 +33,13 @@ class Logger:
 
   def override_logname( self, name ):
     self._set_label( name )
+    self._logname_stack.append( name )
 
   def restore_logname( self ):
-    self._set_label( self._logname )
+    if len( self._logname_stack ) > 0:
+      self._logname_stack.pop()
+    name = self._logname if len( self._logname_stack ) == 0 else self._logname_stack[-1]
+    self._set_label( name )
 
   def _set_label( self, name ):
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )

@@ -103,7 +103,7 @@ class HPCHost( sane.Host ):
       while len( completed ) != len( self._job_ids ):
         time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
         for action_name, job_id in self._job_ids.items():
-          if self.job_complete( job_id ):
+          if action_name not in completed and self.job_complete( job_id ):
             completed[action_name] = job_id
             status = self.job_status( job_id )
             self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}" )
@@ -153,10 +153,19 @@ class HPCHost( sane.Host ):
     dep_jobs = {}
     for id, dep_action in dependencies.items():
       if not self._launch_local( dep_action ):
-        if action.dependencies[id] not in dep_jobs:
-          dep_jobs[action.dependencies[id]] = []
-        # Construct dependency type -> job id
-        dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+        if dep_action.status == sane.action.ActionStatus.SUBMITTED:
+          if action.dependencies[id] not in dep_jobs:
+            # quickly add the key for this type of dependency
+            dep_jobs[action.dependencies[id]] = []
+          # Construct dependency type -> job id
+          if dep_action.id not in self._job_ids:
+            raise KeyError( f"Missing job id for '{dep_action.id}'" )
+          else:
+            dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+        # else:
+          # We should not need to do this as the orch would be the one to check
+          # that our dependencies were met before asking this action to launch
+          # Check that the previously run action could satisfy this
 
     specific_resources = action.resources( override=self.name )
     queue = specific_resources.get( "queue", self.queue )

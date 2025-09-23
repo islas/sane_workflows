@@ -196,10 +196,11 @@ def main():
 
   orchestrator.setup()
   success = True
+  orchestrator.dry_run = options.dry_run
+
   if options.run:
     success = orchestrator.run_actions( action_list, options.specific_host )
   if options.dry_run:
-    orchestrator.dry_run = True
     success = orchestrator.run_actions( action_list, options.specific_host )
   elif options.list:
     logger.log( "Actions:" )

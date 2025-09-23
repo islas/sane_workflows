@@ -182,7 +182,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       else:
         msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
         msg += f", must be of type str or tuple( str, DependencyType.value->str )"
-        self.log( msg )
+        self.log( msg, level=50 )
         raise Exception( msg )
 
   def requirements_met( self, dependency_actions ):
@@ -234,8 +234,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ## Call subprocess
       ##
       # https://stackoverflow.com/a/18422264
+      if verbose:
+        self.log( "Command output will be printed to this terminal" )
       if logfile is not None:
-        self.log( "Local step will be captured to logfile {0}".format( logfile ) )
+        self.log( "Command output will be captured to logfile {0}".format( logfile ) )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
@@ -253,7 +255,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if logfile is not None:
         logfileOutput = open( logfile, "w+", buffering=1 )
 
-      # Temporarily sway in a very crude logger
+      # Temporarily swap in a very crude logger
       log = lambda *args: self.log( *args, level=25 )
       if self.__exec_raw__:
         log = lambda msg: self._logger.getChild( "raw" ).log( 25, msg )
@@ -438,6 +440,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def run( self ):
+    self.override_logname( f"{self.id}::run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -455,6 +458,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
+    self.restore_logname()
     return retval
 
   def __str__( self ):

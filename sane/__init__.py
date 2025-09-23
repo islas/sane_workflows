@@ -24,3 +24,5 @@ console_handler.setFormatter( log_formatter )
 internal_logger = logging.getLogger( __name__ )
 internal_logger.setLevel( logging.INFO )
 internal_logger.addHandler( console_handler )
+
+logging.addLevelName( 25, "STDOUT" )
