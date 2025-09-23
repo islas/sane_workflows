@@ -182,7 +182,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       else:
         msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
         msg += f", must be of type str or tuple( str, DependencyType.value->str )"
-        self.log( msg )
+        self.log( msg, level=50 )
         raise Exception( msg )
 
   def requirements_met( self, dependency_actions ):
