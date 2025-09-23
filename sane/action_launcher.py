@@ -22,10 +22,10 @@ if __name__ == "__main__":
   action.log(  "*" * 15 + "{:^15}".format( "Inside action_launcher.py" ) + "*" * 15 )
   action.log( f"Loaded Action \"{action.id}\"" )
 
-  if "host_file" not in action.config:
+  if "file" not in action.host_info:
     raise Exception( "Missing host file!" )
 
-  host = sane.save_state.load( action.config["host_file"] )
+  host = sane.save_state.load( action.host_info["file"] )
 
   action.log( f"Loaded Host \"{host.name}\"" )
   environment = host.has_environment( action.environment )

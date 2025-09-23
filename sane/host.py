@@ -21,6 +21,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     self._base_environment = None
     self._resources    = {}
     self._default_env  = None
+    self.config          = {}
 
   def match( self, requested_host ):
     return self.partial_match( requested_host )
@@ -102,6 +103,10 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
       self.add_environment( env )
 
+    host_config = config.pop( "config", None )
+    if host_config is not None:
+      jconfig.recursive_update( self.config, host_config )
+
     super().load_core_config( config )
 
   def pre_launch( self, action ):
@@ -118,3 +123,11 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
   def post_run_actions( self, actions ):
     pass
+
+  @property
+  def info( self ):
+    info = {}
+    info["file"] = self.save_file
+    info["name"] = self.name
+    info["config"] = self.config
+    return info

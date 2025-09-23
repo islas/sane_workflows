@@ -47,7 +47,8 @@ class ActionTests( unittest.TestCase ):
     """Test that without no environment settings object launching will fail"""
     host = sane.Host( "basic" )
     host.save()
-    self.action.config["host_file"] = host.save_file
+
+    self.action.__host_info__["file"] = host.save_file
 
     retval, content = self.action.launch( os.getcwd() )
     self.assertNotEqual( retval, 0 )
@@ -62,7 +63,7 @@ class ActionTests( unittest.TestCase ):
     host = sane.Host( "basic" )
     host.add_environment( sane.Environment( "also_basic" ) )
     host.save()
-    self.action.config["host_file"] = host.save_file
+    self.action.__host_info__["file"] = host.save_file
 
     retval, content = self.action.launch( os.getcwd() )
     self.assertNotEqual( retval, 0 )
@@ -77,7 +78,7 @@ class ActionTests( unittest.TestCase ):
     host.default_env = "also_basic"
     host.save()
 
-    self.action.config["host_file"] = host.save_file
+    self.action.__host_info__["file"] = host.save_file
     self.action.config["command"]   = "echo"
     self.action.config["arguments"] = ["this is an argument"]
 
@@ -94,7 +95,7 @@ class ActionTests( unittest.TestCase ):
     host.default_env = "also_basic"
     host.save()
 
-    self.action.config["host_file"] = host.save_file
+    self.action.__host_info__["file"] = host.save_file
 
     retval, content = self.action.launch( os.getcwd() )
     self.assertEqual( retval, 1 )
@@ -107,15 +108,14 @@ class ActionTests( unittest.TestCase ):
     test_str = "MyAction will do as it pleases"
 
     self.action = MyAction( "test", test_str )
-    self.action._verbose = True
+    self.action.verbose = True
 
     host = sane.Host( "basic" )
     host.add_environment( sane.Environment( "also_basic" ) )
     host.default_env = "also_basic"
     host.save()
 
-    self.action.config["host_file"] = host.save_file
-
+    self.action.__host_info__["file"] = host.save_file
     retval, content = self.action.launch( os.getcwd() )
     self.assertEqual( retval, 0 )
     self.assertIn( test_str, content )
