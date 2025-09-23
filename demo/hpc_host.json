@@ -1,0 +1,78 @@
+{
+  "hosts" :
+  {
+    "example_pbs" :
+    {
+      "type" : "PBSHost",
+      "resources" :
+      {
+        "cpu" :
+        {
+          "nodes" : 100,
+          "exclusive" : true,
+          "resources" : { "cpus" : 64, "memory" : "64gb" }
+        }
+      },
+      "mapping" : { "ncpus" : [ "cpus", "cpu" ], "mem" : [ "memory" ] },
+      "environments" :
+      {
+        "hpc_default" : {}
+      },
+      "default_env" : "hpc_default",
+      "account" : "foo",
+      "queue" : "bar"
+    }
+  },
+  "actions" :
+  {
+    "demo_hpc" :
+    {
+      "config" :
+      {
+        "command" : "echo",
+        "arguments" : [ "1", 2, "three" ]
+      }
+    },
+    "demo_hpc_resources" :
+    {
+      "config" :
+      {
+        "command" : "echo",
+        "arguments" : [ "1", 2, "three" ]
+      },
+      "resources" :
+      {
+        "cpus" : 88,
+        "memory" : "12gb"
+      }
+    },
+    "demo_hpc_account_override" :
+    {
+      "config" :
+      {
+        "command" : "echo",
+        "arguments" : [ "1", 2, "three" ]
+      },
+      "resources" :
+      {
+        "cpus" : 100,
+        "memory" : "256gb",
+        "example_pbs" : { "queue" : "fastbar" }
+      }
+    },
+    "demo_hpc_resource_override" :
+    {
+      "config" :
+      {
+        "command" : "echo",
+        "arguments" : [ "1", 2, "three" ]
+      },
+      "resources" :
+      {
+        "cpus" : 100,
+        "memory" : "256gb",
+        "example_pbs" : { "cpus" : 200, "queue" : "fastbar" }
+      }
+    }
+  }
+}

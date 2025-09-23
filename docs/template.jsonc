@@ -1,0 +1,183 @@
+{
+  // Fields with <> are expected to be user input and are NOT keywords
+  // Values with | denote valid possible values, otherwise unless noted by
+  // comment any string value is valid
+
+  // Any hosts that this config creates
+  "hosts" :
+  {
+    // Unique name of the host
+    "<host-name>" : 
+    {
+      // All fields are optional
+      // Specific type of host, may be a user-defined host
+      "type" : "Host",
+      // Any aliases used by the host in its match()
+      "aliases" : [ "simple_host" ],
+      // Default environment to use if no match is found
+      "default_env" : "some_default_env",
+      // base environment of host always run before other envs
+      // name will be <host-name>_env where <host-name> is substituted for user provided name
+      "base_env" :
+      {
+        // all the same fields available for environments
+      },
+      // Any additional environments to add to this host
+      "environments" :
+      {
+        // Unique name of environment within host
+        "<env-name>" :
+        {
+          // All fields are optional
+          // Specific type of environment, may be user-defined
+          "type" : "Environment",
+          // Any aliases used by the environment in its match()
+          "aliases" : [ "generic", "maybe something else" ],
+          // Location of lmod python module, overrides host lmod_path
+          "lmod_path" : "<path to lmod>",
+          // Directly passed to setup_env_vars()
+          "env_vars"  : [ { "cmd" : "prepend|append|set|unset", "var" : "foo", "val" : 0, "category" : "useless" } ],
+          // Directly passed to setup_lmod_cmds()
+          "lmod_cmds" : [ { "cmd" : "load", "args" : [ "gcc", "netcdf" ], "category" : "useless" } ]
+          // Anything after this is passed via config dict to load_extra_config()
+        },
+        // An example of different ID with just type specified
+        "maybe_derived" :
+        {
+          "type" : "user_workflow.DerivedEnvironment"
+        }
+      },
+      // Resources this host provides
+      "resources" :
+      {
+        // numeric resources can be either integer or unitized (using binary metric)
+        "<numeric-resource>" : 0,
+        "<numeric-memresource>" : "4gb"
+      },
+      // Use an internal mapping in the host resources such that all resource names
+      // either listed in the host resources or action resource request will instead
+      // be interpreted as this value instead. Not useful by default unless there is
+      // a mismatch between host and action names of resources (eg cpu vs cpus vs ncpus)
+      "mapping" :
+      {
+        "<resource-truename>" : [ "<aliases>" ]
+      }
+      // Anything after this is passed via config dict to load_extra_config()
+    },
+    "<hpc-pbs-host>" :
+    {
+      // Special builtin type for PBSHost, a SLURMHost does not exist right now
+      "type" : "PBSHost",
+      // Resouces are handled slightly differently in this type
+      // It is instead a set of nested resources noting sets of homogeneous nodes
+      // each with their own resources
+      "resources" :
+      {
+        "<nodeset-name>" :
+        {
+          // Number of nodes in this homogeneous set
+          "nodes" : 1234,
+          // If nodes in this set are exclusive (one node fully claims all resources)
+          // default is false if not specified
+          "exclusive" : true,
+          // The resources of a SINGLE NODE (not the whole set), thus "nodes" multiplied
+          // by the resources in here should yield the full set of resources this set provides
+          "resources" :
+          {
+            // same resource config as normal host resources
+          }
+        }
+      },
+      // Additional fields that SHOULD be provided. At the time an action runs, whether from these values
+      // if provided or action resource request, these values MUST be present
+      "queue" : "<HPC queue to run on>",
+      "account" : "<HPC account to run with>"
+    },
+    // An example of a different ID with derived host specified
+    "<derived_host-name>" :
+    {
+      "type" : "user_workflow.DerivedHost",
+      "aliases" : [ "derived" ],
+      "environments" :
+      {
+        // Perhaps this type already supplies everything
+        "other_stuff" : { "type" : "user_workflow.SpecializedEnv" }
+      }
+    }
+  },
+  "actions" :
+  {
+    // Unique name of the action
+    "<id>" :
+    {
+      // All options are optional but do not guarantee a workable action
+      // Specific type of action, may be user-defined
+      "type" : "Action",
+      // Specific environment to select from matched host if needed
+      "environment" : "preferred_env",
+      // The working directory of the action during run(). Before an action is run() it will immediately
+      // change directorry to this location. If the path is relative, it is evaluated relative to
+      // the orchestrator's working directory (default is "./" for orchestrator and action)
+      "working_directory" : "<abs or relative path from orchestrator working_directory>",
+      // Any dependencies on other actions, passed directly to add_dependencies()
+      "dependencies" : { "id_other" : "afterok|afternotok|afterany|after", "id_other2" : "afterok" },
+      // Directly sets the config of an action
+      "config" : {
+        // The default action uses command and arguments list as a subprocess to execute in `run()`
+        // If you derive your own Action and override `run()`, that instead will be executed
+        "command" : "any_command",
+        "arguments" : [ "args", "to pass", "to command" ],
+        // Include anything else in here you wish to use within your action, "config" directly sets
+        // a python dict {} within the action so any parsable values are valid.
+        "<anything>" : "<anyvalue>",
+        "<anything-else>" : { "<anykey>" : "<anyvalue>" },
+        "<anything-else2>" : [ "<anyvalue>" ]
+      },
+      // Resources this action needs
+      "resources" :
+      {
+        // Resource requests are not interpreted until passed to host, and thus can
+        // be anything. By default, numeric resources will be interpreted as valid
+        // requests to the numeric resources a host provides and everything else ignored
+        "<anything>" : "<anyvalue>",
+        // The only resource which is default built in is timelimit which follows a specific format
+        "timelimit"  : "hh:mm:ss",
+        // If the value is a dictionary, it is instead assumed to be a host-specific request
+        // The resources listed under this will overwrite anything previously declared as the
+        // new resource request when running on that host
+        "<host-name>" : 
+        {
+          "<anything>" : "<anyvalue>",
+          // PBSHost also allows for a select command to be used instead to deduce a resource request (use with caution)
+          // if provided it will override the ENTIRE resource request (except timelimit, account, queue) VERBATIM
+          "select" : "select=4:ncpus=32",
+          // PBSHost processes queue and account as keyword resources as well
+          "queue" : "<HPC queue to run on>",
+          "account" :"<HPC account to run with>"
+        }
+      }
+      // Anything after this is passed via config dict to load_extra_config()
+    }
+  },
+  "patches" :
+  {
+    // priority of when to apply patch, similar to python @sane.register decorator
+    // highest priority goes first. If not specified default is 0
+    "priority" : 0,
+    "hosts" :
+    {
+      // matching name of host to modify
+      // all fields found in this host's type config are allowed (except "type" as you can't change the type)
+      // however not all fields may be modifiable after creation, that is dependent on the type itself and how
+      // it implements its load_config()
+      "<host-name>" : {}
+    },
+    "actions" :
+    {
+      // Same as host patch above, match the name to an existing action id
+      // and use any fields applicable with same caveat of may not be modifiable
+      "<id>" : {}
+    }
+  }
+  // Anything after this is passed via config dict to load_extra_config()
+}
