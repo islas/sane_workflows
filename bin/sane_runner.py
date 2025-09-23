@@ -90,6 +90,12 @@ def get_parser():
                       help="Verbose output from actions running"
                       )
   parser.add_argument(
+                      "-fl", "--force_local",
+                      action="store_true",
+                      default=None,
+                      help="Force local actions running of all actions"
+                      )
+  parser.add_argument(
                       "-n", "--new",
                       action="store_true",
                       default=None,
@@ -159,7 +165,12 @@ def main():
   orchestrator.process_patches()
 
   if options.verbose is not None:
+    logger.log( "Changing all actions output to verbose" )
     orchestrator.verbose = options.verbose
+
+  if options.force_local is not None:
+    logger.log( "Forcing all actions to run local" )
+    orchestrator.force_local = options.force_local
 
   orchestrator.save_location = options.save_location
   orchestrator.log_location = options.log_location
