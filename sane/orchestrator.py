@@ -81,6 +81,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.hosts   = utdict.UniqueTypedDict( sane.host.Host )
     self.dry_run = False
     self.verbose = False
+    self.force_local = False
 
     self._dag    = dag.DAG()
 
@@ -312,6 +313,12 @@ class Orchestrator( jconfig.JSONConfig ):
               self.actions[node].config["host_file"] = host.save_file
               self.actions[node].config["host_name"] = host.name
               self.actions[node].verbose = self.verbose
+              # if these are not set then default to action settings
+              if self.verbose:
+                self.actions[node].verbose = self.verbose
+              if self.force_local:
+                self.actions[node].local = self.force_local
+
               self.actions[node].dry_run = self.dry_run
               self.actions[node].save_location = self.save_location
               self.actions[node].log_location = self.log_location
