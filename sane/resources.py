@@ -3,7 +3,6 @@ from datetime import time
 import math
 import operator
 import copy
-import collections
 
 import sane.logger as logger
 import sane.json_config as jconfig
@@ -267,16 +266,6 @@ def timedelta_to_timelimit( timedelta ) :
                                     )
 
 
-def recursive_update( dest, source ):
-  """Update mapping dest with source"""
-  for k, v in source.items():
-    if isinstance( v, collections.abc.Mapping ):
-      dest[k] = recursive_update( dest.get( k, {} ), v )
-    else:
-      dest[k] = v
-  return dest
-
-
 class ResourceProvider( jconfig.JSONConfig ):
   def __init__( self, mapper=None, **kwargs ):
     super().__init__( **kwargs )
@@ -434,7 +423,7 @@ class ResourceRequestor( jconfig.JSONConfig ):
   def resources( self, override=None ):
     resource_dict = self._resources.copy()
     if override in self._override_resources:
-      recursive_update( resource_dict, self._override_resources[override] )
+      jconfig.recursive_update( resource_dict, self._override_resources[override] )
     return resource_dict
 
   def add_resource_requirements( self, resource_dict ):

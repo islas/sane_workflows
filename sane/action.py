@@ -479,7 +479,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     act_config = config.pop( "config", None )
     if act_config is not None:
-      self.config = act_config
+      jconfig.recursive_update( self.config, act_config )
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
 
