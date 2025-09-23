@@ -440,6 +440,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def run( self ):
+    self.override_logname( f"{self.id}::run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -457,6 +458,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
+    self.restore_logname()
     return retval
 
   def __str__( self ):
