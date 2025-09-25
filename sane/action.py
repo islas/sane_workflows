@@ -290,11 +290,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if capture:
         output = io.BytesIO()
 
+      if shell:
+        args = " ".join( args )
+
       proc = subprocess.Popen(
                               args,
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT
+                              stderr=subprocess.STDOUT,
+                              shell=shell
                               )
 
       logfileOutput = None
