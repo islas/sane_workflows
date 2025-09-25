@@ -101,6 +101,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.__exec_raw__      = True
 
+    # This will be filled out by the time we pre_launch with any info the host provides
+    self.__host_info__     = {}
+
     # These two are provided by the orchestrator upon begin setup
     # Use the run lock for mutually exclusive run logic (eg. clean logging)
     self._run_lock = None
@@ -155,6 +158,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
   @property
   def status( self ):
     return self._status
+
+  @property
+  def host_info( self ):
+    return self.__host_info__
 
   @property
   def logfile( self ):
@@ -479,7 +486,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     act_config = config.pop( "config", None )
     if act_config is not None:
-      self.config = act_config
+      jconfig.recursive_update( self.config, act_config )
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
 

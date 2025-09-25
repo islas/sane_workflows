@@ -311,9 +311,7 @@ class Orchestrator( jconfig.JSONConfig ):
               resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
             if resources_available:
               # Set info first
-              self.actions[node].config["host_file"] = host.save_file
-              self.actions[node].config["host_name"] = host.name
-              self.actions[node].verbose = self.verbose
+              self.actions[node].__host_info__ = host.info
               # if these are not set then default to action settings
               if self.verbose:
                 self.actions[node].verbose = self.verbose

@@ -1,7 +1,18 @@
 import inspect
+import collections
 
 import sane.logger as logger
 import sane.user_space as uspace
+
+
+def recursive_update( dest, source ):
+  """Update mapping dest with source"""
+  for k, v in source.items():
+    if isinstance( v, collections.abc.Mapping ):
+      dest[k] = recursive_update( dest.get( k, {} ), v )
+    else:
+      dest[k] = v
+  return dest
 
 
 class JSONConfig( logger.Logger ):
