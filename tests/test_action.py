@@ -116,6 +116,7 @@ class ActionTests( unittest.TestCase ):
     host.save()
 
     self.action.__host_info__["file"] = host.save_file
+    self.action.import_paths = [ os.path.dirname( __file__ ) ]
     retval, content = self.action.launch( os.getcwd() )
     self.assertEqual( retval, 0 )
     self.assertIn( test_str, content )
