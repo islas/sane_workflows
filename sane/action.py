@@ -429,38 +429,62 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.__orch_wake__()
       raise e
 
+  def ref_string( self, input_str ):
+    return len( list( Action.REF_RE.finditer( input_str ) ) ) > 0
+
   def dereference_str( self, input_str ):
-    matches = Action.REF_RE.finditer( input_str )
+    curr_matches = list( Action.REF_RE.finditer( input_str ) )
+    prev_matches = None
     output_str = input_str
-    for match in matches:
-      substr = match.group( "substr" )
-      attrs  = match.group( "attrs" )
+    def matches_equal( lhs, rhs ):
+      if lhs is None and rhs is not None or rhs is None and lhs is not None:
+        return False
+      if len( lhs ) != len( rhs ):
+        return False
+      for i in range( len( lhs ) ):
+        if lhs[i].span() != rhs[i].span():
+          return False
+        if lhs[i].groupdict() != rhs[i].groupdict():
+          return False
+      return True
 
-      curr = self
-      for attr in attrs.split( "." ):
-        attr_groups = Action.IDX_RE.fullmatch( attr ).groupdict()
-        get_attr = None
-        if isinstance( curr, dict ):
-          get_attr = curr.get
-        else:
-          get_attr = lambda x: getattr( curr, x, None )
+    # Fully dereference as much as possible
+    while not matches_equal( prev_matches, curr_matches ):
+      prev_matches = curr_matches
+      for match in curr_matches:
+        substr = match.group( "substr" )
+        attrs  = match.group( "attrs" )
 
-        curr = get_attr( attr_groups["attr"] )
-
-        ########################################################################
-        # Special cases
-        if callable( curr ):
-          if attr == "resources" and "host_name" in self.config:
-            curr = curr( self.config["host_name"] )
+        curr = self
+        for attr in attrs.split( "." ):
+          attr_groups = Action.IDX_RE.fullmatch( attr ).groupdict()
+          get_attr = None
+          if isinstance( curr, dict ):
+            get_attr = curr.get
           else:
-            curr = curr()
-        ########################################################################
-        if curr is None:
-          raise Exception( "Dereferencing yielded None for " + attr_groups["attr"] + f" in {substr}" )
+            get_attr = lambda x: getattr( curr, x, None )
 
-        if attr_groups["idx"] is not None:
-          curr = curr[ int(attr_groups["idx"]) ]
-      output_str = output_str.replace( substr, str( curr ) )
+          curr = get_attr( attr_groups["attr"] )
+
+          ########################################################################
+          # Special cases
+          if callable( curr ):
+            if attr == "resources" and "name" in self.host_info:
+              curr = curr( self.host_info["name"] )
+            else:
+              curr = curr()
+          ########################################################################
+          if curr is None:
+            msg = f"Dereferencing yielded None for '{attr_groups['attr']}' in '{substr}'"
+            self.log( msg, level=40 )
+            raise Exception( msg )
+
+          if attr_groups["idx"] is not None:
+            curr = curr[ int(attr_groups["idx"]) ]
+        output_str = output_str.replace( substr, str( curr ) )
+
+      curr_matches = list( Action.REF_RE.finditer( output_str ) )
+
     if output_str != input_str:
       self.log( f"Dereferenced '{input_str}'" )
       self.log( f"     into => '{output_str}'" )
@@ -472,15 +496,17 @@ class Action( state.SaveState, res.ResourceRequestor ):
         output = self.dereference( obj[key] )
         if output is not None:
           obj[key] = output
+      return obj
     elif isinstance( obj, list ):
       for i in range( len( obj ) ):
         output = self.dereference( obj[i] )
         if output is not None:
           obj[i] = output
+      return obj
     elif isinstance( obj, str ):
       return self.dereference_str( obj )
     else:
-      return None
+      return obj
 
   def pre_launch( self ):
     pass
