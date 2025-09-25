@@ -1,5 +1,7 @@
-import sane
+import os
 
+import sane
+import sane.json_config as jconfig
 
 class MyAction( sane.Action ):
   def __init__( self, id ):
@@ -26,14 +28,20 @@ class MyAction( sane.Action ):
 class MyActionWithArgs( MyAction ):
   def __init__( self, id ):
     super().__init__( id )
+    self.dummy = jconfig.JSONConfig( logname="foo" )
+
 
   def run( self ):
     self.log( "Inside my custom run with arguments used" )
+    self.log( f"cwd : '{os.getcwd()}'" )
     if "arguments" in self.config:
       for x in self.config["arguments"]:
         self.log( f"Fibonacci number @ {x} = {self.calc_fib(x)}" )
     else:
       self.log( "Please provide arguments", level=30 )
+
+    self.log( self.dummy.check_unused )
+    self.log( jconfig.JSONConfig )
     return 0
 
 
