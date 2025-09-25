@@ -128,41 +128,11 @@ def main():
   if len( options.search_pattern ) == 0:
     options.search_pattern = [ "*.json", "*.jsonc", "*.py" ]
 
-  logger.log( "Searching for workflow files..." )
-  files = []
-  for search_path in options.path:
-    for search_pattern in options.search_pattern:
-      # Now search for each path each pattern
-      logger.log( f"  Searching {search_path} for {search_pattern}" )
-      for path in pathlib.Path( search_path ).rglob( search_pattern ):
-        logger.log( f"    Found {path}" )
-        files.append( path )
-
-  files_sorted = {}
-  for file in files:
-    ext = file.suffix # os.path.splitext( file )
-    if ext not in files_sorted:
-      files_sorted[ext] = []
-
-    files_sorted[ext].append( file )
-
   ##############################################################################
   orchestrator = sane.Orchestrator()
-
-  # Do all python-based definitions first
-  if ".py" in files_sorted:
-    orchestrator.load_py_files( files_sorted[".py"] )
-
-  orchestrator.process_registered()
-
-  # Then finally do config files
-  if ".json" in files_sorted:
-    orchestrator.load_config_files( files_sorted[".json"] )
-
-  if ".jsonc" in files_sorted:
-    orchestrator.load_config_files( files_sorted[".jsonc"] )
-
-  orchestrator.process_patches()
+  orchestrator.add_search_paths( options.path )
+  orchestrator.add_search_patterns( options.search_pattern )
+  orchestrator.load_paths()
 
   if options.verbose is not None:
     logger.log( "Changing all actions output to verbose" )

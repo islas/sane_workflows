@@ -93,6 +93,10 @@ class Orchestrator( jconfig.JSONConfig ):
     self._working_directory = "./"
     self._patch_configs = {}
 
+    self.search_paths    = []
+    self.search_patterns = []
+
+    self.__searched__ = False
     self.__run_lock__ = threading.Lock()
     self.__wake__     = threading.Event()
 
@@ -143,6 +147,72 @@ class Orchestrator( jconfig.JSONConfig ):
       msg = f"Error: In {Orchestrator.construct_dag.__name__}() DAG construction failed, invalid topology"
       self.log( msg, level=50 )
       raise Exception( msg )
+
+  def add_search_paths( self, search_paths ):
+    if self.__searched__:
+      self.log( "Paths already searched, adding paths later not supported", level=30 )
+      return
+
+    for search_path in search_paths:
+      if search_path in self.search_paths:
+        self.log( f"Search path already in search list : '{search_path}'", level=30 )
+      else:
+        self.search_paths.append( search_path )
+
+  def add_search_patterns( self, search_patterns ):
+    if self.__searched__:
+      self.log( "Paths already searched, adding paths later not supported", level=30 )
+      return
+
+    for search_pattern in search_patterns:
+      if search_pattern in self.search_patterns:
+        self.log( f"Search pattern already in search pattern list : '{search_pattern}'", level=30 )
+      else:
+        self.search_patterns.append( search_pattern )
+
+  def load_paths( self ):
+    if self.__searched__:
+      self.log( f"Already searched and loaded", level=30 )
+      return
+
+    for search_path in self.search_paths:
+      sys.path.append( search_path )
+      # paths are stored as absolute here since save state may need them as such
+      uspace.user_paths.append( os.path.abspath( search_path ) )
+
+    self.log( "Searching for workflow files..." )
+    files = []
+    for search_path in self.search_paths:
+      for search_pattern in self.search_patterns:
+        # Now search for each path each pattern
+        self.log( f"  Searching {search_path} for {search_pattern}" )
+        for path in pathlib.Path( search_path ).rglob( search_pattern ):
+          self.log( f"    Found {path}" )
+          files.append( path )
+
+    files_sorted = {}
+    for file in files:
+      ext = file.suffix
+      if ext not in files_sorted:
+        files_sorted[ext] = []
+
+      files_sorted[ext].append( file )
+
+    # Do all python-based definitions first
+    if ".py" in files_sorted:
+      self.load_py_files( files_sorted[".py"] )
+
+    self.process_registered()
+
+    # Then finally do config files
+    if ".json" in files_sorted:
+      self.load_config_files( files_sorted[".json"] )
+
+    if ".jsonc" in files_sorted:
+      self.load_config_files( files_sorted[".jsonc"] )
+
+    self.process_patches()
+    self.__searched__ = True
 
   def process_registered( self ):
     # Higher number equals higher priority
@@ -407,18 +477,29 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "Not all actions finished with success" )
     return status
 
-  def load_py_files( self, files ):
+  def load_py_files( self, files, parent=None ):
     for file in files:
-      self.log( f"Loading python file {file}")
       if not isinstance( file, pathlib.Path ):
-        file = pathlib.Path( file )
+        path_file = pathlib.Path( file ).relative_to( self.working_directory )
+      else:
+        path_file = file
 
-      module_name = file.stem
-      spec = importlib.util.spec_from_file_location( module_name, file.absolute() )
-      user_module = importlib.util.module_from_spec( spec )
-      sys.modules[module_name] = user_module
-      spec.loader.exec_module( user_module )
-      uspace.user_modules[module_name] = user_module
+      # Find search path that yielded this file if possible
+      for search_path in self.search_paths:
+        if path_file.is_relative_to( search_path ):
+          path_file = path_file.relative_to( search_path )
+          break
+
+      # Now load the file as is
+      module_name = ".".join( path_file.parts ).rpartition( ".py" )[0]
+
+      if not file.is_file():
+        msg = f"Dynamic import of '{module_name}' not possible, file '{file}' does not exist"
+        self.log( msg, level=50 )
+        raise FileNotFoundError( msg )
+
+      self.log( f"Loading python file {file} as '{module_name}'" )
+      uspace.user_modules[module_name] = importlib.import_module( module_name )
 
   def load_config_files( self, files ):
     for file in files:
