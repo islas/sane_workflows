@@ -1,4 +1,5 @@
 import inspect
+import pydoc
 import collections
 
 import sane.logger as logger
@@ -35,9 +36,24 @@ class JSONConfig( logger.Logger ):
   def load_extra_config( self, config ):
     pass
 
-  def search_type( self, type_str, noexcept=False ):
-    module_name, class_name = type_str.split( ".", maxsplit=1 )
-    tinfo = getattr( uspace.user_modules[module_name], class_name, None )
+  def search_type( self, type_str : str, noexcept=False ):
+    tinfo = pydoc.locate( type_str )
+    if tinfo is not None:
+      return tinfo
+
+    # locate didn't work so try to use hinting
+    if "." in type_str:
+      module_name, class_name = type_str.rsplit( ".", maxsplit=1 )
+    else:
+      class_name = type_str
+      module_name = ""
+
+    for user_module_name, user_module in uspace.user_modules.items():
+      if module_name in user_module_name:
+        tinfo = getattr( user_module, class_name, None )
+        if tinfo is not None:
+          break
+
     if tinfo is None:
       msg = f"Could not find type <'{type_str}'> in {module_name}"
       self.log( msg, level=50 )
