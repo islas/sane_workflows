@@ -109,6 +109,7 @@ class Orchestrator( jconfig.JSONConfig ):
   @working_directory.setter
   def working_directory( self, path ):
     self._working_directory = path
+    os.chdir( self._working_directory )
 
   @property
   def save_location( self ):
