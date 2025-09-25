@@ -133,7 +133,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def _release( self ):
     if self._run_lock is not None:
-      self._run_lock.release()
+      if self._run_lock.locked():
+        self._run_lock.release()
+      else:
+        self.log( "Run lock already released", level=30 )
 
   @property
   def id( self ):
@@ -377,7 +380,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
+      self.set_status_failure()
+      self._release()
       self.restore_logname()
+      self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.__orch_wake__()
       raise e
 
