@@ -38,8 +38,11 @@ class Logger:
   def restore_logname( self ):
     if len( self._logname_stack ) > 0:
       self._logname_stack.pop()
-    name = self._logname if len( self._logname_stack ) == 0 else self._logname_stack[-1]
-    self._set_label( name )
+    self._set_label( self.last_logname )
+
+  @property
+  def last_logname( self ):
+    return self._logname if len( self._logname_stack ) == 0 else self._logname_stack[-1]
 
   def _set_label( self, name ):
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )
