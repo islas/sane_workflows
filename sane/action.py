@@ -360,7 +360,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       thread_name = threading.current_thread().name
       if thread_name is not None:
         self.override_logname( f"{self.id}[{thread_name}]" )
-      self.pre_launch()
+      ok = self.pre_launch()
+      if ok is not None and not ok:
+        raise AssertionError( "pre_launch() returned False" )
+
       # Set current state of this instance
       self._state = ActionState.RUNNING
       self._status = ActionStatus.NONE
@@ -408,7 +411,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
         else:
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
-      self.post_launch( retval, content )
+      ok = self.post_launch( retval, content )
+      if ok is not None and not ok:
+        raise AssertionError( "post_launch() returned False" )
+
       # notify we have finished
       if thread_name is not None:
         self.restore_logname()
