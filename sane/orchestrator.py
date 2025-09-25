@@ -457,7 +457,7 @@ class Orchestrator( jconfig.JSONConfig ):
           processed_nodes.remove( node )
         elif not run_state:
           # If we get here, we DO want to error
-          msg = f"Action {node} did not return finished state : {self.actions[node].state.value}"
+          msg = f"Action '{node}' did not return finished state : {self.actions[node].state.value}"
           self.log( msg, level=50 )
           raise Exception( msg )
 

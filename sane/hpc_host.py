@@ -88,7 +88,7 @@ class HPCHost( sane.Host ):
   def post_launch( self, action, retval, content ):
     if not self._launch_local( action ):
       if retval != 0:
-        msg = f"Submission of Action {action.id} failed. Will not have job id"
+        msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
         raise Exception( msg )
       self._job_ids[action.id] = self.extract_job_id( content )
