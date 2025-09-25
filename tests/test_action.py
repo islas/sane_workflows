@@ -156,3 +156,44 @@ class ActionTests( unittest.TestCase ):
     self.assertEqual( self.action.dependencies["dep_action2"], sane.action.DependencyType.AFTERANY )
     self.assertEqual( self.action.dependencies["dep_action3"], sane.action.DependencyType.AFTER )
     self.assertEqual( self.action.environment, "foobar" )
+
+  def test_action_dereference( self ):
+    """Test the action's ability to use YAML-like attribute dereferencing"""
+    # Start with a sufficiently complex config
+    self.test_action_from_config()
+    ref_str = "foo ${{ id }} ${{ environment}} ${{ local }} ${{ working_directory }}"
+    exp_str = "foo test foobar True ./"
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+    ref_dict = {
+                "foo" : "${{ id }}",
+                "foobar" : ["${{environment}}"],
+                "zoo" :
+                {
+                  "foo" : "${{ local }}",
+                  "foobar" : "${noop}",
+                  "zoo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
+                }
+              }
+    exp_dict = {
+                "foo" : "test",
+                "foobar" : ["foobar"],
+                "zoo" :
+                {
+                  "foo" : "True",
+                  "foobar" : "${noop}",
+                  "zoo" : [ "./", "1", "999" ]
+                }
+              }
+    out_dict = self.action.dereference( ref_dict )
+    self.assertEqual( exp_dict, out_dict )
+
+    # multi-dereference
+    self.action.config["foo"] = "${{ config.bar }}"
+    self.action.config["bar"] = "1"
+    ref_str = "${{config.foo}}"
+    exp_str = "1"
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
