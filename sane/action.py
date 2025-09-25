@@ -221,7 +221,43 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     return found_cmd
 
-  def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False ):
+  def resolve_path( self, input_path, base_path=None ):
+    """reslove a path using base path if input path is relative, otherwise only use input path"""
+    if base_path is None:
+      base_path = self.working_directory
+
+    output_path = base_path
+    if os.path.isabs( input_path ):
+      output_path = input_path
+    else:
+      # Evaluate relative path from passed in path
+      output_path = os.path.abspath( os.path.join( base_path, input_path ) )
+    return output_path
+
+  
+  def resolve_path_exists( self, input_path, base_path=None, allow_dry_run=True ):
+    """Wrapper on resolve_path to also check if that directory exists"""
+    if base_path is None:
+      base_path = self.working_directory
+
+    if input_path is None:
+      raise ValueError( f"Must provide a directory, input path : '{input_path}'" )
+    # Immediately resolve from working directory, this assumes we run from the
+    # root of WRF repo
+    resolved_path = self.resolve_path( input_path, base_path )
+    if ( not self.dry_run or not allow_dry_run ) and not os.path.isdir( resolved_path ):
+      raise NotADirectoryError( f"Provided path does not exist as directory : '{resolved_path}" )
+    return resolved_path
+
+  def file_exists_in_path( self, input_path, file, allow_dry_run=True ):
+    if ( not self.dry_run or not allow_dry_run ):
+      f = os.path.join( input_path, file )
+      if not os.path.isfile( f ):
+        raise FileNotFoundError( f"File '{f}' not found" )
+    else:
+      return True
+
+  def execute_subprocess( self, cmd, arguments=None, logfile=None, verbose=False, dry_run=False, capture=False, shell=False ):
     args = [cmd]
 
     if arguments is not None:
@@ -330,12 +366,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.save()
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
-      action_dir = working_directory
-      if os.path.isabs( self.working_directory ):
-        action_dir = self.working_directory
-      else:
-        # Evaluate relative path from passed in path
-        action_dir = os.path.abspath( os.path.join( working_directory, self.working_directory ) )
+      action_dir = self.resolve_path( self.working_directory, working_directory )
+
       self.log( f"Using working directory : '{action_dir}'" )
 
       cmd = self._find_cmd( self._launch_cmd, action_dir )
