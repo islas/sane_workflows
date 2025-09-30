@@ -486,15 +486,16 @@ class Orchestrator( jconfig.JSONConfig ):
         path_file = file
 
       # Find search path that yielded this file if possible
+      module_file = path_file
       for search_path in self.search_paths:
         if path_file.is_relative_to( search_path ):
-          path_file = path_file.relative_to( search_path )
+          module_file = path_file.relative_to( search_path )
           break
 
       # Now load the file as is
-      module_name = ".".join( path_file.parts ).rpartition( ".py" )[0]
+      module_name = ".".join( module_file.parts ).rpartition( ".py" )[0]
 
-      if not file.is_file():
+      if not path_file.is_file():
         msg = f"Dynamic import of '{module_name}' not possible, file '{file}' does not exist"
         self.log( msg, level=50 )
         raise FileNotFoundError( msg )
