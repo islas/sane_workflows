@@ -1,0 +1,53 @@
+
+name: Run unittest
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+    - name: Cache pyenv
+      id: cache-pyenv
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pyenv
+          ~/.profile
+        key: pyenv-${{ matrix.python-version }}
+    - if: ${{ steps.cache-pyenv.outputs.cache-hit != 'true' }}
+      name: Install pyenv
+      run: |
+        curl -fsSL https://pyenv.run | bash
+        echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile
+        echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile
+        echo 'eval "$(pyenv init - bash)"' >> ~/.profile
+    - if: ${{ steps.cache-pyenv.outputs.cache-hit != 'true' }}
+      name: Install python version ${{ matrix.python-version }}
+      run: |
+        source ~/.profile
+        pyenv install ${{ matrix.python-version }}
+    - uses: actions/checkout@v4
+    - name: Set python version ${{ matrix.python-version }}
+      run: |
+        source ~/.profile
+        pyenv local ${{ matrix.python-version }}
+    - name: Verify python version
+      run: |
+        source ~/.profile
+        python3 --version
+        [[ $( python3 --version | awk '{print $2}' ) == "${{ matrix.python-version}}"* ]]
+        exit $?
+    - name: Test with unittest
+      run: |
+        source ~/.profile
+        python3 -m unittest discover --pattern=*.py -v -b -s tests/
