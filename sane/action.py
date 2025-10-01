@@ -118,6 +118,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     tmp_wake     = self.__wake__
     self._run_lock = None
     self.__wake__  = None
+    self._logger = None
     super().save()
     # Now restore
     self._run_lock = tmp_run_lock

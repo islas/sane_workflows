@@ -23,7 +23,7 @@ class Logger:
     self._label             = ""
     self._logname_stack     = []
     self.restore_logname()
-    self._logger = logging.getLogger( __name__ )
+    self._logger = None
 
     super().__init__( **kwargs )
 
@@ -48,6 +48,8 @@ class Logger:
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )
 
   def log( self, *args, level=logging.INFO, **kwargs ) :
+    if self._logger is None:
+      self._logger = logging.getLogger( __name__ )
     # https://stackoverflow.com/a/39823534
     output = io.StringIO()
     print( *args, file=output, end="", **kwargs )
@@ -65,5 +67,7 @@ class Logger:
     self._level -= levels
 
   def log_flush( self ):
+    if self._logger is None:
+      self._logger = logging.getLogger( __name__ )
     for handler in self._logger.handlers:
       handler.flush()

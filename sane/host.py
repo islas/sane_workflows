@@ -25,6 +25,14 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
   def match( self, requested_host ):
     return self.partial_match( requested_host )
+  
+  def save( self ):
+    # Dump the loggers
+    self._logger = None
+    for env_name, environment in self.environments.items():
+      environment._logger = None
+    super().save()
+    # Loggers will be auto-restored
 
   def valid_host( self, override_host=None ):
     requested_host = socket.getfqdn() if override_host is None else override_host
