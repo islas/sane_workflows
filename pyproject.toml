@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sane-workflows"
+version = "1.0.0"
+description = "Simple Action 'n Environment Workflows"
+readme = "README.md"
+requires-python = ">=3.6"
+license = "MIT"
+license-files = [ "LICENSE*" ]
+authors = [{ name = "Anthony Islas", email = "aislas@ucar.edu" }]
+keywords = ["sane", "workflow", "dag", "orchestration"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Testing",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/islas/sane_workflows.git"
+Issues = "https://github.com/islas/sane_workflows/issues"
+
+[project.scripts]
+sane_runner = "bin:sane_runner.main"
+
+[tool.setuptools]
+include-package-data = true
+package-data = { "sane" = [ "*.sh" ] }
+packages = [ "sane" ]
