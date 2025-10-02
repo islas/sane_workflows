@@ -1,4 +1,6 @@
 # SANE Workflows
+[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![unittest](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml/badge.svg)](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml)
+
 Simple Action 'n Environment Workflow
 
 SANE is a DAG-based action workflow runner augmented with environments provided
