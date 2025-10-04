@@ -169,7 +169,7 @@ def main():
 
   if options.run:
     success = orchestrator.run_actions( action_list, options.specific_host )
-  if options.dry_run:
+  elif options.dry_run:
     success = orchestrator.run_actions( action_list, options.specific_host )
   elif options.list:
     logger.log( "Actions:" )
