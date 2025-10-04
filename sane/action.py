@@ -555,7 +555,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     dir = config.pop( "working_directory", None )
     if dir is not None:
-      self.working_directory = working_directory
+      self.working_directory = dir
 
     act_config = config.pop( "config", None )
     if act_config is not None:
