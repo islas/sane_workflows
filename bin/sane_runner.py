@@ -172,7 +172,7 @@ def main():
   elif options.dry_run:
     success = orchestrator.run_actions( action_list, options.specific_host )
   elif options.list:
-    logger.log( "Actions:" )
+    logger.log( "Listing actions:" )
     sane.orchestrator.print_actions( action_list, print=logger.log )
 
   orchestrator.save()
