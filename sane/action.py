@@ -83,7 +83,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._id = id
     self.config = {}
     self.environment = None
-    self.local = None
 
     self.verbose = False
     self.dry_run = False
@@ -550,10 +549,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     environment = config.pop( "environment", None )
     if environment is not None:
       self.environment = environment
-
-    local = config.pop( "local", None )
-    if local is not None:
-      self.local = local
 
     dir = config.pop( "working_directory", None )
     if dir is not None:

@@ -294,7 +294,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( f"Checking resource availability..." )
     host.log_push()
     for node in traversal_list:
-      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=node )
+      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=self.actions[node] )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
@@ -379,7 +379,7 @@ class Orchestrator( jconfig.JSONConfig ):
           if requirements_met:
             resources_available = False
             with self.__run_lock__:  # protect logs
-              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
+              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
             if resources_available:
               # Set info first
               self.actions[node].__host_info__ = host.info
@@ -439,7 +439,7 @@ class Orchestrator( jconfig.JSONConfig ):
             retval, content = results[node].result()
             host.post_launch( self.actions[node], retval, content )
             # Regardless, return resources
-            host.release_resources( self.actions[node].resources( host.name ), requestor=node )
+            host.release_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
             del results[node]
           except Exception as e:
             for k, v in results.items():

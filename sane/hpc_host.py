@@ -9,7 +9,7 @@ import sane.resources
 import sane.host
 
 
-class HPCHost( sane.Host ):
+class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
   HPC_DELAY_PERIOD_SECONDS = 30
 
   def __init__( self, name, aliases=[] ):
@@ -20,7 +20,6 @@ class HPCHost( sane.Host ):
     # Defaults
     self.queue   = None
     self.account = None
-    self.default_local = False
 
     self._job_ids = {}
 
@@ -237,21 +236,6 @@ class HPCHost( sane.Host ):
 
     The return should be of the format acceptable by _format_arguments()
     """
-    pass
-
-  @abstractmethod
-  def resources_available( self, resource_dict, requestor ):
-    """Tell us how to determine if HPC resources are available"""
-    pass
-
-  @abstractmethod
-  def acquire_resources( self, resource_dict, requestor ):
-    """Tell us how to acquire HPC resources"""
-    pass
-
-  @abstractmethod
-  def release_resources( self, resource_dict, requestor ):
-    """Tell us how to release HPC resources"""
     pass
 
 
@@ -577,14 +561,14 @@ class PBSHost( HPCHost ):
     res_dict.pop( "timelimit", None )
     return res_dict
 
-  def resources_available( self, resource_dict, requestor ):
+  def nonlocal_resources_available( self, resource_dict, requestor ):
     self.log( f"Checking resources for '{requestor}'", level=15 )
     self.log_push()
     available, *_ = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     self.log_pop()
     return available
 
-  def acquire_resources( self, resource_dict, requestor ):
+  def nonlocal_acquire_resources( self, resource_dict, requestor ):
     self.log( f"Acquiring HPC resources for '{requestor}'...", level=15 )
     self.log_push()
     available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
@@ -602,7 +586,7 @@ class PBSHost( HPCHost ):
     self.log_pop()
     return available
 
-  def release_resources( self, resource_dict, requestor ):
+  def nonlocal_release_resources( self, resource_dict, requestor ):
     requisition = self._requisitions[requestor]
     for nodeset, req in requisition.items():
       self._resources[nodeset]["total"].release_resources( req["amounts"], requestor )
