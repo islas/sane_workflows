@@ -137,6 +137,10 @@ class Orchestrator( jconfig.JSONConfig ):
   def add_host( self, host ):
     self.hosts[host.name] = host
 
+  @property
+  def current_host( self ):
+    return self._current_host
+
   def construct_dag( self ):
     for id, action in self.actions.items():
       self._dag.add_node( id )
@@ -253,19 +257,23 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.restore_logname()
 
-  def check_host( self, as_host, traversal_list ):
+  def find_host( self, as_host ):
     for host_name, host in self.hosts.items():
       self.log( f"Checking host \"{host_name}\"" )
       if host.valid_host( as_host ):
         self._current_host = host_name
         break
+    self.log( f"Running as '{self.current_host}'" )
+    
 
-    if self._current_host is None:
+    if self.current_host is None:
       self.log( "No valid host configuration found", level=50 )
       raise Exception( f"No valid host configuration found" )
+    return self.current_host
 
-    self.log( f"Running as '{self._current_host}', checking ability to run all actions..." )
-    host = self.hosts[self._current_host]
+  def check_host( self, traversal_list ):
+    self.log( f"Checking ability to run all actions..." )
+    host = self.hosts[self.current_host]
     self.log_push()
     host.log_push()
 
@@ -282,7 +290,7 @@ class Orchestrator( jconfig.JSONConfig ):
         missing_env.append( ( node, env_name ) )
 
     if len( missing_env ) > 0:
-      self.log( f"Missing environments in Host( \"{self._current_host}\" )", level=50 )
+      self.log( f"Missing environments in Host( \"{self.current_host}\" )", level=50 )
       self.log_push()
       for node, env_name in missing_env:
         self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )", level=40 )
@@ -340,10 +348,11 @@ class Orchestrator( jconfig.JSONConfig ):
     action_set = list(traversal_list.keys())
     print_actions( action_set, print=self.log )
 
-    self.check_host( as_host, traversal_list )
+    self.find_host( as_host )
+    self.check_host( traversal_list )
 
     # We have a valid host for all actions slated to run
-    host = self.hosts[self._current_host]
+    host = self.hosts[self.current_host]
     host.save_location = self.save_location
     host.dry_run = self.dry_run
     self.log( "Saving host information..." )
@@ -564,7 +573,7 @@ class Orchestrator( jconfig.JSONConfig ):
                   },
                   "dry_run" : self.dry_run,
                   "verbose" : self.verbose,
-                  "host" : self._current_host,
+                  "host" : self.current_host,
                   "save_location" : self.save_location,
                   "log_location" : self.log_location,
                   "working_directory" : self.working_directory
