@@ -117,10 +117,16 @@ def get_parser():
                                             "Creates temporary host to facilitate adaptive running of workflow"
                                             )
   virtual_host.add_argument(
+                            "-ml", "--main_log",
+                            type=str,
+                            default="runner.log",
+                            help="Logfile name of sane_runner"
+                            )
+  virtual_host.add_argument(
                             "-vh", "--virtual_host",
                             type=str,
                             default=None,
-                            help="INTERNAL Launch workflow with virtual copy of host with resource specifications, forced local"
+                            help="Launch workflow with virtual copy of host with resource specifications, forced local"
                             )
   return parser
 
@@ -136,7 +142,7 @@ def main():
   parser  = get_parser()
   options = parser.parse_args()
 
-  logfile = os.path.abspath( f"{options.log_location}/runner.log" )
+  logfile = os.path.abspath( f"{options.log_location}/{options.main_log}" )
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
   file_handler = logging.FileHandler( logfile, mode="w" )
   file_handler.setFormatter( sane.log_formatter )
@@ -160,6 +166,7 @@ def main():
     relaunch_options = copy.deepcopy( options )
     relaunch_options.virtual_host = relaunch_options.virtual_relaunch
     relaunch_options.virtual_relaunch = None
+    relaunch_options.main_log = "virtual_runner.log"
     opt_append = [ "search_path", "search_pattern" ]
     if relaunch_options.actions:
       del relaunch_options.filter
