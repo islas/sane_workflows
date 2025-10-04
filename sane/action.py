@@ -330,6 +330,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # We don't mind doing this as the process should block us until we are ready to continue
       dump, err    = proc.communicate()
       retval       = proc.returncode
+
+      if logfile is not None:
+        logfileOutput.close()
       ##
       ##
       ##

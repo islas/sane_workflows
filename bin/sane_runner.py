@@ -177,6 +177,8 @@ def main():
 
   orchestrator.save()
   logger.log( "Finished" )
+  file_handler.flush()
+  file_handler.close()
   # Flip success as 1 == True and 0 == False
   # but exit codes 0 == ok anything else not ok
   exit( not int(success) )
