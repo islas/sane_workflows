@@ -177,7 +177,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
       self.log( msg, level=40 )
       raise KeyError( msg )
 
-    submit_args = self.submit_args( specific_resources, action.id )
+    submit_args = self.submit_args( specific_resources, action.logname )
     default_submit = {
                               "name"       : f"sane.workflow.{action.id}",
                               "output"     : action.logfile,
@@ -231,7 +231,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     pass
 
   @abstractmethod
-  def submit_args( self, resource_dict, requestor ):
+  def submit_args( self, resource_dict, requestor_name ):
     """Convert the resource dict from the requestor into hpc submission arguments
 
     The return should be of the format acceptable by _format_arguments()
@@ -365,7 +365,7 @@ class PBSHost( HPCHost ):
       return int( found.group( 1 ) )
 
   def pbs_resource_requisition( self, resource_dict, requestor ):
-    self.log( f"Original resource request from '{requestor}' : {resource_dict}", level=15 )
+    self.log( f"Original resource request from '{requestor.logname}' : {resource_dict}", level=15 )
 
     resource_dicts = [ self.map_resource_dict( resource_dict ) ]
     # Manual specification has been made, ignore everything else
@@ -412,7 +412,7 @@ class PBSHost( HPCHost ):
           specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
           numeric_resources.append( resource )
 
-      self.log( f"Finding resources for '{requestor}' : {specified_resource_dict}", level=15 )
+      self.log( f"Finding resources for '{requestor.logname}' : {specified_resource_dict}", level=15 )
 
       # These are the resources that should be provided by the end of this
       required_resources = available_resources & set( numeric_resources )
@@ -526,11 +526,11 @@ class PBSHost( HPCHost ):
         self.log( f"Did not fully resolve resource request : {res_dict}", level=15 )
         self.log( f"  Remaining : {specified_resource_dict}", level=15 )
     if resolved:
-      self.log( f"HPC resources available for '{requestor}'", level=15 )
+      self.log( f"HPC resources available for '{requestor.logname}'", level=15 )
     return resolved, requisition
 
-  def submit_args( self, resource_dict, requestor ):
-    return self.requisition_to_submit_args( self._requisitions[requestor] )
+  def submit_args( self, resource_dict : dict, requestor_name : str ):
+    return self.requisition_to_submit_args( self._requisitions[requestor_name] )
 
   def requisition_to_submit_args( self, requisition ):
     host_arguments = []
@@ -561,19 +561,19 @@ class PBSHost( HPCHost ):
     res_dict.pop( "timelimit", None )
     return res_dict
 
-  def nonlocal_resources_available( self, resource_dict, requestor ):
-    self.log( f"Checking resources for '{requestor}'", level=15 )
+  def nonlocal_resources_available( self, resource_dict : dict, requestor : sane.resources.ResourceRequestor, log=True ):
+    self.log( f"Checking resources for '{requestor.logname}'", level=15 )
     self.log_push()
     available, *_ = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     self.log_pop()
     return available
 
-  def nonlocal_acquire_resources( self, resource_dict, requestor ):
-    self.log( f"Acquiring HPC resources for '{requestor}'...", level=15 )
+  def nonlocal_acquire_resources( self, resource_dict : dict, requestor : sane.resources.ResourceRequestor ):
+    self.log( f"Acquiring HPC resources for '{requestor.logname}'...", level=15 )
     self.log_push()
     available, requisition = self.pbs_resource_requisition( self.remove_hpc_kw( resource_dict ), requestor )
     if not available:
-      self.log( f"Could not acquire resources for {requestor}", level=15 )
+      self.log( f"Could not acquire resources for {requestor.logname}", level=15 )
       self.log_pop()
       return available
 
@@ -582,12 +582,12 @@ class PBSHost( HPCHost ):
       self._resources[nodeset]["total"].acquire_resources( req["amounts"], requestor )
       self._resources[nodeset]["total"].log_pop()
 
-    self._requisitions[requestor] = requisition
+    self._requisitions[requestor.logname] = requisition
     self.log_pop()
     return available
 
-  def nonlocal_release_resources( self, resource_dict, requestor ):
-    requisition = self._requisitions[requestor]
+  def nonlocal_release_resources( self, resource_dict : dict, requestor : sane.resources.ResourceRequestor ):
+    requisition = self._requisitions[requestor.logname]
     for nodeset, req in requisition.items():
       self._resources[nodeset]["total"].release_resources( req["amounts"], requestor )
-    del self._requisitions[requestor]
+    del self._requisitions[requestor.logname]
