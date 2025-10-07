@@ -53,7 +53,7 @@ class DAG:
   def traversal_to( self, nodes ):
     traversal  = []
     current    = []
-    next_nodes = nodes
+    next_nodes = nodes.copy()
 
     while len( next_nodes ) > 0:
       current = next_nodes.copy()
