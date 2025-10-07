@@ -1,7 +1,9 @@
 import io
 import logging
 
+
 LABEL_LENGTH = 18
+logger = logging.getLogger( __name__ )
 
 
 # https://stackoverflow.com/a/34626685
@@ -23,7 +25,6 @@ class Logger:
     self._label             = ""
     self._logname_stack     = []
     self.restore_logname()
-    self._logger = None
 
     super().__init__( **kwargs )
 
@@ -31,31 +32,34 @@ class Logger:
   def logname( self ):
     return self._logname
 
-  def override_logname( self, name ):
-    self._set_label( name )
-    self._logname_stack.append( name )
+  @logname.setter
+  def logname( self, logname ):
+    self._logname = logname
+    self._set_label( self.last_logname )
 
-  def restore_logname( self ):
-    if len( self._logname_stack ) > 0:
-      self._logname_stack.pop()
+  def push_logscope( self, scope ):
+    self._set_label( f"{self.logname}{scope}" )
+    self._logscope_stack.append( scope )
+
+  def pop_logscope( self ):
+    if len( self._logscope_stack ) > 0:
+      self._logscope_stack.pop()
     self._set_label( self.last_logname )
 
   @property
   def last_logname( self ):
-    return self._logname if len( self._logname_stack ) == 0 else self._logname_stack[-1]
+    return self._logname if len( self._logscope_stack ) == 0 else f"{self.logname}::{self._logscope_stack[-1]}"
 
   def _set_label( self, name ):
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )
 
   def log( self, *args, level=logging.INFO, **kwargs ) :
-    if self._logger is None:
-      self._logger = logging.getLogger( __name__ )
     # https://stackoverflow.com/a/39823534
     output = io.StringIO()
     print( *args, file=output, end="", **kwargs )
     contents = output.getvalue()
     output.close()
-    self._logger.log( level, self._label + self._level_indentation * self._level + contents )
+    logger.log( level, self._label + self._level_indentation * self._level + contents )
     # Might need to find a way to flush...
     # self._console_handler.flush()
     return self._label + self._level_indentation * self._level + contents
@@ -67,7 +71,5 @@ class Logger:
     self._level -= levels
 
   def log_flush( self ):
-    if self._logger is None:
-      self._logger = logging.getLogger( __name__ )
-    for handler in self._logger.handlers:
+    for handler in logger.handlers:
       handler.flush()

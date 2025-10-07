@@ -6,6 +6,7 @@ import subprocess
 import threading
 from enum import Enum, EnumMeta
 
+import sane.logger as slogger
 import sane.save_state as state
 import sane.json_config as jconfig
 import sane.action_launcher as action_launcher
@@ -117,7 +118,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     tmp_wake     = self.__wake__
     self._run_lock = None
     self.__wake__  = None
-    self._logger = None
     super().save()
     # Now restore
     self._run_lock = tmp_run_lock
@@ -308,7 +308,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # Temporarily swap in a very crude logger
       log = lambda *args: self.log( *args, level=25 )
       if self.__exec_raw__:
-        log = lambda msg: self._logger.getChild( "raw" ).log( 25, msg )
+        log = lambda msg:  slogger.logger.getChild( "raw" ).log( 25, msg )
 
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
