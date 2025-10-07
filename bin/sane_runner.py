@@ -171,87 +171,8 @@ def main():
   orchestrator.add_search_patterns( options.search_pattern )
   orchestrator.load_paths()
 
-  if options.virtual_relaunch is not None:
-    # in situ create an aggregate action
-    relaunch_options = copy.deepcopy( options )
-    relaunch_options.virtual_host = relaunch_options.virtual_relaunch
-    relaunch_options.virtual_relaunch = None
-    relaunch_options.main_log = "virtual_runner.log"
-    opt_append = [ "search_path", "search_pattern" ]
-    if relaunch_options.actions:
-      del relaunch_options.filter
-    else:
-      del relaunch_options.actions
+  action_list = options.actions.copy()
 
-    optional_args = {}
-    for key, value in vars( relaunch_options ).items():
-      # Skip all false and None as we have those as defaults
-      if value :
-        if isinstance( value, list ) :
-          optional_args[ key ] = value
-        elif isinstance( value, bool ) :
-          # As long as we are diligent about action=store_const (True) this will work
-          optional_args[ key ] = None
-        else :
-          # Just as str
-          optional_args[ key ] = str( value )
-
-    args = []
-    for key, value in optional_args.items() :
-      args.append( f"--{key}" )
-      if value:
-        if isinstance( value, list ) :
-          if key in opt_append:
-            val_str = list( map( str, value ) )
-            opt_key = args.pop()
-            for vs in val_str:
-              args.extend( [ opt_key, vs ] )
-          else:
-            args.extend( list( map( str, value ) ) )
-        else :
-          args.append( f"{value}" )
-    action = sane.Action( "virtual_relaunch" )
-    action.config["command"] = __file__
-    action.config["arguments"] = args
-    action.wrap_stdout = False
-    action.add_resource_requirements( json.loads( options.virtual_relaunch ) )
-    orchestrator.add_action( action )
-    # Change action list to do this instead
-    options.actions = [ "virtual_relaunch" ]
-
-  if options.virtual_host is not None:
-    # find specific host to use, copy it
-    options.force_local = True
-    host_name = orchestrator.find_host( options.specific_host )
-    host = copy.deepcopy( orchestrator.hosts[host_name] )
-    logger.log( f"Removing old host {host_name}" )
-    orchestrator.hosts.pop( host_name, None )
-    host._name    = f"{host_name}-virtual"
-    host._logname = f"{host_name}-virtual"
-    host.restore_logname()
-    # override resources
-    if isinstance( host, sane.resources.NonLocalProvider ):
-      host.local_resources.add_resources( json.loads( options.virtual_host ), override=True )
-    else:
-      host.add_resources( json.loads( options.virtual_host ), override=True )
-    logger.log( f"Switching host to {host.name}" )
-    options.specific_host = host.name
-    orchestrator.add_host( host )
-
-
-
-  if options.verbose is not None:
-    logger.log( "Changing all actions output to verbose" )
-    orchestrator.verbose = options.verbose
-
-  if options.force_local is not None:
-    logger.log( "Forcing all actions to run local" )
-    orchestrator.force_local = options.force_local
-
-  orchestrator.save_location = options.save_location
-  orchestrator.log_location = options.log_location
-  orchestrator.working_directory = options.working_dir
-  action_list = options.actions
   if len( action_list ) == 0:
     # Use filter
     action_filter = re.compile( options.filter )
@@ -264,6 +185,102 @@ def main():
     logger.log( "No actions selected" )
     parser.print_help()
     exit( 1 )
+
+  if options.virtual_host is not None or options.virtual_relaunch is not None:
+    # find specific host to use, copy it
+    host_name = orchestrator.find_host( options.specific_host )
+    host = copy.deepcopy( orchestrator.hosts[host_name] )
+    host._name    = f"{host_name}-virtual"
+    host.logname  = f"{host_name}-virtual"
+    virtual_resources = options.virtual_relaunch if options.virtual_relaunch else options.virtual_host
+    # override resources
+    if isinstance( host, sane.resources.NonLocalProvider ):
+      host.force_local = True
+      host.local_resources.logname = f"{host.name}::local"
+      host.local_resources.add_resources( json.loads( virtual_resources ), override=True )
+    else:
+      host.add_resources( json.loads( virtual_resources ), override=True )
+
+    logger.log( f"Adding virtual host {host.name} to orchestrator" )
+    orchestrator.add_host( host )
+
+    if options.virtual_host:
+      # Force usage of this virtual host
+      logger.log( f"Removing old host {host_name}" )
+      orchestrator.hosts.pop( host_name )
+      options.force_local = True
+      logger.log( f"Switching host to {host.name}" )
+      options.specific_host = host.name
+    else:
+      # Test potential virtual host
+      logger.log( "Force-checking virtual host ability to run all actions..." )
+      tmp_host = orchestrator.hosts.pop( host_name )
+      orchestrator.find_host( host.name )
+      orchestrator.check_host( orchestrator.traversal_list( action_list ) )
+
+      # Revert back
+      orchestrator.hosts.pop( host.name )
+      orchestrator.add_host( tmp_host )
+
+      # in situ create an aggregate action
+      relaunch_options = copy.deepcopy( options )
+      relaunch_options.virtual_host = virtual_resources
+      relaunch_options.virtual_relaunch = None
+      relaunch_options.specific_host = host_name
+      relaunch_options.main_log = "virtual_runner.log"
+      opt_append = [ "search_path", "search_pattern" ]
+      if relaunch_options.actions:
+        del relaunch_options.filter
+      else:
+        del relaunch_options.actions
+
+      optional_args = {}
+      for key, value in vars( relaunch_options ).items():
+        # Skip all false and None as we have those as defaults
+        if value :
+          if isinstance( value, list ) :
+            optional_args[ key ] = value
+          elif isinstance( value, bool ) :
+            # As long as we are diligent about action=store_const (True) this will work
+            optional_args[ key ] = None
+          else :
+            # Just as str
+            optional_args[ key ] = str( value )
+
+      args = []
+      for key, value in optional_args.items() :
+        args.append( f"--{key}" )
+        if value:
+          if isinstance( value, list ) :
+            if key in opt_append:
+              val_str = list( map( str, value ) )
+              opt_key = args.pop()
+              for vs in val_str:
+                args.extend( [ opt_key, vs ] )
+            else:
+              args.extend( list( map( str, value ) ) )
+          else :
+            args.append( f"{value}" )
+      action = sane.Action( "virtual_relaunch" )
+      action.config["command"] = __file__
+      action.config["arguments"] = args
+      action.wrap_stdout = False
+      action.add_resource_requirements( json.loads( virtual_resources ) )
+      orchestrator.add_action( action )
+      # Change action list to do this instead
+      action_list = [ "virtual_relaunch" ]
+
+  if options.verbose is not None:
+    logger.log( "Changing all actions output to verbose" )
+    orchestrator.verbose = options.verbose
+
+  if options.force_local is not None:
+    logger.log( "Forcing all actions to run local" )
+    orchestrator.force_local = options.force_local
+
+  orchestrator.save_location = options.save_location
+  orchestrator.log_location = options.log_location
+  orchestrator.working_directory = options.working_dir
 
   # Load any previous statefulness
   if not options.new:
