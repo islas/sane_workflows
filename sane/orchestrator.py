@@ -222,17 +222,17 @@ class Orchestrator( jconfig.JSONConfig ):
   def process_registered( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.override_logname( f"{self.logname}::register" )
+    self.push_logscope( "::register" )
     keys = sorted( _registered_functions.keys(), reverse=True )
     for key in keys:
       for f in _registered_functions[key]:
         f( self )
-    self.restore_logname()
+    self.pop_logscope()
 
   def process_patches( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.override_logname( f"{self.logname}::patch" )
+    self.push_logscope( "::patch" )
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for patch in self._patch_configs[key]:
@@ -255,7 +255,7 @@ class Orchestrator( jconfig.JSONConfig ):
         if len( patch ) > 0:
           self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
 
-    self.restore_logname()
+    self.pop_logscope()
 
   def find_host( self, as_host ):
     for host_name, host in self.hosts.items():

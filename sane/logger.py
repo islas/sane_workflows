@@ -23,8 +23,8 @@ class Logger:
     self._level_indentation = "  "
     self._level             = 0
     self._label             = ""
-    self._logname_stack     = []
-    self.restore_logname()
+    self._logscope_stack    = []
+    self.pop_logscope()
 
     super().__init__( **kwargs )
 

@@ -362,8 +362,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     try:
       thread_name = threading.current_thread().name
       if thread_name is not None:
-        self.override_logname( f"{self.id}[{thread_name}]" )
+        self.push_logscope( f"[{thread_name}]" )
+      self._acquire()
       ok = self.pre_launch()
+      self._release()
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
 
@@ -414,20 +416,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
         else:
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
+
+      self._acquire()
       ok = self.post_launch( retval, content )
+      self._release()
       if ok is not None and not ok:
         raise AssertionError( "post_launch() returned False" )
 
       # notify we have finished
       if thread_name is not None:
-        self.restore_logname()
+        self.pop_logscope()
       self.__orch_wake__()
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
       self.set_status_failure()
       self._release()
-      self.restore_logname()
+      self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.__orch_wake__()
       raise e
@@ -524,7 +529,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def run( self ):
-    self.override_logname( f"{self.id}::run" )
+    self.push_logscope( "::run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -542,7 +547,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
-    self.restore_logname()
+    self.pop_logscope()
     return retval
 
   def __str__( self ):
