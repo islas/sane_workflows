@@ -4,6 +4,7 @@ from datetime import time
 import math
 import operator
 import copy
+import typing
 
 import sane.logger as logger
 import sane.json_config as jconfig
@@ -284,7 +285,7 @@ class ResourceMapper(  ):
   def num_maps( self ):
     return len( self._mapping )
 
-  def add_mapping( self, resource : str, aliases : list[str] ):
+  def add_mapping( self, resource : str, aliases : typing.List[str] ):
     self._mapping[resource] = ResourceMatch( name=resource, aliases=aliases )
 
   def name( self, resource : str ) -> str:

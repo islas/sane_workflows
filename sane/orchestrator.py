@@ -506,7 +506,8 @@ class Orchestrator( jconfig.JSONConfig ):
       # Find search path that yielded this file if possible
       module_file = path_file
       for search_path in self.search_paths:
-        if path_file.is_relative_to( search_path ):
+        sp_resloved = pathlib.Path( search_path ).resolve()
+        if os.path.commonpath( [path_file.resolve(), sp_resloved] ) == str(sp_resloved):
           module_file = path_file.relative_to( search_path )
           break
 
