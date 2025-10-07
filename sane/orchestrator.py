@@ -278,7 +278,7 @@ class Orchestrator( jconfig.JSONConfig ):
     return self.current_host
 
   def check_host( self, traversal_list ):
-    self.log( f"Checking ability to run all actions..." )
+    self.log( f"Checking ability to run all actions on '{self.current_host}'..." )
     host = self.hosts[self.current_host]
     self.log_push()
     host.log_push()
