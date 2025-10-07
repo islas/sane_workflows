@@ -360,6 +360,9 @@ class Orchestrator( jconfig.JSONConfig ):
     host = self.hosts[self.current_host]
     host.save_location = self.save_location
     host.dry_run = self.dry_run
+    if isinstance( host, sane.resources.NonLocalProvider ):
+      host.force_local = self.force_local
+
     self.log( "Saving host information..." )
     host.save()
 

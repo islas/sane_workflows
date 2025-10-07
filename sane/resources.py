@@ -485,6 +485,7 @@ class NonLocalProvider( ResourceProvider ):
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
     self.default_local = False
+    self.force_local = False
     self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
   def load_core_config( self, config ):
@@ -496,10 +497,14 @@ class NonLocalProvider( ResourceProvider ):
     if default_local is not None:
       self.default_local = default_local
 
+    force_local = config.pop( "force_local", None )
+    if force_local is not None:
+      self.force_local = force_local
+
     super().load_core_config( config )
 
   def launch_local( self, requestor : ResourceRequestor ):
-    return requestor.local or ( requestor.local is None and self.default_local )
+    return self.force_local or requestor.local or ( requestor.local is None and self.default_local )
 
   def resources_available(self, resource_dict : dict, requestor : ResourceRequestor, log=True):
     if self.launch_local( requestor ):
