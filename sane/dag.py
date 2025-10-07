@@ -7,6 +7,10 @@ class DAG:
     self._nodes  = {}
     self._rnodes = {}
 
+  def clear( self ):
+    self._nodes.clear()
+    self._rnodes.clear()
+
   def add_node( self, node ):
     if node not in self._nodes:
       self._nodes[node] = []

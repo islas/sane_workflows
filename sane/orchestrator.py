@@ -141,7 +141,13 @@ class Orchestrator( jconfig.JSONConfig ):
   def current_host( self ):
     return self._current_host
 
+  def traversal_list( self, action_id_list ):
+    self.construct_dag()
+    return self._dag.traversal_list( action_id_list )
+
   def construct_dag( self ):
+    self._dag.clear()
+
     for id, action in self.actions.items():
       self._dag.add_node( id )
       for dependency in action.dependencies.keys():
@@ -322,7 +328,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( "* " * 50 )
 
   def setup( self ):
-    self.construct_dag()
     os.makedirs( self.save_location, exist_ok=True )
     os.makedirs( self.log_location, exist_ok=True )
     for name, action in self.actions.items():
@@ -343,7 +348,7 @@ class Orchestrator( jconfig.JSONConfig ):
     print_actions( action_id_list, print=self.log )
     self.log( "and any necessary dependencies" )
 
-    traversal_list = self._dag.traversal_list( action_id_list )
+    traversal_list = self.traversal_list( action_id_list )
     self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
     print_actions( action_set, print=self.log )
