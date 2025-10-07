@@ -248,7 +248,7 @@ class PBSHost( HPCHost ):
     self._base = PBSHost
 
     # Job ID finder
-    self._job_id_regex  = re.compile( r"(\d{5,})" )
+    self._job_id_regex  = r"(\d{5,})"
 
     # Cache previous submissions
     self._requisitions = {}
@@ -357,7 +357,7 @@ class PBSHost( HPCHost ):
       return False
 
   def extract_job_id( self, content ):
-    found = self._job_id_regex.match( content )
+    found = re.match( self._job_id_regex, content )
     if found is None:
       self.log( "No job id found in output from job submission", level=40 )
       raise RuntimeError( "No job id found" )
