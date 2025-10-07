@@ -12,7 +12,7 @@ import sane.config as config
 
 # Format using PBS-stye
 # http://docs.adaptivecomputing.com/torque/4-1-3/Content/topics/2-jobs/requestingRes.htm
-_res_size_regex_str = r"(?P<numeric>-?\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>b|w)?)"
+_res_size_regex_str = r"^(?P<numeric>-?\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>b|w)?)$"
 _res_size_regex     = re.compile( _res_size_regex_str, re.I )
 _multipliers    = { "" : 1, "k" : 1024, "m" : 1024**2, "g" : 1024**3, "t" : 1024**4 }
 
@@ -350,6 +350,10 @@ class ResourceProvider( jconfig.JSONConfig ):
   def add_resources( self, resource_dict : dict, override=False ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     for resource, info in mapped_resource_dict.items():
+      if not Resource.is_resource( info ):
+        self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
+        continue
+
       if not override and resource in self._resources and self._resources[resource].total > 0:
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
@@ -367,14 +371,18 @@ class ResourceProvider( jconfig.JSONConfig ):
       res = None
       if isinstance( info, Resource ):
         res = info
+      elif Resource.is_resource( info ):
+        if resource not in self._resources:
+          msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
+          msg += "host does not possess this resource"
+          self.log( msg, level=50 )
+          self.log_pop()
+          raise Exception( msg )
+        else:
+          res = Resource( resource, info, unit=self._resources[resource].unit )
       else:
-        res = Resource( resource, info, unit=self._resources[resource].unit )
-      if resource not in self._resources:
-        msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
-        msg += "host does not possess this resource"
-        self.log( msg, level=50 )
-        self.log_pop()
-        raise Exception( msg )
+        self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
+        continue
 
       if res.total > self._resources[resource].total:
         msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
@@ -407,8 +415,10 @@ class ResourceProvider( jconfig.JSONConfig ):
         res = None
         if isinstance( info, Resource ):
           res = info
-        else:
+        elif Resource.is_resource( info ):
           res = Resource( resource, info, unit=self._resources[resource].unit )
+        else:
+          continue
         self.log( f"Acquiring resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] -= res
     else:
@@ -426,14 +436,17 @@ class ResourceProvider( jconfig.JSONConfig ):
     self.log( f"Releasing resources{origin_msg}...", level=10 )
     self.log_push()
     for resource, info in mapped_resource_dict.items():
-      if resource not in self._resources:
-        self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
-
       res = None
       if isinstance( info, Resource ):
         res = info
-      else:
+      elif Resource.is_resource( info ):
         res = Resource( resource, info, unit=self._resources[resource].unit )
+      else:
+        continue
+
+      if resource not in self._resources:
+        self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
+
       if res.total > self._resources[resource].used:
         msg  = f"Cannot return resource '{resource}' : {res.total_str}, "
         msg += "amount is greater than current in use " + self._resources[resource].used_str
