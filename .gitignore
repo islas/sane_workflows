@@ -211,6 +211,6 @@ __marimo__/
 *.pickle
 
 # Saves
-*.json
+*.json*
 tmp/
 log/
