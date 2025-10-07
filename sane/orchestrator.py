@@ -364,7 +364,7 @@ class Orchestrator( jconfig.JSONConfig ):
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
         self.actions[node].set_state_pending()
 
-    self.save()
+    self.save( action_set )
     next_nodes = []
     processed_nodes = []
     executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
@@ -471,7 +471,7 @@ class Orchestrator( jconfig.JSONConfig ):
           raise Exception( msg )
 
         # We are in a good spot to save
-        self.save()
+        self.save( action_set )
 
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
 
@@ -485,6 +485,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
+    self.save( action_set )
     return status
 
   def load_py_files( self, files, parent=None ):
@@ -561,40 +562,48 @@ class Orchestrator( jconfig.JSONConfig ):
       self._patch_configs[priority] = []
     self._patch_configs[priority].append( patches )
 
-  def save( self ):
-    save_dict = {
-                  "actions" :
-                  {
-                    action.id :
-                    {
-                      "state"  : action.state.value,
-                      "status" : action.status.value
-                    } for id, action in self.actions.items()
-                  },
-                  "dry_run" : self.dry_run,
-                  "verbose" : self.verbose,
-                  "host" : self.current_host,
-                  "save_location" : self.save_location,
-                  "log_location" : self.log_location,
-                  "working_directory" : self.working_directory
-                }
-    with open( self.save_file, "w" ) as f:
-      json.dump( save_dict, f, indent=2 )
-
-  def load( self, clear_errors=True, clear_failures=True ):
+  def _load_save_dict( self ):
+    save_dict = {}
     if not os.path.isfile( self.save_file ):
       self.log( "No previous save file to load" )
-      return
-    else:
-      self.log( f"Loading save file {self.save_file}" )
+      return {}
 
-    save_dict = {}
     try:
       with open( self.save_file, "r" ) as f:
         save_dict = json.load( f, cls=JSONCDecoder )
     except Exception as e:
       self.log( f"Could not open {self.save_file}", level=50 )
       raise e
+    return save_dict
+
+  def save( self, action_id_list ):
+    # Only save current session changes
+    save_dict = self._load_save_dict()
+    save_dict_update = {
+                        "actions" :
+                        {
+                          action :
+                          {
+                            "state"  : self.actions[action].state.value,
+                            "status" : self.actions[action].status.value
+                          } for action in action_id_list
+                        },
+                        "dry_run" : self.dry_run,
+                        "verbose" : self.verbose,
+                        "host" : self.current_host,
+                        "save_location" : self.save_location,
+                        "log_location" : self.log_location,
+                        "working_directory" : self.working_directory
+                      }
+    save_dict = jconfig.recursive_update( save_dict, save_dict_update )
+    with open( self.save_file, "w" ) as f:
+      json.dump( save_dict, f, indent=2 )
+
+  def load( self, clear_errors=True, clear_failures=True ):
+    save_dict = self._load_save_dict()
+    if not save_dict:
+      return
+    self.log( f"Loading save file {self.save_file}" )
 
     self.dry_run = save_dict["dry_run"]
     self.verbose = save_dict["verbose"]

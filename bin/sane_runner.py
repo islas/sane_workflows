@@ -281,7 +281,6 @@ def main():
     logger.log( "Listing actions:" )
     sane.orchestrator.print_actions( action_list, print=logger.log )
 
-  orchestrator.save()
   logger.log( "Finished" )
   file_handler.flush()
   file_handler.close()
