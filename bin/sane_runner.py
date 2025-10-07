@@ -91,6 +91,15 @@ def get_parser():
                       help="Verbose output from actions running"
                       )
   parser.add_argument(
+                      "-g", "--debug_level",
+                      action="store",
+                      nargs="?",
+                      default=20,
+                      const=10,
+                      type=int,
+                      help="Log level of python logging levels"
+                      )
+  parser.add_argument(
                       "-fl", "--force_local",
                       action="store_true",
                       default=None,
@@ -141,6 +150,7 @@ def main():
   logger = sane.logger.Logger( "sane_runner" )
   parser  = get_parser()
   options = parser.parse_args()
+  sane.internal_logger.setLevel( options.debug_level )
 
   logfile = os.path.abspath( f"{options.log_location}/{options.main_log}" )
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
