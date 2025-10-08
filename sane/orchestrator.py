@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import sys
 import threading
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -242,21 +243,23 @@ class Orchestrator( jconfig.JSONConfig ):
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for patch in self._patch_configs[key]:
-        hosts = patch.pop( "hosts", {} )
-        for id, host_config in hosts.items():
-          if id not in self.hosts:
-            self.log( f"Host '{id}' does not exist, cannot patch", level=30 )
-          else:
-            self.log( f"Applying patch to Host '{id}'" )
-            self.hosts[id].load_config( host_config )
-
-        actions = patch.pop( "actions", {} )
-        for id, action_config in actions.items():
-          if id not in self.actions:
-            self.log( f"Action '{id}' does not exist, cannot patch", level=30 )
-          else:
-            self.log( f"Applying patch to Action '{id}'" )
-            self.actions[id].load_config( action_config )
+      # go through patches in priority order then apply hosts then actions, respectively
+        for pop_key, gentype, source  in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
+          patch_dicts = patch.pop( pop_key, {} )
+          for id, config in patch_dicts.items():
+            if id in source:
+              self.log( f"Applying patch to {gentype} '{id}'" )
+              source[id].load_config( config )
+            elif id.startswith( "[" ) and id.endswith( "]" ):
+              filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
+              if len( filter_ids ) > 0:
+                for filter_id in filter_ids:
+                  self.log( f"Applying patch filter to {gentype} '{filter_id}'" )
+                  source[filter_id].load_config( config )
+              else:
+                self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
+            else:
+              self.log( f"{gentype} '{id}' does not exist, cannot patch", level=30 )
 
         if len( patch ) > 0:
           self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
