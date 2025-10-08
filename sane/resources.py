@@ -304,11 +304,12 @@ class ResourceRequestor( jconfig.JSONConfig ):
 
   def resources( self, override : str=None ):
     resource_dict = self._resources.copy()
-    for override_key in self._override_resources.keys():
-      # Allow partial match
-      if override_key in override:
-        jconfig.recursive_update( resource_dict, self._override_resources[override_key] )
-        break
+    if override is not None:
+      for override_key in self._override_resources.keys():
+        # Allow partial match
+        if override_key in override:
+          jconfig.recursive_update( resource_dict, self._override_resources[override_key] )
+          break
     return resource_dict
 
   def add_resource_requirements( self, resource_dict : dict ):

@@ -9,6 +9,13 @@ import sane.sane_runner
 
 
 class SaneRunnerTests( unittest.TestCase ):
+  @classmethod
+  def setUpClass( cls ):
+    # Clear away any other modules that mucked with registration
+    # We don't need to clear it between tests since the python modules that brought these functions
+    # in are already loaded and thus skipped
+    sane.orchestrator._registered_functions = {}
+
   def setUp( self ):
     # Redirect logging to buffer
     # https://stackoverflow.com/a/7483862
@@ -28,6 +35,8 @@ class SaneRunnerTests( unittest.TestCase ):
     ok = all(test != self for test, text in result.errors + result.failures)
     if ok:
       shutil.rmtree( f"{self.root}/log" )
+    else:
+      print( self.output.getvalue() )
 
   def exit_ok( self, f ):
     with self.assertRaises( SystemExit ) as e:
