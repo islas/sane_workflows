@@ -137,7 +137,17 @@ class Orchestrator( jconfig.JSONConfig ):
   def add_host( self, host ):
     self.hosts[host.name] = host
 
+  @property
+  def current_host( self ):
+    return self._current_host
+
+  def traversal_list( self, action_id_list ):
+    self.construct_dag()
+    return self._dag.traversal_list( action_id_list )
+
   def construct_dag( self ):
+    self._dag.clear()
+
     for id, action in self.actions.items():
       self._dag.add_node( id )
       for dependency in action.dependencies.keys():
@@ -218,17 +228,17 @@ class Orchestrator( jconfig.JSONConfig ):
   def process_registered( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.override_logname( f"{self.logname}::register" )
+    self.push_logscope( "::register" )
     keys = sorted( _registered_functions.keys(), reverse=True )
     for key in keys:
       for f in _registered_functions[key]:
         f( self )
-    self.restore_logname()
+    self.pop_logscope()
 
   def process_patches( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.override_logname( f"{self.logname}::patch" )
+    self.push_logscope( "::patch" )
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for patch in self._patch_configs[key]:
@@ -251,21 +261,25 @@ class Orchestrator( jconfig.JSONConfig ):
         if len( patch ) > 0:
           self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
 
-    self.restore_logname()
+    self.pop_logscope()
 
-  def check_host( self, as_host, traversal_list ):
+  def find_host( self, as_host ):
     for host_name, host in self.hosts.items():
       self.log( f"Checking host \"{host_name}\"" )
       if host.valid_host( as_host ):
         self._current_host = host_name
         break
+    self.log( f"Running as '{self.current_host}'" )
+    
 
-    if self._current_host is None:
+    if self.current_host is None:
       self.log( "No valid host configuration found", level=50 )
       raise Exception( f"No valid host configuration found" )
+    return self.current_host
 
-    self.log( f"Running as '{self._current_host}', checking ability to run all actions..." )
-    host = self.hosts[self._current_host]
+  def check_host( self, traversal_list ):
+    self.log( f"Checking ability to run all actions on '{self.current_host}'..." )
+    host = self.hosts[self.current_host]
     self.log_push()
     host.log_push()
 
@@ -282,7 +296,7 @@ class Orchestrator( jconfig.JSONConfig ):
         missing_env.append( ( node, env_name ) )
 
     if len( missing_env ) > 0:
-      self.log( f"Missing environments in Host( \"{self._current_host}\" )", level=50 )
+      self.log( f"Missing environments in Host( \"{self.current_host}\" )", level=50 )
       self.log_push()
       for node, env_name in missing_env:
         self.log( f"Action( \"{node}\" ) requires Environment( \"{env_name}\" )", level=40 )
@@ -294,7 +308,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( f"Checking resource availability..." )
     host.log_push()
     for node in traversal_list:
-      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=node )
+      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=self.actions[node] )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
@@ -314,7 +328,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( "* " * 50 )
 
   def setup( self ):
-    self.construct_dag()
     os.makedirs( self.save_location, exist_ok=True )
     os.makedirs( self.log_location, exist_ok=True )
     for name, action in self.actions.items():
@@ -335,17 +348,21 @@ class Orchestrator( jconfig.JSONConfig ):
     print_actions( action_id_list, print=self.log )
     self.log( "and any necessary dependencies" )
 
-    traversal_list = self._dag.traversal_list( action_id_list )
+    traversal_list = self.traversal_list( action_id_list )
     self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
     print_actions( action_set, print=self.log )
 
-    self.check_host( as_host, traversal_list )
+    self.find_host( as_host )
+    self.check_host( traversal_list )
 
     # We have a valid host for all actions slated to run
-    host = self.hosts[self._current_host]
+    host = self.hosts[self.current_host]
     host.save_location = self.save_location
     host.dry_run = self.dry_run
+    if isinstance( host, sane.resources.NonLocalProvider ):
+      host.force_local = self.force_local
+
     self.log( "Saving host information..." )
     host.save()
 
@@ -355,7 +372,7 @@ class Orchestrator( jconfig.JSONConfig ):
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
         self.actions[node].set_state_pending()
 
-    self.save()
+    self.save( action_set )
     next_nodes = []
     processed_nodes = []
     executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
@@ -379,7 +396,7 @@ class Orchestrator( jconfig.JSONConfig ):
           if requirements_met:
             resources_available = False
             with self.__run_lock__:  # protect logs
-              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=node )
+              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
             if resources_available:
               # Set info first
               self.actions[node].__host_info__ = host.info
@@ -439,7 +456,7 @@ class Orchestrator( jconfig.JSONConfig ):
             retval, content = results[node].result()
             host.post_launch( self.actions[node], retval, content )
             # Regardless, return resources
-            host.release_resources( self.actions[node].resources( host.name ), requestor=node )
+            host.release_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
             del results[node]
           except Exception as e:
             for k, v in results.items():
@@ -462,7 +479,7 @@ class Orchestrator( jconfig.JSONConfig ):
           raise Exception( msg )
 
         # We are in a good spot to save
-        self.save()
+        self.save( action_set )
 
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
 
@@ -476,6 +493,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
+    self.save( action_set )
     return status
 
   def load_py_files( self, files, parent=None ):
@@ -488,7 +506,8 @@ class Orchestrator( jconfig.JSONConfig ):
       # Find search path that yielded this file if possible
       module_file = path_file
       for search_path in self.search_paths:
-        if path_file.is_relative_to( search_path ):
+        sp_resloved = pathlib.Path( search_path ).resolve()
+        if os.path.commonpath( [path_file.resolve(), sp_resloved] ) == str(sp_resloved):
           module_file = path_file.relative_to( search_path )
           break
 
@@ -552,40 +571,48 @@ class Orchestrator( jconfig.JSONConfig ):
       self._patch_configs[priority] = []
     self._patch_configs[priority].append( patches )
 
-  def save( self ):
-    save_dict = {
-                  "actions" :
-                  {
-                    action.id :
-                    {
-                      "state"  : action.state.value,
-                      "status" : action.status.value
-                    } for id, action in self.actions.items()
-                  },
-                  "dry_run" : self.dry_run,
-                  "verbose" : self.verbose,
-                  "host" : self._current_host,
-                  "save_location" : self.save_location,
-                  "log_location" : self.log_location,
-                  "working_directory" : self.working_directory
-                }
-    with open( self.save_file, "w" ) as f:
-      json.dump( save_dict, f, indent=2 )
-
-  def load( self, clear_errors=True, clear_failures=True ):
+  def _load_save_dict( self ):
+    save_dict = {}
     if not os.path.isfile( self.save_file ):
       self.log( "No previous save file to load" )
-      return
-    else:
-      self.log( f"Loading save file {self.save_file}" )
+      return {}
 
-    save_dict = {}
     try:
       with open( self.save_file, "r" ) as f:
         save_dict = json.load( f, cls=JSONCDecoder )
     except Exception as e:
       self.log( f"Could not open {self.save_file}", level=50 )
       raise e
+    return save_dict
+
+  def save( self, action_id_list ):
+    # Only save current session changes
+    save_dict = self._load_save_dict()
+    save_dict_update = {
+                        "actions" :
+                        {
+                          action :
+                          {
+                            "state"  : self.actions[action].state.value,
+                            "status" : self.actions[action].status.value
+                          } for action in action_id_list
+                        },
+                        "dry_run" : self.dry_run,
+                        "verbose" : self.verbose,
+                        "host" : self.current_host,
+                        "save_location" : self.save_location,
+                        "log_location" : self.log_location,
+                        "working_directory" : self.working_directory
+                      }
+    save_dict = jconfig.recursive_update( save_dict, save_dict_update )
+    with open( self.save_file, "w" ) as f:
+      json.dump( save_dict, f, indent=2 )
+
+  def load( self, clear_errors=True, clear_failures=True ):
+    save_dict = self._load_save_dict()
+    if not save_dict:
+      return
+    self.log( f"Loading save file {self.save_file}" )
 
     self.dry_run = save_dict["dry_run"]
     self.verbose = save_dict["verbose"]
@@ -602,8 +629,8 @@ class Orchestrator( jconfig.JSONConfig ):
 
       if action not in self.actions:
         tmp = self.save_file + ".backup"
-        self.log( f"Loaded action info '{action}' missing from loaded workflow, state will be lost", level=40 )
-        self.log( f"Making a copy of previous save file at '{tmp}'", level=40 )
+        self.log( f"Loaded action info '{action}' missing from loaded workflow, state will be lost", level=30 )
+        self.log( f"Making a copy of previous save file at '{tmp}'", level=30 )
         shutil.copy2( self.save_file, tmp )
         continue
 

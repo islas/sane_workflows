@@ -6,6 +6,7 @@ import subprocess
 import threading
 from enum import Enum, EnumMeta
 
+import sane.logger as slogger
 import sane.save_state as state
 import sane.json_config as jconfig
 import sane.action_launcher as action_launcher
@@ -83,7 +84,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._id = id
     self.config = {}
     self.environment = None
-    self.local = None
 
     self.verbose = False
     self.dry_run = False
@@ -118,7 +118,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     tmp_wake     = self.__wake__
     self._run_lock = None
     self.__wake__  = None
-    self._logger = None
     super().save()
     # Now restore
     self._run_lock = tmp_run_lock
@@ -309,7 +308,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # Temporarily swap in a very crude logger
       log = lambda *args: self.log( *args, level=25 )
       if self.__exec_raw__:
-        log = lambda msg: self._logger.getChild( "raw" ).log( 25, msg )
+        log = lambda msg:  slogger.logger.getChild( "raw" ).log( 25, msg )
 
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
@@ -331,6 +330,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # We don't mind doing this as the process should block us until we are ready to continue
       dump, err    = proc.communicate()
       retval       = proc.returncode
+
+      if logfile is not None:
+        logfileOutput.close()
       ##
       ##
       ##
@@ -360,8 +362,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     try:
       thread_name = threading.current_thread().name
       if thread_name is not None:
-        self.override_logname( f"{self.id}[{thread_name}]" )
+        self.push_logscope( f"[{thread_name}]" )
+      self._acquire()
       ok = self.pre_launch()
+      self._release()
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
 
@@ -412,20 +416,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
         else:
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
+
+      self._acquire()
       ok = self.post_launch( retval, content )
+      self._release()
       if ok is not None and not ok:
         raise AssertionError( "post_launch() returned False" )
 
       # notify we have finished
       if thread_name is not None:
-        self.restore_logname()
+        self.pop_logscope()
       self.__orch_wake__()
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
       self.set_status_failure()
       self._release()
-      self.restore_logname()
+      self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.__orch_wake__()
       raise e
@@ -522,7 +529,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def run( self ):
-    self.override_logname( f"{self.id}::run" )
+    self.push_logscope( "::run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -540,7 +547,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
-    self.restore_logname()
+    self.pop_logscope()
     return retval
 
   def __str__( self ):
@@ -551,13 +558,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
     if environment is not None:
       self.environment = environment
 
-    local = config.pop( "local", None )
-    if local is not None:
-      self.local = local
-
     dir = config.pop( "working_directory", None )
     if dir is not None:
-      self.working_directory = working_directory
+      self.working_directory = dir
 
     act_config = config.pop( "config", None )
     if act_config is not None:

@@ -34,7 +34,7 @@ Repository = "https://github.com/islas/sane_workflows.git"
 Issues = "https://github.com/islas/sane_workflows/issues"
 
 [project.scripts]
-sane_runner = "bin:sane_runner.main"
+sane_runner = "sane:sane_runner.main"
 
 [tool.setuptools]
 include-package-data = true

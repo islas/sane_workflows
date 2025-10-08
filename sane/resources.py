@@ -1,8 +1,10 @@
+from abc import abstractmethod
 import re
 from datetime import time
 import math
 import operator
 import copy
+import typing
 
 import sane.logger as logger
 import sane.json_config as jconfig
@@ -10,7 +12,7 @@ import sane.config as config
 
 # Format using PBS-stye
 # http://docs.adaptivecomputing.com/torque/4-1-3/Content/topics/2-jobs/requestingRes.htm
-_res_size_regex_str = r"(?P<numeric>-?\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>b|w)?)"
+_res_size_regex_str = r"^(?P<numeric>-?\d+)(?P<multi>(?P<scale>k|m|g|t)?(?P<unit>b|w)?)$"
 _res_size_regex     = re.compile( _res_size_regex_str, re.I )
 _multipliers    = { "" : 1, "k" : 1024, "m" : 1024**2, "g" : 1024**3, "t" : 1024**4 }
 
@@ -266,6 +268,76 @@ def timedelta_to_timelimit( timedelta ) :
                                     )
 
 
+class ResourceMatch( config.Config ):
+  def __init__( self, **kwargs ):
+    super().__init__( **kwargs )
+
+  def match( self, requested_resource ):
+    return self.exact_match( requested_resource )
+
+
+class ResourceMapper(  ):
+  def __init__( self, **kwargs ):
+    super().__init__( **kwargs )
+    self._mapping = {}
+
+  @property
+  def num_maps( self ):
+    return len( self._mapping )
+
+  def add_mapping( self, resource : str, aliases : typing.List[str] ):
+    self._mapping[resource] = ResourceMatch( name=resource, aliases=aliases )
+
+  def name( self, resource : str ) -> str:
+    for resource_name, resource_match in self._mapping.items():
+      if resource_match.match( resource ):
+        return resource_name
+    return resource
+
+
+class ResourceRequestor( jconfig.JSONConfig ):
+  def __init__( self, **kwargs ):
+    super().__init__( **kwargs )
+    self._resources            = {}
+    self._override_resources   = {}
+    self.local = None
+
+  def resources( self, override : str=None ):
+    resource_dict = self._resources.copy()
+    if override is not None:
+      for override_key in self._override_resources.keys():
+        # Allow partial match
+        if override_key in override:
+          jconfig.recursive_update( resource_dict, self._override_resources[override_key] )
+          break
+    return resource_dict
+
+  def add_resource_requirements( self, resource_dict : dict ):
+    for resource, info in resource_dict.items():
+      if resource in self._resources:
+        self.log( f"Resource '{resource}' already set, ignoring new resource setting", level=30 )
+      else:
+        if isinstance( info, dict ):
+          if resource not in self._override_resources:
+            self._override_resources[resource] = {}
+          for override, override_info in info.items():
+            if override in self._override_resources[resource]:
+              self.log( f"Resource '{override}' already set in {resource}, ignoring new resource setting", level=30 )
+            else:
+              self._override_resources[resource][override] = override_info
+        else:
+          self._resources[resource] = info
+
+  def load_core_config( self, config : dict ):
+    self.add_resource_requirements( config.pop( "resources", {} ) )
+
+    local = config.pop( "local", None )
+    if local is not None:
+      self.local = local
+
+    super().load_core_config( config )
+
+
 class ResourceProvider( jconfig.JSONConfig ):
   def __init__( self, mapper=None, **kwargs ):
     super().__init__( **kwargs )
@@ -279,17 +351,21 @@ class ResourceProvider( jconfig.JSONConfig ):
   def resources( self ):
     return self._resources.copy()
 
-  def add_resources( self, resource_dict ):
+  def add_resources( self, resource_dict : dict, override=False ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     for resource, info in mapped_resource_dict.items():
-      if resource in self._resources and self._resources[resource].total > 0:
+      if not Resource.is_resource( info ):
+        self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
+        continue
+
+      if not override and resource in self._resources and self._resources[resource].total > 0:
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
         self._resources[resource] = AcquirableResource( resource, info )
 
-  def resources_available( self, resource_dict, requestor, log=True ):
+  def resources_available( self, resource_dict : dict, requestor : ResourceRequestor, log=True ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" for '{requestor}'"
+    origin_msg = f" for '{requestor.logname}'"
 
     if log:
       self.log( f"Checking if resources available{origin_msg}...", level=10 )
@@ -299,14 +375,18 @@ class ResourceProvider( jconfig.JSONConfig ):
       res = None
       if isinstance( info, Resource ):
         res = info
+      elif Resource.is_resource( info ):
+        if resource not in self._resources:
+          msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
+          msg += "host does not possess this resource"
+          self.log( msg, level=50 )
+          self.log_pop()
+          raise Exception( msg )
+        else:
+          res = Resource( resource, info, unit=self._resources[resource].unit )
       else:
-        res = Resource( resource, info, unit=self._resources[resource].unit )
-      if resource not in self._resources:
-        msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
-        msg += "host does not possess this resource"
-        self.log( msg, level=50 )
-        self.log_pop()
-        raise Exception( msg )
+        self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
+        continue
 
       if res.total > self._resources[resource].total:
         msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
@@ -328,9 +408,9 @@ class ResourceProvider( jconfig.JSONConfig ):
       self.log_pop()
     return can_aquire
 
-  def acquire_resources( self, resource_dict, requestor ):
+  def acquire_resources( self, resource_dict : dict, requestor : ResourceRequestor ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" for '{requestor}'"
+    origin_msg = f" for '{requestor.logname}'"
 
     self.log( f"Acquiring resources{origin_msg}...", level=10 )
     self.log_push()
@@ -339,8 +419,10 @@ class ResourceProvider( jconfig.JSONConfig ):
         res = None
         if isinstance( info, Resource ):
           res = info
-        else:
+        elif Resource.is_resource( info ):
           res = Resource( resource, info, unit=self._resources[resource].unit )
+        else:
+          continue
         self.log( f"Acquiring resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] -= res
     else:
@@ -351,21 +433,24 @@ class ResourceProvider( jconfig.JSONConfig ):
     self.log_pop()
     return True
 
-  def release_resources( self, resource_dict, requestor ):
+  def release_resources( self, resource_dict : dict, requestor : ResourceRequestor ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
-    origin_msg = f" from '{requestor}'"
+    origin_msg = f" from '{requestor.logname}'"
 
     self.log( f"Releasing resources{origin_msg}...", level=10 )
     self.log_push()
     for resource, info in mapped_resource_dict.items():
-      if resource not in self._resources:
-        self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
-
       res = None
       if isinstance( info, Resource ):
         res = info
-      else:
+      elif Resource.is_resource( info ):
         res = Resource( resource, info, unit=self._resources[resource].unit )
+      else:
+        continue
+
+      if resource not in self._resources:
+        self.log( f"Cannot return resource '{resource}', instance does not possess this resource", level=30 )
+
       if res.total > self._resources[resource].used:
         msg  = f"Cannot return resource '{resource}' : {res.total_str}, "
         msg += "amount is greater than current in use " + self._resources[resource].used_str
@@ -386,7 +471,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
     super().load_core_config( config )
 
-  def map_resource( self, resource ):
+  def map_resource( self, resource : str ):
     """Map everything to internal name"""
     mapped_resource = self._mapper.name( resource )
     res_split = resource.split( ":" )
@@ -394,7 +479,7 @@ class ResourceProvider( jconfig.JSONConfig ):
       mapped_resource = "{0}:{1}".format( self._mapper.name( res_split[0] ), res_split[1] )
     return mapped_resource
 
-  def map_resource_dict( self, resource_dict, log=False ):
+  def map_resource_dict( self, resource_dict : dict, log=False ):
     """Map entire dict to internal names"""
     output_log = ( log and self._mapper.num_maps > 0 )
     if output_log:
@@ -414,61 +499,61 @@ class ResourceProvider( jconfig.JSONConfig ):
     return mapped_resource_dict
 
 
-class ResourceRequestor( jconfig.JSONConfig ):
+class NonLocalProvider( ResourceProvider ):
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
-    self._resources            = {}
-    self._override_resources   = {}
-
-  def resources( self, override=None ):
-    resource_dict = self._resources.copy()
-    if override in self._override_resources:
-      jconfig.recursive_update( resource_dict, self._override_resources[override] )
-    return resource_dict
-
-  def add_resource_requirements( self, resource_dict ):
-    for resource, info in resource_dict.items():
-      if resource in self._resources:
-        self.log( f"Resource '{resource}' already set, ignoring new resource setting", level=30 )
-      else:
-        if isinstance( info, dict ):
-          if resource not in self._override_resources:
-            self._override_resources[resource] = {}
-          for override, override_info in info.items():
-            if override in self._override_resources[resource]:
-              self.log( f"Resource '{override}' already set in {resource}, ignoring new resource setting", level=30 )
-            else:
-              self._override_resources[resource][override] = override_info
-        else:
-          self._resources[resource] = info
+    self.default_local = False
+    self.force_local = False
+    self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
   def load_core_config( self, config ):
-    self.add_resource_requirements( config.pop( "resources", {} ) )
+    resources = config.pop( "local_resources", {} )
+    if len( resources ) > 0:
+      self.local_resources.add_resources( resources )
+
+    default_local = config.pop( "default_local", None )
+    if default_local is not None:
+      self.default_local = default_local
+
+    force_local = config.pop( "force_local", None )
+    if force_local is not None:
+      self.force_local = force_local
+
     super().load_core_config( config )
 
+  def launch_local( self, requestor : ResourceRequestor ):
+    return self.force_local or requestor.local or ( requestor.local is None and self.default_local )
 
-class ResourceMatch( config.Config ):
-  def __init__( self, **kwargs ):
-    super().__init__( **kwargs )
+  def resources_available(self, resource_dict : dict, requestor : ResourceRequestor, log=True):
+    if self.launch_local( requestor ):
+      return self.local_resources.resources_available( resource_dict, requestor, log )
+    else:
+      return self.nonlocal_resources_available( resource_dict, requestor, log )
 
-  def match( self, requested_resource ):
-    return self.exact_match( requested_resource )
+  def acquire_resources( self, resource_dict : dict, requestor : ResourceRequestor ):
+    if self.launch_local( requestor ):
+      return self.local_resources.acquire_resources( resource_dict, requestor )
+    else:
+      return self.nonlocal_acquire_resources( resource_dict, requestor )
+
+  def release_resources( self, resource_dict : dict, requestor : ResourceRequestor ):
+    if self.launch_local( requestor ):
+      return self.local_resources.release_resources( resource_dict, requestor )
+    else:
+      return self.nonlocal_release_resources( resource_dict, requestor )
 
 
-class ResourceMapper(  ):
-  def __init__( self, **kwargs ):
-    super().__init__( **kwargs )
-    self._mapping = {}
+  @abstractmethod
+  def nonlocal_resources_available( self, resource_dict, requestor : ResourceRequestor, log=True ):
+    """Tell us how to determine if nonlocal resources are available"""
+    pass
 
-  @property
-  def num_maps( self ):
-    return len( self._mapping )
+  @abstractmethod
+  def nonlocal_acquire_resources( self, resource_dict, requestor : ResourceRequestor ):
+    """Tell us how to acquire nonlocal resources"""
+    pass
 
-  def add_mapping( self, resource, aliases ):
-    self._mapping[resource] = ResourceMatch( name=resource, aliases=aliases )
-
-  def name( self, resource ):
-    for resource_name, resource_match in self._mapping.items():
-      if resource_match.match( resource ):
-        return resource_name
-    return resource
+  @abstractmethod
+  def nonlocal_release_resources( self, resource_dict, requestor : ResourceRequestor ):
+    """Tell us how to release nonlocal resources"""
+    pass

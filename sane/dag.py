@@ -7,6 +7,10 @@ class DAG:
     self._nodes  = {}
     self._rnodes = {}
 
+  def clear( self ):
+    self._nodes.clear()
+    self._rnodes.clear()
+
   def add_node( self, node ):
     if node not in self._nodes:
       self._nodes[node] = []
@@ -53,7 +57,7 @@ class DAG:
   def traversal_to( self, nodes ):
     traversal  = []
     current    = []
-    next_nodes = nodes
+    next_nodes = nodes.copy()
 
     while len( next_nodes ) > 0:
       current = next_nodes.copy()

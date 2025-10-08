@@ -26,3 +26,5 @@ internal_logger.setLevel( logging.INFO )
 internal_logger.addHandler( console_handler )
 
 logging.addLevelName( 25, "STDOUT" )
+for i in range( logging.DEBUG, logging.INFO ):
+  logging.addLevelName( i, f"DEBUG {i}" )

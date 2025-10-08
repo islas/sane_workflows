@@ -57,15 +57,16 @@ class HPCHostTests( unittest.TestCase ):
 
 
   def test_pbs_host_resource_requisition( self ):
+    dummy = sane.Action( "dummy" )
     self.test_pbs_host_from_config()
-    _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256 }, "foo" )
+    _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256 }, dummy )
     result = self.host._format_arguments( self.host.requisition_to_submit_args( submit_selection ) )
     print( submit_selection )
     print( "Result: " + result )
     self.assertEqual( result, "-l select=4:ncpus=64" )
 
 
-    _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256, "select" : "select=1:ncpus=8:ngpus=1" }, "foo" )
+    _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256, "select" : "select=1:ncpus=8:ngpus=1" }, dummy )
     result = self.host._format_arguments( self.host.requisition_to_submit_args( submit_selection ) )
     print( submit_selection )
     print( "Result: " + result )
@@ -77,9 +78,9 @@ class HPCHostTests( unittest.TestCase ):
     self.test_pbs_host_from_config()
     action = sane.Action( "foo" )
     action.add_resource_requirements( { "nodes" : 4, "cpus" : 256, "queue" : "bar", "account" : "zoozar" } )
-    available = self.host.resources_available( action.resources( "test" ), "foo" )
+    available = self.host.resources_available( action.resources( "test" ), action )
     self.assertTrue( available )
-    self.host.acquire_resources( { "nodes" : 4, "cpus" : 256 }, "foo" )
+    self.host.acquire_resources( { "nodes" : 4, "cpus" : 256 }, action )
     wrapper = self.host.launch_wrapper( action, {} )
     print( wrapper )
 

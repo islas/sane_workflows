@@ -5,6 +5,11 @@ import sane
 
 
 class OrchestratorTests( unittest.TestCase ):
+  @classmethod
+  def setUpClass( cls ):
+    # Clear away any other modules that mucked with registration
+    sane.orchestrator._registered_functions = {}
+
   def setUp( self ):
     self.orch = sane.Orchestrator()
     self.root = os.path.abspath( os.path.join( os.path.dirname( __file__ ), ".." ) )
@@ -29,8 +34,8 @@ class OrchestratorTests( unittest.TestCase ):
     self.orch.add_host( sane.Host( "dummy", aliases=["some_other_name"] ) )
     self.orch.hosts["dummy"].add_environment( sane.Environment( "generic" ) )
     self.orch.hosts["dummy"].default_env = "generic"
-
-    self.orch.check_host( "dummy", { } )
+    self.orch._current_host = "dummy"
+    self.orch.check_host( { } )
     self.assertEqual( self.orch._current_host, "dummy" )
 
   def test_orchestrator_load_py( self ):

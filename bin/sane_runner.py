@@ -4,6 +4,8 @@ import os
 import sys
 import re
 import logging
+import copy
+import json
 
 
 def get_parser():
@@ -89,6 +91,15 @@ def get_parser():
                       help="Verbose output from actions running"
                       )
   parser.add_argument(
+                      "-g", "--debug_level",
+                      action="store",
+                      nargs="?",
+                      default=20,
+                      const=10,
+                      type=int,
+                      help="Log level of python logging levels"
+                      )
+  parser.add_argument(
                       "-fl", "--force_local",
                       action="store_true",
                       default=None,
@@ -100,6 +111,32 @@ def get_parser():
                       default=None,
                       help="Start a new workflow run and clear previous cache"
                       )
+  virtual_group = parser.add_argument_group(
+                                            "Virtual Launch (in situ aggregation):",
+                                            "Creates temporary action to facilitate adaptive running of workflow"
+                                            )
+  virtual_group.add_argument(
+                            "-vr", "--virtual_relaunch",
+                            type=str,
+                            default=None,
+                            help="Relaunch workflow with virtual copy of host with resource specifications"
+                            )
+  virtual_host = parser.add_argument_group(
+                                            "Internal (DO NOT USE)",
+                                            "Creates temporary host to facilitate adaptive running of workflow"
+                                            )
+  virtual_host.add_argument(
+                            "-ml", "--main_log",
+                            type=str,
+                            default="runner.log",
+                            help="Logfile name of sane_runner"
+                            )
+  virtual_host.add_argument(
+                            "-vh", "--virtual_host",
+                            type=str,
+                            default=None,
+                            help="Launch workflow with virtual copy of host with resource specifications, forced local"
+                            )
   return parser
 
 def main():
@@ -113,8 +150,9 @@ def main():
   logger = sane.logger.Logger( "sane_runner" )
   parser  = get_parser()
   options = parser.parse_args()
+  sane.internal_logger.setLevel( options.debug_level )
 
-  logfile = os.path.abspath( f"{options.log_location}/runner.log" )
+  logfile = os.path.abspath( f"{options.log_location}/{options.main_log}" )
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
   file_handler = logging.FileHandler( logfile, mode="w" )
   file_handler.setFormatter( sane.log_formatter )
@@ -133,19 +171,8 @@ def main():
   orchestrator.add_search_patterns( options.search_pattern )
   orchestrator.load_paths()
 
-  if options.verbose is not None:
-    logger.log( "Changing all actions output to verbose" )
-    orchestrator.verbose = options.verbose
+  action_list = options.actions.copy()
 
-  if options.force_local is not None:
-    logger.log( "Forcing all actions to run local" )
-    orchestrator.force_local = options.force_local
-
-  orchestrator.save_location = options.save_location
-  orchestrator.log_location = options.log_location
-  orchestrator.working_directory = options.working_dir
-
-  action_list = options.actions
   if len( action_list ) == 0:
     # Use filter
     action_filter = re.compile( options.filter )
@@ -159,6 +186,102 @@ def main():
     parser.print_help()
     exit( 1 )
 
+  if options.virtual_host is not None or options.virtual_relaunch is not None:
+    # find specific host to use, copy it
+    host_name = orchestrator.find_host( options.specific_host )
+    host = copy.deepcopy( orchestrator.hosts[host_name] )
+    host._name    = f"{host_name}-virtual"
+    host.logname  = f"{host_name}-virtual"
+    virtual_resources = options.virtual_relaunch if options.virtual_relaunch else options.virtual_host
+    # override resources
+    if isinstance( host, sane.resources.NonLocalProvider ):
+      host.force_local = True
+      host.local_resources.logname = f"{host.name}::local"
+      host.local_resources.add_resources( json.loads( virtual_resources ), override=True )
+    else:
+      host.add_resources( json.loads( virtual_resources ), override=True )
+
+    logger.log( f"Adding virtual host {host.name} to orchestrator" )
+    orchestrator.add_host( host )
+
+    if options.virtual_host:
+      # Force usage of this virtual host
+      logger.log( f"Removing old host {host_name}" )
+      orchestrator.hosts.pop( host_name )
+      options.force_local = True
+      logger.log( f"Switching host to {host.name}" )
+      options.specific_host = host.name
+    else:
+      # Test potential virtual host
+      logger.log( "Force-checking virtual host ability to run all actions..." )
+      tmp_host = orchestrator.hosts.pop( host_name )
+      orchestrator.find_host( host.name )
+      orchestrator.check_host( orchestrator.traversal_list( action_list ) )
+
+      # Revert back
+      orchestrator.hosts.pop( host.name )
+      orchestrator.add_host( tmp_host )
+
+      # in situ create an aggregate action
+      relaunch_options = copy.deepcopy( options )
+      relaunch_options.virtual_host = virtual_resources
+      relaunch_options.virtual_relaunch = None
+      relaunch_options.specific_host = host_name
+      relaunch_options.main_log = "virtual_runner.log"
+      opt_append = [ "search_path", "search_pattern" ]
+      if relaunch_options.actions:
+        del relaunch_options.filter
+      else:
+        del relaunch_options.actions
+
+      optional_args = {}
+      for key, value in vars( relaunch_options ).items():
+        # Skip all false and None as we have those as defaults
+        if value :
+          if isinstance( value, list ) :
+            optional_args[ key ] = value
+          elif isinstance( value, bool ) :
+            # As long as we are diligent about action=store_const (True) this will work
+            optional_args[ key ] = None
+          else :
+            # Just as str
+            optional_args[ key ] = str( value )
+
+      args = []
+      for key, value in optional_args.items() :
+        args.append( f"--{key}" )
+        if value:
+          if isinstance( value, list ) :
+            if key in opt_append:
+              val_str = list( map( str, value ) )
+              opt_key = args.pop()
+              for vs in val_str:
+                args.extend( [ opt_key, vs ] )
+            else:
+              args.extend( list( map( str, value ) ) )
+          else :
+            args.append( f"{value}" )
+      action = sane.Action( "virtual_relaunch" )
+      action.config["command"] = __file__
+      action.config["arguments"] = args
+      action.wrap_stdout = False
+      action.add_resource_requirements( json.loads( virtual_resources ) )
+      orchestrator.add_action( action )
+      # Change action list to do this instead
+      action_list = [ "virtual_relaunch" ]
+
+  if options.verbose is not None:
+    logger.log( "Changing all actions output to verbose" )
+    orchestrator.verbose = options.verbose
+
+  if options.force_local is not None:
+    logger.log( "Forcing all actions to run local" )
+    orchestrator.force_local = options.force_local
+
+  orchestrator.save_location = options.save_location
+  orchestrator.log_location = options.log_location
+  orchestrator.working_directory = options.working_dir
+
   # Load any previous statefulness
   if not options.new:
     orchestrator.load()
@@ -169,14 +292,15 @@ def main():
 
   if options.run:
     success = orchestrator.run_actions( action_list, options.specific_host )
-  if options.dry_run:
+  elif options.dry_run:
     success = orchestrator.run_actions( action_list, options.specific_host )
   elif options.list:
-    logger.log( "Actions:" )
+    logger.log( "Listing actions:" )
     sane.orchestrator.print_actions( action_list, print=logger.log )
 
-  orchestrator.save()
   logger.log( "Finished" )
+  file_handler.flush()
+  file_handler.close()
   # Flip success as 1 == True and 0 == False
   # but exit codes 0 == ok anything else not ok
   exit( not int(success) )

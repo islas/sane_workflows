@@ -4,7 +4,7 @@ import sane
 @sane.register( priority=10 )
 def actual_workflow_hosts( orchestrator ):
   # Create a generic host that always matches with alias "."
-  host = sane.Host( "generic", aliases=[ "." ] )
+  host = sane.Host( "generic", aliases=[ ".", "" ] )
   host.add_resources( { "cpus" : 12, "memory" : "2gb" } )
 
   # Similarly create a generic environment
