@@ -629,8 +629,8 @@ class Orchestrator( jconfig.JSONConfig ):
 
       if action not in self.actions:
         tmp = self.save_file + ".backup"
-        self.log( f"Loaded action info '{action}' missing from loaded workflow, state will be lost", level=40 )
-        self.log( f"Making a copy of previous save file at '{tmp}'", level=40 )
+        self.log( f"Loaded action info '{action}' missing from loaded workflow, state will be lost", level=30 )
+        self.log( f"Making a copy of previous save file at '{tmp}'", level=30 )
         shutil.copy2( self.save_file, tmp )
         continue
 
