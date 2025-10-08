@@ -10,7 +10,7 @@
       {
         "mult" : 3
       },
-      "[action_01[0-5]]" : { "config" : { "useless" : 0 } }
+      "[action_09[0-5]]" : { "config" : { "useless" : 0 } }
     },
     "hosts" :
     {
