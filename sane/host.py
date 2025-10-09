@@ -69,7 +69,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     env._base = self.base_env
     self.environments[env.name] = env
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     aliases = list( set( config.pop( "aliases", [] ) ) )
     if aliases != []:
       self._aliases = aliases
@@ -86,7 +86,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
         env_type = self.search_type( env_typename )
 
       env = env_type( self.name + "_env" )
-      env.load_config( base_env )
+      env.load_config( base_env, origin )
       self.base_env = env
 
     env_configs      = config.pop( "environments", {} )
@@ -99,7 +99,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
         env_type = self.search_type( env_typename )
 
       env = env_type( id )
-      env.load_config( env_config )
+      env.load_config( env_config, origin )
 
       self.add_environment( env )
 
@@ -107,7 +107,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     if host_config is not None:
       jconfig.recursive_update( self.config, host_config )
 
-    super().load_core_config( config )
+    super().load_core_config( config, origin )
 
   def pre_launch( self, action ):
     pass

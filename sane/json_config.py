@@ -1,4 +1,5 @@
 import inspect
+import sys
 import pydoc
 import collections
 
@@ -17,12 +18,22 @@ def recursive_update( dest, source ):
 
 
 class JSONConfig( logger.Logger ):
+  def __new__( cls, *args, **kwargs ):
+    # ideally this has (*args, **kwargs) but since this is the only class to have
+    # a __new__ within all sane MRO, just dump the arguments
+    instance = super( JSONConfig, cls ).__new__( cls )
+    stack = inspect.stack()
+    instance.__origin_instantiation__ = f"{stack[1][1]}:{stack[1][2]}"
+    return instance
+
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
+    self.__origin__ = [ sys.modules[self.__module__].__file__, self.__origin_instantiation__ ]
 
-  def load_config( self, config : dict ):
-    self.load_core_config( config )
-    self.load_extra_config( config )
+  def load_config( self, config : dict, origin : str=None ):
+    if origin is not None: self.__origin__.append( str( origin ) )
+    self.load_core_config( config, origin )
+    self.load_extra_config( config, origin )
     self.check_unused( config )
 
   def check_unused( self, config : dict ):
@@ -30,11 +41,15 @@ class JSONConfig( logger.Logger ):
     if len( unused ) > 0:
       self.log( f"Unused keys in config : {unused}", level=30 )
 
-  def load_core_config( self, config : dict ):
+  def load_core_config( self, config : dict, origin : str=None ):
     pass
 
-  def load_extra_config( self, config : dict ):
+  def load_extra_config( self, config : dict, origin : str=None ):
     pass
+
+  @property
+  def origins( self ):
+    return self.__origin__.copy()
 
   def search_type( self, type_str : str, noexcept=False ):
     tinfo = pydoc.locate( type_str )

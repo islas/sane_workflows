@@ -242,20 +242,20 @@ class Orchestrator( jconfig.JSONConfig ):
     self.push_logscope( "::patch" )
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
-      for patch in self._patch_configs[key]:
+      for origin, patch in self._patch_configs[key].items():
       # go through patches in priority order then apply hosts then actions, respectively
         for pop_key, gentype, source  in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
           patch_dicts = patch.pop( pop_key, {} )
           for id, config in patch_dicts.items():
             if id in source:
               self.log( f"Applying patch to {gentype} '{id}'" )
-              source[id].load_config( config )
+              source[id].load_config( config, origin )
             elif id.startswith( "[" ) and id.endswith( "]" ):
               filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
               if len( filter_ids ) > 0:
                 for filter_id in filter_ids:
                   self.log( f"Applying patch filter to {gentype} '{filter_id}'" )
-                  source[filter_id].load_config( config )
+                  source[filter_id].load_config( config, origin )
               else:
                 self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
             else:
@@ -534,10 +534,10 @@ class Orchestrator( jconfig.JSONConfig ):
       with open( file, "r" ) as fp:
         config = json.load( fp, cls=JSONCDecoder )
         self.log_push()
-        self.load_config( config )
+        self.load_config( config, file )
         self.log_pop()
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     hosts = config.pop( "hosts", {} )
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
@@ -549,7 +549,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
       host = host_type( id )
       host.log_push()
-      host.load_config( host_config )
+      host.load_config( host_config, origin )
       host.log_pop()
 
       self.add_host( host )
@@ -562,7 +562,7 @@ class Orchestrator( jconfig.JSONConfig ):
         action_type = self.search_type( action_typename )
       action = action_type( id )
       action.log_push()
-      action.load_config( action_config )
+      action.load_config( action_config, origin )
       action.log_pop()
 
       self.add_action( action )
@@ -571,8 +571,9 @@ class Orchestrator( jconfig.JSONConfig ):
     patches = config.pop( "patches", {} )
     priority = patches.pop( "priority", 0 )
     if priority not in self._patch_configs:
-      self._patch_configs[priority] = []
-    self._patch_configs[priority].append( patches )
+      self._patch_configs[priority] = {}
+    self._patch_configs[priority][origin] = patches
+    super().load_core_config( config, origin )
 
   def _load_save_dict( self ):
     save_dict = {}

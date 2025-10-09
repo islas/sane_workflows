@@ -168,7 +168,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   @property
   def results( self ):
-    results = { "state" : self.state.value, "status" : self.status.value }
+    results = { "state" : self.state.value, "status" : self.status.value, "origins" : self.origins }
     if self.state == ActionState.FINISHED:
       results["timestamp"] = self.__timestamp__
       results["time"]      = self.__time__
@@ -578,7 +578,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def __str__( self ):
     return f"Action({self.id})"
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     environment = config.pop( "environment", None )
     if environment is not None:
       self.environment = environment
@@ -593,4 +593,4 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.add_dependencies( *config.pop( "dependencies", {} ).items() )
 
-    super().load_core_config( config )
+    super().load_core_config( config, origin )
