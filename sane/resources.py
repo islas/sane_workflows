@@ -328,14 +328,14 @@ class ResourceRequestor( jconfig.JSONConfig ):
         else:
           self._resources[resource] = info
 
-  def load_core_config( self, config : dict ):
+  def load_core_config( self, config : dict, origin : str ):
     self.add_resource_requirements( config.pop( "resources", {} ) )
 
     local = config.pop( "local", None )
     if local is not None:
       self.local = local
 
-    super().load_core_config( config )
+    super().load_core_config( config, origin )
 
 
 class ResourceProvider( jconfig.JSONConfig ):
@@ -460,7 +460,7 @@ class ResourceProvider( jconfig.JSONConfig ):
         self._resources[resource] += res
     self.log_pop()
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     resources = config.pop( "resources", {} )
     if len( resources ) > 0:
       self.add_resources( resources )
@@ -469,7 +469,7 @@ class ResourceProvider( jconfig.JSONConfig ):
     for resource, aliases in mapping.items():
       self._mapper.add_mapping( resource, aliases )
 
-    super().load_core_config( config )
+    super().load_core_config( config, origin )
 
   def map_resource( self, resource : str ):
     """Map everything to internal name"""
@@ -506,7 +506,7 @@ class NonLocalProvider( ResourceProvider ):
     self.force_local = False
     self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     resources = config.pop( "local_resources", {} )
     if len( resources ) > 0:
       self.local_resources.add_resources( resources )
@@ -519,7 +519,7 @@ class NonLocalProvider( ResourceProvider ):
     if force_local is not None:
       self.force_local = force_local
 
-    super().load_core_config( config )
+    super().load_core_config( config, origin )
 
   def launch_local( self, requestor : ResourceRequestor ):
     return self.force_local or requestor.local or ( requestor.local is None and self.default_local )

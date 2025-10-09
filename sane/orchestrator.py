@@ -9,6 +9,8 @@ import sys
 import threading
 import re
 from concurrent.futures import ThreadPoolExecutor
+import xml.etree.ElementTree as xmltree
+import xml.dom.minidom
 
 
 import sane.action
@@ -132,6 +134,10 @@ class Orchestrator( jconfig.JSONConfig ):
   def save_file( self ):
     return os.path.abspath( f"{self.save_location}/{self._filename}" )
 
+  @property
+  def results_file( self ):
+    return os.path.abspath( f"{self.log_location}/results.xml" )
+
   def add_action( self, action ):
     self.actions[action.id] = action
 
@@ -242,20 +248,20 @@ class Orchestrator( jconfig.JSONConfig ):
     self.push_logscope( "::patch" )
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
-      for patch in self._patch_configs[key]:
+      for origin, patch in self._patch_configs[key].items():
       # go through patches in priority order then apply hosts then actions, respectively
         for pop_key, gentype, source  in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
           patch_dicts = patch.pop( pop_key, {} )
           for id, config in patch_dicts.items():
             if id in source:
               self.log( f"Applying patch to {gentype} '{id}'" )
-              source[id].load_config( config )
+              source[id].load_config( config, origin )
             elif id.startswith( "[" ) and id.endswith( "]" ):
               filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
               if len( filter_ids ) > 0:
                 for filter_id in filter_ids:
                   self.log( f"Applying patch filter to {gentype} '{filter_id}'" )
-                  source[filter_id].load_config( config )
+                  source[filter_id].load_config( config, origin )
               else:
                 self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
             else:
@@ -337,7 +343,7 @@ class Orchestrator( jconfig.JSONConfig ):
       action._run_lock = self.__run_lock__
       action.__wake__  = self.__wake__
 
-  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
+  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=True ):
     # Setup does not take that long so make sure it is always run
     self.setup()
 
@@ -496,7 +502,10 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
+    self.log( f"Save file at {self.save_file}" )
     self.save( action_set )
+    self.log( f"JUnit file at {self.results_file}" )
+    self.save_junit()
     return status
 
   def load_py_files( self, files, parent=None ):
@@ -534,10 +543,10 @@ class Orchestrator( jconfig.JSONConfig ):
       with open( file, "r" ) as fp:
         config = json.load( fp, cls=JSONCDecoder )
         self.log_push()
-        self.load_config( config )
+        self.load_config( config, file )
         self.log_pop()
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     hosts = config.pop( "hosts", {} )
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
@@ -549,7 +558,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
       host = host_type( id )
       host.log_push()
-      host.load_config( host_config )
+      host.load_config( host_config, origin )
       host.log_pop()
 
       self.add_host( host )
@@ -562,7 +571,7 @@ class Orchestrator( jconfig.JSONConfig ):
         action_type = self.search_type( action_typename )
       action = action_type( id )
       action.log_push()
-      action.load_config( action_config )
+      action.load_config( action_config, origin )
       action.log_pop()
 
       self.add_action( action )
@@ -571,8 +580,9 @@ class Orchestrator( jconfig.JSONConfig ):
     patches = config.pop( "patches", {} )
     priority = patches.pop( "priority", 0 )
     if priority not in self._patch_configs:
-      self._patch_configs[priority] = []
-    self._patch_configs[priority].append( patches )
+      self._patch_configs[priority] = {}
+    self._patch_configs[priority][origin] = patches
+    super().load_core_config( config, origin )
 
   def _load_save_dict( self ):
     save_dict = {}
@@ -590,15 +600,14 @@ class Orchestrator( jconfig.JSONConfig ):
 
   def save( self, action_id_list ):
     # Only save current session changes
+    if "virtual_relaunch" in action_id_list:
+      action_id_list = action_id_list.copy()
+      action_id_list.remove( "virtual_relaunch" )
     save_dict = self._load_save_dict()
     save_dict_update = {
                         "actions" :
                         {
-                          action :
-                          {
-                            "state"  : self.actions[action].state.value,
-                            "status" : self.actions[action].status.value
-                          } for action in action_id_list
+                          action : self.actions[action].results for action in action_id_list
                         },
                         "dry_run" : self.dry_run,
                         "verbose" : self.verbose,
@@ -627,8 +636,8 @@ class Orchestrator( jconfig.JSONConfig ):
     self.working_directory = save_dict["working_directory"]
 
     for action, action_dict in save_dict["actions"].items():
-      state  = sane.action.ActionState(action_dict["state"])
-      status = sane.action.ActionStatus(action_dict["status"])
+      if action == "virtual_relaunch":
+        continue
 
       if action not in self.actions:
         tmp = self.save_file + ".backup"
@@ -637,15 +646,61 @@ class Orchestrator( jconfig.JSONConfig ):
         shutil.copy2( self.save_file, tmp )
         continue
 
-      # THIS IS THE ONLY TIME WE SHOULD EVERY DIRECTLY SET STATUS/STATE
-      self.actions[action]._state = state
-      self.actions[action]._status = status
+      self.actions[action].results = action_dict
 
       if (
             # We never finished so reset
-              ( state == sane.action.ActionState.RUNNING )
+              ( self.actions[action].state == sane.action.ActionState.RUNNING )
             # We would like to re-attempt
-            or ( clear_errors and state == sane.action.ActionState.ERROR )
-            or ( clear_failures and status == sane.action.ActionStatus.FAILURE )
+            or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
+            or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
           ):
         self.actions[action].set_state_pending()
+
+  def save_junit( self ):
+    save_dict = self._load_save_dict()
+    root = xmltree.Element( "testsuite" )
+    root.set( "name", "workflow")
+    tests = 0
+    total_time = 0.0
+    errors = 0
+    failures = 0
+    skipped = 0
+    for action_name, results in save_dict["actions"].items():
+      if action_name == "virtual_relaunch":
+        continue
+
+      node = xmltree.SubElement( root, "testcase" )
+      tests += 1
+      node.set( "name", action_name )
+      node.set( "classname", results["origins"][0] )
+      node.set( "file", results["origins"][1] )
+
+      state = sane.action.ActionState( results["state"] )
+      # Not running and not inactive, done in some capacity
+      if not ( sane.action.ActionState.valid_run_state( state ) or state == sane.action.ActionState.INACTIVE ):
+        node.set( "time", results["time"] )
+        total_time += float( results["time"] )
+
+      if state == sane.action.ActionState.ERROR:
+        err = xmltree.SubElement( node, "error" )
+        errors += 1
+      elif state == sane.action.ActionState.SKIPPED:
+        skip = xmltree.SubElement( node, "skipped" )
+        skipped += 1
+      elif sane.action.ActionStatus( results["status"] ) == sane.action.ActionStatus.FAILURE:
+        fail = xmltree.SubElement( node, "failure" )
+        failures += 1
+
+      if len( results["origins"] ) > 2:
+        props = xmltree.SubElement( node, "properties" )
+        for i in range( 2, len( results["origins"] ) ):
+          xmltree.SubElement( props, "property", { f"config{i-2}" : results["origins"][i] } )
+    root.set( "time", f"{total_time:.6f}" )
+    root.set( "tests", str(tests) )
+    root.set( "failures", str(failures) )
+    root.set( "errors", str(errors) )
+    root.set( "skipped", str(skipped) )
+    results_str = xml.dom.minidom.parseString( xmltree.tostring( root ) ).toprettyxml( indent="  " )
+    with open( self.results_file, "w" ) as f:
+      f.write( results_str )

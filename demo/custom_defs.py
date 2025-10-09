@@ -50,12 +50,12 @@ class MyActionWithMult( MyActionWithArgs ):
     self.mult = 1
     super().__init__( id )
 
-  def load_extra_config( self, config ):
+  def load_extra_config( self, config, origin ):
     mult = config.pop( "mult", 1 )
     if mult > 1:
       self.mult = mult
     # Make sure to call any inherited config reading
-    super().load_extra_config( config )
+    super().load_extra_config( config, origin )
 
   def setup( self ):
     self.log( f"Modifying args with mult = {self.mult}" )

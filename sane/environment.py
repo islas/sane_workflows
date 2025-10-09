@@ -185,7 +185,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
   def match( self, requested_env ):
     return self.exact_match( requested_env )
 
-  def load_core_config( self, config ):
+  def load_core_config( self, config, origin ):
     aliases = list( set( config.pop( "aliases", [] ) ) )
     if aliases != []:
       self._aliases = aliases
@@ -204,3 +204,4 @@ class Environment( config.Config, jconfig.JSONConfig ):
       cmd  = lmod_cmd.pop( "cmd" )
       args = lmod_cmd.pop( "args", [] )
       self.setup_lmod_cmds( cmd, *args, **lmod_cmd )
+    super().load_core_config( config, origin )
