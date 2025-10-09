@@ -9,6 +9,8 @@ import sys
 import threading
 import re
 from concurrent.futures import ThreadPoolExecutor
+import xml.etree.ElementTree as xmltree
+import xml.dom.minidom
 
 
 import sane.action
@@ -131,6 +133,10 @@ class Orchestrator( jconfig.JSONConfig ):
   @property
   def save_file( self ):
     return os.path.abspath( f"{self.save_location}/{self._filename}" )
+
+  @property
+  def results_file( self ):
+    return os.path.abspath( f"{self.log_location}/results.xml" )
 
   def add_action( self, action ):
     self.actions[action.id] = action
@@ -496,7 +502,10 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
+    self.log( f"Save file at {self.save_file}" )
     self.save( action_set )
+    self.log( f"JUnit file at {self.results_file}" )
+    self.save_junit()
     return status
 
   def load_py_files( self, files, parent=None ):
@@ -647,3 +656,51 @@ class Orchestrator( jconfig.JSONConfig ):
             or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
           ):
         self.actions[action].set_state_pending()
+
+  def save_junit( self ):
+    save_dict = self._load_save_dict()
+    root = xmltree.Element( "testsuite" )
+    root.set( "name", "workflow")
+    tests = 0
+    total_time = 0.0
+    errors = 0
+    failures = 0
+    skipped = 0
+    for action_name, results in save_dict["actions"].items():
+      if action_name == "virtual_relaunch":
+        continue
+
+      node = xmltree.SubElement( root, "testcase" )
+      tests += 1
+      node.set( "name", action_name )
+      node.set( "classname", results["origins"][0] )
+      node.set( "file", results["origins"][1] )
+
+      state = sane.action.ActionState( results["state"] )
+      # Not running and not inactive, done in some capacity
+      if not ( sane.action.ActionState.valid_run_state( state ) or state == sane.action.ActionState.INACTIVE ):
+        node.set( "time", results["time"] )
+        total_time += float( results["time"] )
+
+      if state == sane.action.ActionState.ERROR:
+        err = xmltree.SubElement( node, "error" )
+        errors += 1
+      elif state == sane.action.ActionState.SKIPPED:
+        skip = xmltree.SubElement( node, "skipped" )
+        skipped += 1
+      elif sane.action.ActionStatus( results["status"] ) == sane.action.ActionStatus.FAILURE:
+        fail = xmltree.SubElement( node, "failure" )
+        failures += 1
+
+      if len( results["origins"] ) > 2:
+        props = xmltree.SubElement( node, "properties" )
+        for i in range( 2, len( results["origins"] ) ):
+          xmltree.SubElement( props, "property", { f"config{i-2}" : results["origins"][i] } )
+    root.set( "time", f"{total_time:.6f}" )
+    root.set( "tests", str(tests) )
+    root.set( "failures", str(failures) )
+    root.set( "errors", str(errors) )
+    root.set( "skipped", str(skipped) )
+    results_str = xml.dom.minidom.parseString( xmltree.tostring( root ) ).toprettyxml( indent="  " )
+    with open( self.results_file, "w" ) as f:
+      f.write( results_str )
