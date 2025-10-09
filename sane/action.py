@@ -162,6 +162,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._state  = ActionState.FINISHED
     self._status = ActionStatus.FAILURE
 
+  def set_status_error( self ):
+    self._state  = ActionState.ERROR
+    self._status = ActionStatus.NONE
+
   @property
   def status( self ):
     return self._status
@@ -454,7 +458,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
-      self.set_status_failure()
+      self.set_status_error()
       self._release()
       self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
