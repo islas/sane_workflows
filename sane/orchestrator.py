@@ -337,7 +337,7 @@ class Orchestrator( jconfig.JSONConfig ):
       action._run_lock = self.__run_lock__
       action.__wake__  = self.__wake__
 
-  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=False ):
+  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=True ):
     # Setup does not take that long so make sure it is always run
     self.setup()
 
