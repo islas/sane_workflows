@@ -4,6 +4,8 @@ import re
 import io
 import subprocess
 import threading
+import datetime
+import time
 from enum import Enum, EnumMeta
 
 import sane.logger as slogger
@@ -100,6 +102,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._host_resources   = {}
 
     self.__exec_raw__      = True
+    self.__timestamp__     = None
+    self.__time__          = None
 
     # This will be filled out by the time we pre_launch with any info the host provides
     self.__host_info__     = {}
@@ -165,12 +169,18 @@ class Action( state.SaveState, res.ResourceRequestor ):
   @property
   def results( self ):
     results = { "state" : self.state.value, "status" : self.status.value }
+    if self.state == ActionState.FINISHED:
+      results["timestamp"] = self.__timestamp__
+      results["time"]      = self.__time__
     return results
 
   @results.setter
   def results( self, results ):
     self._state  = ActionState( results["state"] )
     self._status = ActionStatus( results["status"] )
+    if self.state == ActionState.FINISHED:
+      self.__timestamp__ = results["timestamp"]
+      self.__time__      = results["time"]
 
   @property
   def host_info( self ):
@@ -370,6 +380,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def launch( self, working_directory, launch_wrapper=None ):
     try:
+      self.__timestamp__ = datetime.datetime.now().replace( microsecond=0 ).isoformat()
+      start_time = time.perf_counter()
+
       thread_name = threading.current_thread().name
       if thread_name is not None:
         self.push_logscope( f"[{thread_name}]" )
@@ -437,6 +450,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if thread_name is not None:
         self.pop_logscope()
       self.__orch_wake__()
+      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       return retval, content
     except Exception as e:
       # We failed :( still notify the orchestrator
@@ -445,6 +459,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.__orch_wake__()
+      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       raise e
 
   def ref_string( self, input_str ):
