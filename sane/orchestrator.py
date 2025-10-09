@@ -594,11 +594,7 @@ class Orchestrator( jconfig.JSONConfig ):
     save_dict_update = {
                         "actions" :
                         {
-                          action :
-                          {
-                            "state"  : self.actions[action].state.value,
-                            "status" : self.actions[action].status.value
-                          } for action in action_id_list
+                          action : self.actions[action].results for action in action_id_list
                         },
                         "dry_run" : self.dry_run,
                         "verbose" : self.verbose,
@@ -627,8 +623,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.working_directory = save_dict["working_directory"]
 
     for action, action_dict in save_dict["actions"].items():
-      state  = sane.action.ActionState(action_dict["state"])
-      status = sane.action.ActionStatus(action_dict["status"])
 
       if action not in self.actions:
         tmp = self.save_file + ".backup"
@@ -637,15 +631,13 @@ class Orchestrator( jconfig.JSONConfig ):
         shutil.copy2( self.save_file, tmp )
         continue
 
-      # THIS IS THE ONLY TIME WE SHOULD EVERY DIRECTLY SET STATUS/STATE
-      self.actions[action]._state = state
-      self.actions[action]._status = status
+      self.actions[action].results = action_dict
 
       if (
             # We never finished so reset
-              ( state == sane.action.ActionState.RUNNING )
+              ( self.actions[action].state == sane.action.ActionState.RUNNING )
             # We would like to re-attempt
-            or ( clear_errors and state == sane.action.ActionState.ERROR )
-            or ( clear_failures and status == sane.action.ActionStatus.FAILURE )
+            or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
+            or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
           ):
         self.actions[action].set_state_pending()

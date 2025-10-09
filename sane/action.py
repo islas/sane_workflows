@@ -163,6 +163,16 @@ class Action( state.SaveState, res.ResourceRequestor ):
     return self._status
 
   @property
+  def results( self ):
+    results = { "state" : self.state.value, "status" : self.status.value }
+    return results
+
+  @results.setter
+  def results( self, results ):
+    self._state  = ActionState( results["state"] )
+    self._status = ActionStatus( results["status"] )
+
+  @property
   def host_info( self ):
     return self.__host_info__
 
