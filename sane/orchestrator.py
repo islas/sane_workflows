@@ -591,6 +591,9 @@ class Orchestrator( jconfig.JSONConfig ):
 
   def save( self, action_id_list ):
     # Only save current session changes
+    if "virtual_relaunch" in action_id_list:
+      action_id_list = action_id_list.copy()
+      action_id_list.remove( "virtual_relaunch" )
     save_dict = self._load_save_dict()
     save_dict_update = {
                         "actions" :
@@ -624,6 +627,8 @@ class Orchestrator( jconfig.JSONConfig ):
     self.working_directory = save_dict["working_directory"]
 
     for action, action_dict in save_dict["actions"].items():
+      if action == "virtual_relaunch":
+        continue
 
       if action not in self.actions:
         tmp = self.save_file + ".backup"
