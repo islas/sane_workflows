@@ -100,6 +100,12 @@ def get_parser():
                       help="Log level of python logging levels"
                       )
   parser.add_argument(
+                      "-vg", "--view_graph",
+                      action="store_true",
+                      default=None,
+                      help="View CLI graph of actions"
+                      )
+  parser.add_argument(
                       "-fl", "--force_local",
                       action="store_true",
                       default=None,
@@ -185,6 +191,8 @@ def main():
     logger.log( "No actions selected" )
     parser.print_help()
     exit( 1 )
+  else:
+    orchestrator.check_action_id_list( action_list )
 
   if options.virtual_host is not None or options.virtual_relaunch is not None:
     # find specific host to use, copy it
@@ -291,12 +299,13 @@ def main():
   orchestrator.dry_run = options.dry_run
 
   if options.run:
-    success = orchestrator.run_actions( action_list, options.specific_host )
+    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
   elif options.dry_run:
-    success = orchestrator.run_actions( action_list, options.specific_host )
+    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
   elif options.list:
     logger.log( "Listing actions:" )
-    sane.orchestrator.print_actions( action_list, print=logger.log )
+    orchestrator.construct_dag()
+    orchestrator.print_actions( action_list, options.view_graph )
 
   logger.log( "Finished" )
   file_handler.flush()
