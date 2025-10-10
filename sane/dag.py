@@ -1,11 +1,11 @@
 import queue
-import copy
+import collections
 
 
 class DAG:
   def __init__( self ):
-    self._nodes  = {}
-    self._rnodes = {}
+    self._nodes  = collections.OrderedDict()
+    self._rnodes = collections.OrderedDict()
 
   def clear( self ):
     self._nodes.clear()
@@ -91,7 +91,8 @@ class DAG:
   # This could be a static method but as traversal_list and node_complete are not
   # to give a similar interfacing I am keeping this as an instance method
   def get_next_nodes( self, traversal_list ):
-    nodes = [ key for key, count in traversal_list.items() if count == 0]
+    # Make the intra-level traversal deterministic based on order of node insertion
+    nodes = sorted( [ key for key, count in traversal_list.items() if count == 0], key=list(self._nodes.keys()).index )
     for n in nodes:
       del traversal_list[n]
     return nodes

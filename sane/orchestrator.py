@@ -15,6 +15,7 @@ import xml.dom.minidom
 
 import sane.action
 import sane.dag as dag
+import sane.dagvis as dagvis
 import sane.host
 import sane.hpc_host
 import sane.json_config as jconfig
@@ -165,6 +166,17 @@ class Orchestrator( jconfig.JSONConfig ):
       msg = f"Error: In {Orchestrator.construct_dag.__name__}() DAG construction failed, invalid topology"
       self.log( msg, level=50 )
       raise Exception( msg )
+
+  def print_actions( self, action_id_list, visualize=False ):
+    print_actions( action_id_list, print=self.log )
+    if visualize:
+      output = dagvis.visualize( self._dag, action_id_list )
+      self.log( "" )
+      self.log( "Action Graph:" )
+      self.log_push()
+      for line in output.splitlines()[1:]:
+        self.log( line )
+      self.log_pop()
 
   def add_search_paths( self, search_paths ):
     if self.__searched__:
@@ -343,24 +355,25 @@ class Orchestrator( jconfig.JSONConfig ):
       action._run_lock = self.__run_lock__
       action.__wake__  = self.__wake__
 
-  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=True ):
-    # Setup does not take that long so make sure it is always run
-    self.setup()
-
+  def check_action_id_list( self, action_id_list ):
     for action in action_id_list:
       if action not in self.actions:
         msg = f"Action '{action}' does not exist in current workflow"
         self.log( msg, level=50 )
         raise KeyError( msg )
 
+  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=True, visualize=False ):
+    # Setup does not take that long so make sure it is always run
+    self.setup()
+    self.check_action_id_list( action_id_list )
     self.log( "Running actions:" )
-    print_actions( action_id_list, print=self.log )
+    self.print_actions( action_id_list )
     self.log( "and any necessary dependencies" )
 
     traversal_list = self.traversal_list( action_id_list )
     self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
-    print_actions( action_set, print=self.log )
+    self.print_actions( action_set, visualize=visualize )
 
     self.find_host( as_host )
     self.check_host( traversal_list )

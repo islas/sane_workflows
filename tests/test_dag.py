@@ -1,7 +1,7 @@
 import unittest
 
 from sane.dag import DAG
-
+from sane.dagvis import visualize as dagvis
 
 class DagTests( unittest.TestCase ):
 
@@ -240,3 +240,16 @@ class DagTests( unittest.TestCase ):
 
     expected = [ [ "f", "i" ], [ "g", "j" ], [ "h", "k" ], [ "n" ] ]
     self.validate_traversal( traversal_list, expected )
+
+  def test_dag_visualize( self ):
+    self.test_dag_multinode_entry_multinode_end_partial()
+    print( dagvis( self.dag, [ "l", "m", "n" ] ) )
+    self.dag.add_edge( 0, 1 )
+    self.dag.add_edge( 0, 2 )
+    self.dag.add_edge( 0, 4 )
+    self.dag.add_edge( 1, 2 )
+    self.dag.add_edge( 1, 3 )
+    self.dag.add_edge( 1, 5 )
+    self.dag.add_edge( 2, 3 )
+    self.dag.add_edge( 2, 4 )
+    print( dagvis( self.dag, [ 3, 4, 5 ] ) )
