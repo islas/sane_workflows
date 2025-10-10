@@ -34,9 +34,30 @@ The focus should instead be:
 
 ![SANE Overview](https://github.com/islas/sane_workflows/blob/main/docs/images/sane_overview.png?raw=true)
 
+## Install
+
+This package is designed to work both as an installed python package or from source
+code with no modifications necessary. To install the package use:
+```
+python3 -m pip install sane-workflows
+```
+
+To utilize from source, clone this repository. You may add the path to your `PYTHONPATH`
+if you want to use it outside of the provided runner script, but this is not necessary.
+
+Usage when installed:
+```
+sane_runner -h
+```
+
+Usage when from source:
+```
+<path to source>/bin/sane_runner.py -h
+```
+
 ## Python Usage
 To utilize `sane` in a python setting, create a python file (module) and import the
-`sane` package. Assuming you are running via the provided entry point `sane_runner.py`,
+`sane` package. Assuming you are running via the provided entry point `sane_runner[.py]`,
 you do not need to ensure `sane` is within your `PYTHONPATH`. Afterwards, to add,
 remove, or modify the _orchestrator_ use the `@sane.register(priority=0)` decorator.
 Providing a priority is optional, and if no priority is given, no `()` call is necessary,
@@ -130,7 +151,7 @@ _actions_:
 You will get output that looks like so:
 ```
 ./bin/sane_runner.py -p demo/ -a action_000 -r
-2025-10-08 18:22:56 INFO     [sane_runner]        Logging output to /home/aislas/frameflow/log/runner.log
+2025-10-08 18:22:56 INFO     [sane_runner]        Logging output to /home/aislas/sane_workflows/log/runner.log
 2025-10-08 18:22:56 INFO     [orchestrator]       Searching for workflow files...
 2025-10-08 18:22:56 INFO     [orchestrator]         Searching demo/ for *.json
 2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/custom_def_usage.json
@@ -189,20 +210,20 @@ You will get output that looks like so:
 2025-10-08 18:22:56 INFO     [orchestrator]       Saving host information...
 2025-10-08 18:22:56 INFO     [orchestrator]       Setting state of all inactive actions to pending
 2025-10-08 18:22:56 INFO     [orchestrator]       No previous save file to load
-2025-10-08 18:22:56 INFO     [orchestrator]       Using working directory : '/home/aislas/frameflow'
+2025-10-08 18:22:56 INFO     [orchestrator]       Using working directory : '/home/aislas/sane_workflows'
 2025-10-08 18:22:56 INFO     [orchestrator]       Running actions...
 2025-10-08 18:22:56 INFO     [orchestrator]       Running 'action_000' on 'generic'
 2025-10-08 18:22:56 INFO     [action_000[thread_0]] Saving action information for launch...
-2025-10-08 18:22:56 INFO     [action_000[thread_0]] Using working directory : '/home/aislas/frameflow'
+2025-10-08 18:22:56 INFO     [action_000[thread_0]] Using working directory : '/home/aislas/sane_workflows'
 2025-10-08 18:22:56 INFO     [action_000[thread_0]] Running command:
-2025-10-08 18:22:56 INFO     [action_000[thread_0]]   /home/aislas/frameflow/sane/action_launcher.py /home/aislas/frameflow /home/aislas/frameflow/tmp/action_action_000.json
-2025-10-08 18:22:56 INFO     [action_000[thread_0]] Command output will be captured to logfile /home/aislas/frameflow/log/action_000.log
+2025-10-08 18:22:56 INFO     [action_000[thread_0]]   /home/aislas/sane_workflows/sane/action_launcher.py /home/aislas/sane_workflows /home/aislas/sane_workflows/tmp/action_action_000.json
+2025-10-08 18:22:56 INFO     [action_000[thread_0]] Command output will be captured to logfile /home/aislas/sane_workflows/log/action_000.log
 2025-10-08 18:22:56 INFO     [orchestrator]       FINISHED Action 'action_000'             completed with 'success'
 2025-10-08 18:22:56 INFO     [orchestrator]       Finished running queued actions
 2025-10-08 18:22:56 INFO     [orchestrator]         action_000: success  
 2025-10-08 18:22:56 INFO     [orchestrator]       All actions finished with success
-2025-10-08 18:22:56 INFO     [orchestrator]       Save file at /home/aislas/frameflow/tmp/orchestrator.json
-2025-10-08 18:22:56 INFO     [orchestrator]       JUnit file at /home/aislas/frameflow/log/results.xml
+2025-10-08 18:22:56 INFO     [orchestrator]       Save file at /home/aislas/sane_workflows/tmp/orchestrator.json
+2025-10-08 18:22:56 INFO     [orchestrator]       JUnit file at /home/aislas/sane_workflows/log/results.xml
 2025-10-08 18:22:56 INFO     [sane_runner]        Finished
 ```
 > [!TIP]
