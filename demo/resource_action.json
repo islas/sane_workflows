@@ -1,0 +1,14 @@
+{
+  "actions" :
+  {
+    "needs_resources" :
+    {
+      "config" :
+      {
+        "command" : "echo",
+        "arguments" : [ "${{ resources.cpus }}" ]
+      },
+      "resources" : { "cpus" : 4 }
+    }
+  }
+}

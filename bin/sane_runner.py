@@ -118,7 +118,7 @@ def get_parser():
                       help="Start a new workflow run and clear previous cache"
                       )
   virtual_group = parser.add_argument_group(
-                                            "Virtual Launch (in situ aggregation):",
+                                            "Virtual Launch (in situ aggregation)",
                                             "Creates temporary action to facilitate adaptive running of workflow"
                                             )
   virtual_group.add_argument(
