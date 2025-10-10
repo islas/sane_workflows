@@ -143,7 +143,13 @@ class ActionTests( unittest.TestCase ):
                   "memory" : "1234gb",
                   "gpus:a100" : 9999,
                   "timelimit"   : "12:34:56",
-                  "host" : { "cpus" : 20, "account" : "foo", "queue" : "bar", "select" : "select=2:mpiprocs4:ncpus:128+3:ncpus=4" }
+                  "host" :
+                  {
+                    "cpus" : 20,
+                    "account" : "foo",
+                    "queue" : "bar",
+                    "select" : "select=2:mpiprocs4:ncpus:128+3:ncpus=4"
+                  }
                 }
               }
     self.action.load_config( config )
@@ -197,4 +203,3 @@ class ActionTests( unittest.TestCase ):
     exp_str = "1"
     out_str = self.action.dereference_str( ref_str )
     self.assertEqual( exp_str, out_str )
-

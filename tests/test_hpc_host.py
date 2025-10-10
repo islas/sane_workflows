@@ -52,7 +52,7 @@ class HPCHostTests( unittest.TestCase ):
     self.assertIn( "memory", self.host.resources["gpu"]["total"].resources )
 
     self.assertEqual( 82 * 64, self.host.resources["gpu"]["total"].resources["ncpus"].total )
-    self.assertEqual( 82 *  4, self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
+    self.assertEqual( 82 * 4,  self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
     self.assertEqual( 82 * 1024**3 * 512, self.host.resources["gpu"]["total"].resources["memory"].total )
 
 
@@ -100,4 +100,3 @@ class HPCHostTests( unittest.TestCase ):
       orch.run_actions( ["my_action"], as_host="test" )
     action.add_resource_requirements( { "test" : { "queue" : "queue_foo", "account" : "account_foo" } } )
     orch.run_actions( ["my_action"], as_host="test" )
-

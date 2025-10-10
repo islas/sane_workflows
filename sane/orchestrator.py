@@ -261,8 +261,8 @@ class Orchestrator( jconfig.JSONConfig ):
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for origin, patch in self._patch_configs[key].items():
-      # go through patches in priority order then apply hosts then actions, respectively
-        for pop_key, gentype, source  in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
+        # go through patches in priority order then apply hosts then actions, respectively
+        for pop_key, gentype, source in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
           patch_dicts = patch.pop( pop_key, {} )
           for id, config in patch_dicts.items():
             if id in source:
@@ -291,7 +291,6 @@ class Orchestrator( jconfig.JSONConfig ):
         self._current_host = host_name
         break
     self.log( f"Running as '{self.current_host}'" )
-    
 
     if self.current_host is None:
       self.log( "No valid host configuration found", level=50 )
@@ -418,7 +417,10 @@ class Orchestrator( jconfig.JSONConfig ):
           if requirements_met:
             resources_available = False
             with self.__run_lock__:  # protect logs
-              resources_available = host.acquire_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
+              resources_available = host.acquire_resources(
+                                                            self.actions[node].resources( host.name ),
+                                                            requestor=self.actions[node]
+                                                            )
             if resources_available:
               # Set info first
               self.actions[node].__host_info__ = host.info
@@ -662,11 +664,11 @@ class Orchestrator( jconfig.JSONConfig ):
       self.actions[action].results = action_dict
 
       if (
-            # We never finished so reset
+          # We never finished so reset
               ( self.actions[action].state == sane.action.ActionState.RUNNING )
-            # We would like to re-attempt
-            or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
-            or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
+          # We would like to re-attempt
+          or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
+          or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
           ):
         self.actions[action].set_state_pending()
 

@@ -258,7 +258,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
       output_path = os.path.abspath( os.path.join( base_path, input_path ) )
     return output_path
 
-  
   def resolve_path_exists( self, input_path, base_path=None, allow_dry_run=True ):
     """Wrapper on resolve_path to also check if that directory exists"""
     if base_path is None:
@@ -332,7 +331,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # Temporarily swap in a very crude logger
       log = lambda *args: self.log( *args, level=25 )
       if self.__exec_raw__:
-        log = lambda msg:  slogger.logger.getChild( "raw" ).log( 25, msg )
+        log = lambda msg: slogger.logger.getChild( "raw" ).log( 25, msg )
 
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
@@ -473,6 +472,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     curr_matches = list( Action.REF_RE.finditer( input_str ) )
     prev_matches = None
     output_str = input_str
+
     def matches_equal( lhs, rhs ):
       if lhs is None and rhs is not None or rhs is None and lhs is not None:
         return False

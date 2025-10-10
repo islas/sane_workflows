@@ -96,5 +96,3 @@ class SaneRunnerTests( unittest.TestCase ):
       action = f"action_{i:03d}"
       self.assertNotIn( action, output )
       self.assertTrue( os.path.isfile( f"{self.root}/log/{action}.log") )
-
-

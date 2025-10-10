@@ -18,7 +18,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Path to search for workflows, if not specified default is ./. Use multiple times for many paths"
+                      help="Path to search for workflows, default is ./. Use multiple times for many paths"
                       )
   parser.add_argument(
                       "-w", "--working_dir",
@@ -31,7 +31,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, if not specified default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
+                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
                       )
   act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
   act_list = act_group.add_mutually_exclusive_group()
@@ -65,7 +65,6 @@ def get_parser():
                     action="store_true",
                     help="Run actions as dry-run"
                     )
-  
   parser.add_argument(
                       "-sh", "--specific_host",
                       type=str,
@@ -144,6 +143,7 @@ def get_parser():
                             help="Launch workflow with virtual copy of host with resource specifications, forced local"
                             )
   return parser
+
 
 def main():
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
@@ -313,6 +313,7 @@ def main():
   # Flip success as 1 == True and 0 == False
   # but exit codes 0 == ok anything else not ok
   exit( not int(success) )
+
 
 if __name__ == "__main__":
   main()

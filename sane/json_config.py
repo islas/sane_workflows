@@ -31,7 +31,8 @@ class JSONConfig( logger.Logger ):
     self.__origin__ = [ sys.modules[self.__module__].__file__, self.__origin_instantiation__ ]
 
   def load_config( self, config : dict, origin : str=None ):
-    if origin is not None: self.__origin__.append( str( origin ) )
+    if origin is not None:
+      self.__origin__.append( str( origin ) )
     self.load_core_config( config, origin )
     self.load_extra_config( config, origin )
     self.check_unused( config )

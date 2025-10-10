@@ -542,7 +542,6 @@ class NonLocalProvider( ResourceProvider ):
     else:
       return self.nonlocal_release_resources( resource_dict, requestor )
 
-
   @abstractmethod
   def nonlocal_resources_available( self, resource_dict, requestor : ResourceRequestor, log=True ):
     """Tell us how to determine if nonlocal resources are available"""
