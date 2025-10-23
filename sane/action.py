@@ -409,8 +409,13 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.log( f"Using working directory : '{action_dir}'" )
 
       cmd = self._find_cmd( self._launch_cmd, action_dir )
-
       args = [ action_dir, self.save_file ]
+      # python wheel build strips executable attribute and there's no recourse that
+      # keeps it in the package directory, so launch it with python3
+      if cmd == self._find_cmd( action_launcher.__file__, action_dir ) and not os.access( action_launcher.__file__, os.X_OK ):
+        args.insert( 0, cmd )
+        cmd = "python3"
+
       if launch_wrapper is not None:
         args.insert( 0, cmd )
         cmd = self._find_cmd( launch_wrapper[0], action_dir )
