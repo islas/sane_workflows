@@ -8,6 +8,7 @@ unzip $WHEEL
 
 # post processing here
 chmod +x sane/action_launcher.py
+chmod +x sane/sane_runner.py
 
 # repackage, force update
 rm $WHEEL

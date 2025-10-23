@@ -412,7 +412,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       args = [ action_dir, self.save_file ]
       # python wheel build strips executable attribute and there's no recourse that
       # keeps it in the package directory, so launch it with python3
-      if cmd == self._find_cmd( action_launcher.__file__, action_dir ) and not os.access( action_launcher.__file__, os.X_OK ):
+      if os.path.splitext( cmd )[1] == ".py" and not os.access( action_launcher.__file__, os.X_OK ):
         args.insert( 0, cmd )
         cmd = "python3"
 
