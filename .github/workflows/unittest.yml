@@ -3,9 +3,9 @@ name: Run unittest
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "releases/**", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "releases/**", "develop" ]
 
 jobs:
   unittest:
