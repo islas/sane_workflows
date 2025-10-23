@@ -21,6 +21,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     self.queue   = None
     self.account = None
 
+    self.job_suffix = ""
+
     self._job_ids = {}
 
     # These must be filled out by derived classes
@@ -49,6 +51,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     account = config.pop( "account", None )
     if account is not None:
       self.account = account
+
+    self.job_suffix = config.pop( "job_suffix", "" )
 
     super().load_core_config( config, origin )
 
@@ -179,7 +183,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
     submit_args = self.submit_args( specific_resources, action.logname )
     default_submit = {
-                              "name"       : f"sane.workflow.{action.id}",
+                              "name"       : f"sane.workflow.{action.id}{self.job_suffix}",
                               "output"     : action.logfile,
                               "queue"      : queue,
                               "account"    : account,
