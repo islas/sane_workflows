@@ -236,7 +236,7 @@ def main():
       relaunch_options.virtual_relaunch = None
       relaunch_options.specific_host = host_name
       relaunch_options.main_log = "virtual_runner.log"
-      opt_append = [ "search_path", "search_pattern" ]
+      opt_append = [ "path", "search_pattern" ]
       if relaunch_options.actions:
         del relaunch_options.filter
       else:
