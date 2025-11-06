@@ -261,19 +261,22 @@ class Orchestrator( jconfig.JSONConfig ):
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for origin, patch in self._patch_configs[key].items():
+        self.log( f"Processing patches from {origin}" )
+        self.log_push()
         # go through patches in priority order then apply hosts then actions, respectively
         for pop_key, gentype, source in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
           patch_dicts = patch.pop( pop_key, {} )
           for id, config in patch_dicts.items():
             if id in source:
               self.log( f"Applying patch to {gentype} '{id}'" )
-              source[id].load_config( config, origin )
+              source[id].load_config( config.copy(), origin )
             elif id.startswith( "[" ) and id.endswith( "]" ):
               filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
               if len( filter_ids ) > 0:
+                self.log( f"Applying patch filter '{id[1:-1]}' to [{len(filter_ids)}] {gentype}s" )
                 for filter_id in filter_ids:
-                  self.log( f"Applying patch filter to {gentype} '{filter_id}'" )
-                  source[filter_id].load_config( config, origin )
+                  self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
+                  source[filter_id].load_config( config.copy(), origin )
               else:
                 self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
             else:
@@ -281,6 +284,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
         if len( patch ) > 0:
           self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
+        self.log_pop()
 
     self.pop_logscope()
 
@@ -593,10 +597,11 @@ class Orchestrator( jconfig.JSONConfig ):
 
     # Handle very similar to the register functions, including priority
     patches = config.pop( "patches", {} )
-    priority = patches.pop( "priority", 0 )
-    if priority not in self._patch_configs:
-      self._patch_configs[priority] = {}
-    self._patch_configs[priority][origin] = patches
+    if len( patches ) > 0:
+      priority = patches.pop( "priority", 0 )
+      if priority not in self._patch_configs:
+        self._patch_configs[priority] = {}
+      self._patch_configs[priority][origin] = patches
     super().load_core_config( config, origin )
 
   def _load_save_dict( self ):

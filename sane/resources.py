@@ -507,6 +507,7 @@ class NonLocalProvider( ResourceProvider ):
     self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
   def load_core_config( self, config, origin ):
+    super().load_core_config( config, origin )
     resources = config.pop( "local_resources", {} )
     if len( resources ) > 0:
       self.local_resources.add_resources( resources )
@@ -518,8 +519,6 @@ class NonLocalProvider( ResourceProvider ):
     force_local = config.pop( "force_local", None )
     if force_local is not None:
       self.force_local = force_local
-
-    super().load_core_config( config, origin )
 
   def launch_local( self, requestor : ResourceRequestor ):
     return self.force_local or requestor.local or ( requestor.local is None and self.default_local )
