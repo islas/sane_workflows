@@ -150,21 +150,21 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def launch_wrapper( self, action, dependencies ):
     """A launch wrapper must be defined for HPC submissions"""
-    if self._launch_local( action ):
+    if self.launch_local( action ):
       return None
 
     dep_jobs = {}
     for id, dep_action in dependencies.items():
-      if not self._launch_local( dep_action ):
+      if not self.launch_local( dep_action ):
         if dep_action.status == sane.action.ActionStatus.SUBMITTED:
-          if action.dependencies[id] not in dep_jobs:
+          if action.dependencies[id]["dep_type"] not in dep_jobs:
             # quickly add the key for this type of dependency
-            dep_jobs[action.dependencies[id]] = []
+            dep_jobs[action.dependencies[id]["dep_type"]] = []
           # Construct dependency type -> job id
           if dep_action.id not in self._job_ids:
             raise KeyError( f"Missing job id for '{dep_action.id}'" )
           else:
-            dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+            dep_jobs[action.dependencies[id]["dep_type"]].append( self._job_ids[dep_action.id] )
         # else:
           # We should not need to do this as the orch would be the one to check
           # that our dependencies were met before asking this action to launch

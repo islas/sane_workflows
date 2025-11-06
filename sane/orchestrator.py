@@ -402,78 +402,99 @@ class Orchestrator( jconfig.JSONConfig ):
     processed_nodes = []
     executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
     results = {}
+    already_logged = []
     self.log( f"Using working directory : '{self.working_directory}'" )
 
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
 
     self.log( "Running actions..." )
     while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
-      next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
-      for node in next_nodes.copy():
-        if self.actions[node].state == sane.action.ActionState.PENDING:
-          # Gather all dependency nodes
-          dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
-          # Check requirements met
-          requirements_met = False
-          with self.__run_lock__:  # protect logs
-            requirements_met = self.actions[node].requirements_met( dependencies )
-
-          if requirements_met:
-            resources_available = False
+      try:
+        next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
+        for node in next_nodes.copy():
+          if self.actions[node].state == sane.action.ActionState.PENDING:
+            # Gather all dependency nodes
+            dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
+            # Check requirements met
+            requirements_met = sane.action.RequirementsState.UNMET
             with self.__run_lock__:  # protect logs
-              resources_available = host.acquire_resources(
-                                                            self.actions[node].resources( host.name ),
-                                                            requestor=self.actions[node]
-                                                            )
-            if resources_available:
-              # Set info first
-              self.actions[node].__host_info__ = host.info
-              # if these are not set then default to action settings
-              if self.verbose:
-                self.actions[node].verbose = self.verbose
-              if self.force_local:
-                self.actions[node].local = self.force_local
+              requirements_met = self.actions[node].requirements_met(
+                                                                      dependencies,
+                                                                      not isinstance(
+                                                                        host,
+                                                                        sane.resources.NonLocalProvider
+                                                                        ) or host.launch_local( self.actions[node] )
+                                                                      )
 
-              self.actions[node].dry_run = self.dry_run
-              self.actions[node].save_location = self.save_location
-              self.actions[node].log_location = self.log_location
-
-              launch_wrapper = None
+            if requirements_met == sane.action.RequirementsState.MET:
+              resources_available = False
               with self.__run_lock__:  # protect logs
-                launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
+                resources_available = host.acquire_resources(
+                                                              self.actions[node].resources( host.name ),
+                                                              requestor=self.actions[node]
+                                                              )
+              if resources_available:
+                # Set info first
+                self.actions[node].__host_info__ = host.info
+                # if these are not set then default to action settings
+                if self.verbose:
+                  self.actions[node].verbose = self.verbose
+                if self.force_local:
+                  self.actions[node].local = self.force_local
 
-              self.log( f"Running '{node}' on '{host.name}'" )
-              with self.__run_lock__:
-                host.pre_launch( self.actions[node] )
-              self.log_flush()
-              results[node] = executor.submit(
-                                              self.actions[node].launch,
-                                              self.working_directory,
-                                              launch_wrapper=launch_wrapper
-                                              )
+                self.actions[node].dry_run = self.dry_run
+                self.actions[node].save_location = self.save_location
+                self.actions[node].log_location = self.log_location
+
+                launch_wrapper = None
+                with self.__run_lock__:  # protect logs
+                  launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
+
+                self.log( f"Running '{node}' on '{host.name}'" )
+                with self.__run_lock__:
+                  host.pre_launch( self.actions[node] )
+                self.log_flush()
+                results[node] = executor.submit(
+                                                self.actions[node].launch,
+                                                self.working_directory,
+                                                launch_wrapper=launch_wrapper
+                                                )
+                next_nodes.remove( node )
+                processed_nodes.append( node )
+              else:
+                self.log( "Not enough resources in host right now, continuing and retrying later", level=10 )
+                continue
+            elif requirements_met == sane.action.RequirementsState.PENDING:
+              # We don't want this suppressed but also not constantly repeating
+              if node not in already_logged:
+                self.log( f"Waiting on Action '{node}' requirements to be met..." )
+                already_logged.append( node )
+              continue
+            else:
+              self.log(
+                        f"Unable to run Action '{node}', requirements not met",
+                        level=40 - int(skip_unrunnable) * 10
+                        )
               next_nodes.remove( node )
               processed_nodes.append( node )
-            else:
-              self.log( "Not enough resources in host right now, continuing and retrying later", level=10 )
-              continue
-
-          else:
-            self.log(
-                      f"Unable to run Action '{node}', requirements not met",
-                      level=40 - int(skip_unrunnable) * 10
-                      )
+              # Force evaluation and set to no longer run
+              self.actions[node].set_status_skipped()
+              self.__wake__.set()
+          elif self.actions[node].state != sane.action.ActionState.RUNNING:
+            msg  = "Action {0:<24} already has {{state, status}} ".format( f"'{node}'" )
+            msg += f"{{{self.actions[node].state.value}, {self.actions[node].status.value}}}"
+            self.log( msg )
             next_nodes.remove( node )
             processed_nodes.append( node )
-            # Force evaluation
+            # Force evaluation even though nothing was done we may get new actions to run
             self.__wake__.set()
-        elif self.actions[node].state != sane.action.ActionState.RUNNING:
-          msg  = "Action {0:<24} already has {{state, status}} ".format( f"'{node}'" )
-          msg += f"{{{self.actions[node].state.value}, {self.actions[node].status.value}}}"
-          self.log( msg )
-          next_nodes.remove( node )
-          processed_nodes.append( node )
-          # Force evaluation even though nothing was done we may get new actions to run
-          self.__wake__.set()
+
+      except Exception as e:
+        # Bad things happened :(
+        if self.__run_lock__.locked():
+          self.__run_lock__.release()
+        self.__wake__.set()
+        raise e
 
       # We submitted everything we could so now wait for at least one action to wake us
       self.__wake__.wait()
@@ -508,6 +529,9 @@ class Orchestrator( jconfig.JSONConfig ):
 
         # We are in a good spot to save
         self.save( action_set )
+
+    # Shutdown workflow
+    executor.shutdown( wait=True )
 
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
 
