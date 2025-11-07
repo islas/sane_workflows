@@ -206,7 +206,7 @@ class Orchestrator( jconfig.JSONConfig ):
       return
 
     for search_path in self.search_paths:
-      sys.path.append( search_path )
+      sys.path.insert( 0, search_path )
       # paths are stored as absolute here since save state may need them as such
       uspace.user_paths.append( os.path.abspath( search_path ) )
 
