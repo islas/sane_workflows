@@ -22,6 +22,8 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     self._resources    = {}
     self._default_env  = None
     self.config          = {}
+    self.kill_watchdog   = False
+    self.__wake__        = None
 
   def match( self, requested_host ):
     return self.partial_match( requested_host )
@@ -131,3 +133,18 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     info["name"] = self.name
     info["config"] = self.config
     return info
+
+  def save( self ):
+    tmp_wake     = self.__wake__
+    self.__wake__  = None
+    super().save()
+    # Now restore
+    self.__wake__  = tmp_wake
+
+  def __orch_wake__( self ):
+    if self.__wake__ is not None:
+      self.__wake__.set()
+
+  @property
+  def watchdog_func( self ):
+    return None

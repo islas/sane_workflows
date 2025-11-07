@@ -405,6 +405,13 @@ class Orchestrator( jconfig.JSONConfig ):
     already_logged = []
     self.log( f"Using working directory : '{self.working_directory}'" )
 
+    host.__wake__ = self.__wake__
+    host_watchdog   = host.watchdog_func
+    host_wd_results = None
+    if host_watchdog is not None:
+      self.log( f"Launching Host '{host.name}' watchdog function" )
+      host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
+
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
 
     self.log( "Running actions..." )
@@ -494,6 +501,7 @@ class Orchestrator( jconfig.JSONConfig ):
         if self.__run_lock__.locked():
           self.__run_lock__.release()
         self.__wake__.set()
+        host.kill_watchdog = True
         raise e
 
       # We submitted everything we could so now wait for at least one action to wake us
@@ -508,6 +516,7 @@ class Orchestrator( jconfig.JSONConfig ):
             host.release_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
             del results[node]
           except Exception as e:
+            host.kill_watchdog = True
             for k, v in results.items():
               v.cancel()
             executor.shutdown( wait=True )
@@ -531,6 +540,7 @@ class Orchestrator( jconfig.JSONConfig ):
         self.save( action_set )
 
     # Shutdown workflow
+    host.kill_watchdog = True
     executor.shutdown( wait=True )
 
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
