@@ -112,7 +112,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def __init__( self, id ):
     self._id = id
-    self.config = {}
+    self.config  = {}
+    self.outputs = {}
     self.environment = None
 
     self.verbose = False
@@ -204,7 +205,12 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   @property
   def results( self ):
-    results = { "state" : self.state.value, "status" : self.status.value, "origins" : self.origins }
+    results = {
+                "state" : self.state.value,
+                "status" : self.status.value,
+                "origins" : self.origins,
+                "outputs" : self.dereference( self.outputs, log=False )
+                }
     if self.state == ActionState.FINISHED:
       results["timestamp"] = self.__timestamp__
       results["time"]      = self.__time__
@@ -214,6 +220,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def results( self, results ):
     self._state  = ActionState( results["state"] )
     self._status = ActionStatus( results["status"] )
+    self.outputs = results["outputs"]
     if self.state == ActionState.FINISHED:
       self.__timestamp__ = results["timestamp"]
       self.__time__      = results["time"]
@@ -221,6 +228,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
   @property
   def host_info( self ):
     return self.__host_info__
+
+  @property
+  def info( self ):
+    return self.dereference( { "config" : self.config, "outputs" : self.outputs }, log=False )
 
   @property
   def logfile( self ):
@@ -505,7 +516,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def ref_string( self, input_str ):
     return len( list( Action.REF_RE.finditer( input_str ) ) ) > 0
 
-  def dereference_str( self, input_str ):
+  def dereference_str( self, input_str, log=True ):
     curr_matches = list( Action.REF_RE.finditer( input_str ) )
     prev_matches = None
     output_str = input_str
@@ -559,26 +570,26 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
       curr_matches = list( Action.REF_RE.finditer( output_str ) )
 
-    if output_str != input_str:
+    if output_str != input_str and log:
       self.log( f"Dereferenced '{input_str}'" )
       self.log( f"     into => '{output_str}'" )
     return output_str
 
-  def dereference( self, obj ):
+  def dereference( self, obj, log=True ):
     if isinstance( obj, dict ):
       for key in obj.keys():
-        output = self.dereference( obj[key] )
+        output = self.dereference( obj[key], log=log )
         if output is not None:
           obj[key] = output
       return obj
     elif isinstance( obj, list ):
       for i in range( len( obj ) ):
-        output = self.dereference( obj[i] )
+        output = self.dereference( obj[i], log=log )
         if output is not None:
           obj[i] = output
       return obj
     elif isinstance( obj, str ):
-      return self.dereference_str( obj )
+      return self.dereference_str( obj, log=log )
     else:
       return obj
 

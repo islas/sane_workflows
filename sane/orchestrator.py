@@ -445,6 +445,7 @@ class Orchestrator( jconfig.JSONConfig ):
               if resources_available:
                 # Set info first
                 self.actions[node].__host_info__ = host.info
+                jconfig.recursive_update( self.actions[node]._dependencies, { id : dep_action.info for id, dep_action in dependencies.items() } )
                 # if these are not set then default to action settings
                 if self.verbose:
                   self.actions[node].verbose = self.verbose
