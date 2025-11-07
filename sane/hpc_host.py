@@ -109,7 +109,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
           self.__orch_wake__()
 
   def post_launch( self, action, retval, content ):
-    if not self._launch_local( action ):
+    if not self.launch_local( action ):
       if retval != 0:
         msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
