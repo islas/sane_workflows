@@ -496,8 +496,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # We failed :( still notify the orchestrator
       self.set_status_error()
       self._release()
-      self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
+      self.pop_logscope()
       self.__orch_wake__()
       self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       raise e
