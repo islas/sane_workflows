@@ -379,14 +379,16 @@ class Orchestrator( jconfig.JSONConfig ):
     self.print_actions( action_set, visualize=visualize )
 
     self.find_host( as_host )
+    host = self.hosts[self.current_host]
+
+    if isinstance( host, sane.resources.NonLocalProvider ):
+      host.force_local = self.force_local
+
     self.check_host( traversal_list )
 
     # We have a valid host for all actions slated to run
-    host = self.hosts[self.current_host]
     host.save_location = self.save_location
     host.dry_run = self.dry_run
-    if isinstance( host, sane.resources.NonLocalProvider ):
-      host.force_local = self.force_local
 
     self.log( "Saving host information..." )
     host.save()
