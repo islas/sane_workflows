@@ -376,7 +376,11 @@ class Orchestrator( jconfig.JSONConfig ):
     traversal_list = self.traversal_list( action_id_list )
     self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
-    self.print_actions( action_set, visualize=visualize )
+    if visualize:
+      self.print_actions( action_id_list, visualize=visualize )
+    else:
+      self.print_actions( action_set )
+    self.check_action_id_list( action_set )
 
     self.find_host( as_host )
     host = self.hosts[self.current_host]
