@@ -10,7 +10,7 @@ import sane.host
 
 
 class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
-  HPC_DELAY_PERIOD_SECONDS = 30
+  HPC_DELAY_PERIOD_SECONDS = 5
 
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases )
