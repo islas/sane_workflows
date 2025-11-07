@@ -527,7 +527,7 @@ class Orchestrator( jconfig.JSONConfig ):
         run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
         if ( self.actions[node].state == sane.action.ActionState.FINISHED
            or ( skip_unrunnable and not run_state ) ):
-          msg  = "{{state}} Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
+          msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
           msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
           self.log( msg )
           self._dag.node_complete( node, traversal_list )
