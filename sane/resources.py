@@ -151,6 +151,9 @@ class Resource:
     self.current = res.current
     return self
 
+  def __repr__( self ):
+    return self.current_str
+
 
 class AcquirableResource( Resource ):
   def __init__( self, resource, amount ):
@@ -182,6 +185,9 @@ class AcquirableResource( Resource ):
     res_dict = self._res_dict.copy()
     res_dict["numeric"] = self.used
     return res_size_str( res_size_reduce( res_dict ) )
+
+  def __repr__( self ):
+    return f"{{ total: {self.total_str}, used: {self.used_str} }}"
 
 
 def res_size_dict( resource ) :
@@ -378,7 +384,8 @@ class ResourceProvider( jconfig.JSONConfig ):
       elif Resource.is_resource( info ):
         if resource not in self._resources:
           msg  = f"Will never be able to acquire resource '{resource}' : {info}, "
-          msg += "host does not possess this resource"
+          msg += "host does not possess this resource. "
+          msg += f"Resources: {self.resources}"
           self.log( msg, level=50 )
           self.log_pop()
           raise Exception( msg )
@@ -397,7 +404,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
       acquirable = res.total <= self._resources[resource].current
       if not acquirable and log:
-        self.log( f"Resource '{resource}' : {res.total_str} not acquirable right now...", level=10 )
+        self.log( f"Resource '{resource}' : {res.total_str} not acquirable right now ({self._resources[resource]})...", level=10 )
       can_aquire = can_aquire and acquirable
 
     if log:
