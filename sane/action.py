@@ -58,23 +58,51 @@ class ActionStatus( Enum ):
   NONE      = "none"
 
 
-def _dependency_met( dep_type, state, status ):
+class RequirementsState( Enum ):
+  MET     = "met"
+  PENDING = "pending"
+  UNMET   = "unmet"
+
+  @classmethod
+  def reduce_state( cls, *args ):
+    state = cls.MET
+    for arg in args:
+      if ( isinstance( arg, bool ) and arg == True ) or arg == cls.MET:
+        continue
+      if arg == cls.PENDING:
+        state = cls.PENDING
+      elif ( isinstance( arg, bool ) and arg == False ) or arg == cls.UNMET:
+        state = cls.UNMET
+        break
+    return state
+
+
+def _dependency_met( dep_type, state, status, submit_ok ):
   if dep_type != DependencyType.AFTER:
     if state == ActionState.FINISHED:
       if dep_type == DependencyType.AFTERANY:
-        return True
+        return RequirementsState.MET
       else:
         # Writing out the checks explicitly, submitted is an ambiguous state and
         # so can count for both... maybe this should be reconsidered later
         if dep_type == DependencyType.AFTEROK:
-          return status == ActionStatus.SUCCESS or status == ActionStatus.SUBMITTED
+          if status == ActionStatus.SUCCESS:
+            return RequirementsState.MET
+          elif status == ActionStatus.SUBMITTED:
+            return RequirementsState.MET if submit_ok else RequirementsState.PENDING
         elif dep_type == DependencyType.AFTERNOTOK:
-          return status == ActionStatus.FAILURE or status == ActionStatus.SUBMITTED
+          if status == ActionStatus.FAILURE:
+            return RequirementsState.MET
+          elif  status == ActionStatus.SUBMITTED:
+            return RequirementsState.MET if submit_ok else RequirementsState.PENDING
   elif dep_type == DependencyType.AFTER:
     if state == ActionState.RUNNING or state == ActionState.FINISHED:
-      return True
+      return RequirementsState.MET
+    elif status == ActionStatus.SUBMITTED:
+      # It would require the submit host to tell us when this is running
+      return RequirementsState.MET if submit_ok else RequirementsState.PENDING
   # Everything else
-  return False
+  return RequirementsState.UNMET
 
 
 class Action( state.SaveState, res.ResourceRequestor ):
@@ -166,6 +194,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._state  = ActionState.ERROR
     self._status = ActionStatus.NONE
 
+  def set_status_skipped( self ):
+    self._state  = ActionState.SKIPPED
+    self._status = ActionStatus.NONE
+
   @property
   def status( self ):
     return self._status
@@ -206,31 +238,31 @@ class Action( state.SaveState, res.ResourceRequestor ):
     for arg in args:
       arg_idx += 1
       if isinstance( arg, str ):
-        self._dependencies[arg] = DependencyType.AFTEROK
+        self._dependencies[arg] = { "dep_type" : DependencyType.AFTEROK }
       elif (
                 isinstance( arg, tuple )
             and len(arg) == 2
             and isinstance( arg[0], str )
             and arg[1] in DependencyType ):
-        self._dependencies[arg[0]] = DependencyType( arg[1] )
+        self._dependencies[arg[0]] = { "dep_type" : DependencyType( arg[1] ) }
       else:
         msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
         msg += f", must be of type str or tuple( str, DependencyType.value->str )"
         self.log( msg, level=50 )
         raise Exception( msg )
 
-  def requirements_met( self, dependency_actions ):
-    met = True
-    for dependency, dep_type in self._dependencies.items():
+  def requirements_met( self, dependency_actions, resolve_locally ):
+    met = RequirementsState.MET
+    for dependency, dep_info in self._dependencies.items():
       action = dependency_actions[dependency]
-      dep_met = _dependency_met( dep_type, action.state, action.status )
-      if not dep_met:
-        msg  = f"Unmet dependency {dependency}, required {dep_type} "
-        msg += f"but Action is {{{action.state}, {action.status}}}"
+      dep_met = _dependency_met( dep_info["dep_type"], action.state, action.status, submit_ok=not resolve_locally )
+      if dep_met == RequirementsState.UNMET:
+        msg  = f"Unmet dependency {dependency}, required {dep_info['dep_type']} "
+        msg += f"but Action is {{{action.state.value}, {action.status.value}}}"
         self.log( msg )
-      met = ( met and dep_met )
+      met = RequirementsState.reduce_state( met, dep_met )
 
-    met = met and self.extra_requirements_met( dependency_actions )
+    met = RequirementsState.reduce_state( met, self.extra_requirements_met( dependency_actions ) )
     return met
 
   def extra_requirements_met( self, dependency_actions ):
@@ -464,8 +496,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # We failed :( still notify the orchestrator
       self.set_status_error()
       self._release()
-      self.pop_logscope()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
+      self.pop_logscope()
       self.__orch_wake__()
       self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       raise e

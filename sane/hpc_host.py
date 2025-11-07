@@ -10,7 +10,7 @@ import sane.host
 
 
 class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
-  HPC_DELAY_PERIOD_SECONDS = 30
+  HPC_DELAY_PERIOD_SECONDS = 5
 
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases )
@@ -85,11 +85,31 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
       submission.append( self._cmd_delim )
     return submission
 
-  def _launch_local( self, action ):
-    return action.local or ( action.local is None and self.default_local )
+  @property
+  def watchdog_func( self ):
+    return self.capture_job_complete
+
+  def capture_job_complete( self, actions, only_watchdog=True ):
+    completed = {}
+    while not self.kill_watchdog and ( only_watchdog or len( completed ) != len( self._job_ids ) ):
+      time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
+      for action_name, job_id in self._job_ids.items():
+        if action_name not in completed and ( self.dry_run or self.job_complete( job_id ) ):
+          completed[action_name] = job_id
+          status = self.dry_run or self.job_status( job_id )
+          disclaimer = ""
+          if self.dry_run:
+            disclaimer = " (dry-run)"
+          self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}{disclaimer}" )
+          if status:
+            actions[action_name].set_status_success()
+          else:
+            actions[action_name].set_status_failure()
+          # Wake the orch
+          self.__orch_wake__()
 
   def post_launch( self, action, retval, content ):
-    if not self._launch_local( action ):
+    if not self.launch_local( action ):
       if retval != 0:
         msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
@@ -102,18 +122,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
       self.log( "Waiting for HPC jobs to complete" )
       self.log_push()
       self.log( "*ATTENTION* : This is a blocking/sync phase to wait for all jobs to complete - BE PATIENT" )
-      completed = {}
-      while len( completed ) != len( self._job_ids ):
-        time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
-        for action_name, job_id in self._job_ids.items():
-          if action_name not in completed and self.job_complete( job_id ):
-            completed[action_name] = job_id
-            status = self.job_status( job_id )
-            self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}" )
-            if status:
-              actions[action_name].set_status_success()
-            else:
-              actions[action_name].set_status_failure()
+      self.kill_watchdog = False
+      self.capture_job_complete( actions, only_watchdog=False )
       self.log_pop()
       self.log( "All HPC jobs complete" )
     elif self.dry_run:
@@ -150,21 +160,21 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def launch_wrapper( self, action, dependencies ):
     """A launch wrapper must be defined for HPC submissions"""
-    if self._launch_local( action ):
+    if self.launch_local( action ):
       return None
 
     dep_jobs = {}
     for id, dep_action in dependencies.items():
-      if not self._launch_local( dep_action ):
+      if not self.launch_local( dep_action ):
         if dep_action.status == sane.action.ActionStatus.SUBMITTED:
-          if action.dependencies[id] not in dep_jobs:
+          if action.dependencies[id]["dep_type"] not in dep_jobs:
             # quickly add the key for this type of dependency
-            dep_jobs[action.dependencies[id]] = []
+            dep_jobs[action.dependencies[id]["dep_type"]] = []
           # Construct dependency type -> job id
           if dep_action.id not in self._job_ids:
             raise KeyError( f"Missing job id for '{dep_action.id}'" )
           else:
-            dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+            dep_jobs[action.dependencies[id]["dep_type"]].append( self._job_ids[dep_action.id] )
         # else:
           # We should not need to do this as the orch would be the one to check
           # that our dependencies were met before asking this action to launch

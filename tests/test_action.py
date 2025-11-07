@@ -158,10 +158,10 @@ class ActionTests( unittest.TestCase ):
     self.assertIn( "dep_action1", self.action.dependencies )
     self.assertIn( "dep_action2", self.action.dependencies )
     self.assertIn( "dep_action3", self.action.dependencies )
-    self.assertEqual( self.action.dependencies["dep_action0"], sane.action.DependencyType.AFTEROK )
-    self.assertEqual( self.action.dependencies["dep_action1"], sane.action.DependencyType.AFTERNOTOK )
-    self.assertEqual( self.action.dependencies["dep_action2"], sane.action.DependencyType.AFTERANY )
-    self.assertEqual( self.action.dependencies["dep_action3"], sane.action.DependencyType.AFTER )
+    self.assertEqual( self.action.dependencies["dep_action0"]["dep_type"], sane.action.DependencyType.AFTEROK )
+    self.assertEqual( self.action.dependencies["dep_action1"]["dep_type"], sane.action.DependencyType.AFTERNOTOK )
+    self.assertEqual( self.action.dependencies["dep_action2"]["dep_type"], sane.action.DependencyType.AFTERANY )
+    self.assertEqual( self.action.dependencies["dep_action3"]["dep_type"], sane.action.DependencyType.AFTER )
     self.assertEqual( self.action.environment, "foobar" )
 
   def test_action_dereference( self ):
