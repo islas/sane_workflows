@@ -20,7 +20,6 @@ It provides:
   * a priority-based JSON patching feature
 
 ## Overview
-
 Below is a high level overview of how running a workflow works. Many of the complex
 nuances, such as type finding, HPC submission, resource management, etc., are left out.
 
@@ -33,6 +32,21 @@ The focus should instead be:
   * instance information is transferred via python pickling
 
 ![SANE Overview](https://github.com/islas/sane_workflows/blob/main/docs/images/sane_overview.png?raw=true)
+
+## Use Case and Alternatives
+Workflow managers like SANE are useful for orchestrating tasks that have heterogeneous entry points or rely on a repeatable sequence and setup. SANE will specifically help with workflows that require at least one of the following:
+1. running bare metal locally or on HPC systems
+2. as few dependencies as possible of their workflow manager
+3. a highly configurable tasking framework
+4. same workflows to be interoperable between different compute environments with mininal runtime adjustment
+5. tasking that benefits from but is not constrained to only python
+
+Some alternatives to look at if the above does not meet your use case, e.g. you _only_ operate in controlled containerized environments:
+* CircleCI
+* Earthly
+* Dagster
+* Cylc
+* Unified Workflow Tools
 
 ## Install
 
@@ -55,7 +69,9 @@ Usage when from source:
 <path to source>/bin/sane_runner.py -h
 ```
 
-## Python Usage
+## Quickstart
+
+### Python Usage
 To utilize `sane` in a python setting, create a python file (module) and import the
 `sane` package. Assuming you are running via the provided entry point `sane_runner[.py]`,
 you do not need to ensure `sane` is within your `PYTHONPATH`. Afterwards, to add,
@@ -92,7 +108,7 @@ def first( orch ):
   pass
 ```
 
-## JSON Usage
+### JSON Usage
 To utilize `sane` in a JSON config file setting, create a JSON file (config) that
 contains at least one of the keys : `"hosts"`, `"actions"`, or `"patches"`. Refer
 to the [`docs/template.jsonc`](docs/template.jsonc) on what default fields are appropriate. 
@@ -130,7 +146,15 @@ and are accessed via YAML-like dereferencing (`${{}}`):
 // ... rest of config
 ```
 
-## Running a workflow
+### Creating a workflow
+A workflow consists of any number of python and JSON files discovered by the runner. Only python functions with the `@sane.register(priority=0)` decorator will be executed directly by the _orchestrator_, and only JSON fields that match the appropriate keys will result in the instantiation of workflow objects.
+
+Furthermore, a valid workflow will require at least one host. Without a valid host, any workflow is assumed unable to run.
+
+Take a look at [`demo/simple_host.jsonc`](demo/simple_host.jsonc) and [`demo/simple_action.json`](demo/simple_action.json) within the [source repo](https://github.com/islas/sane_workflows) for an idea of how bare bones a workflow _can_ be.
+
+
+### Running a workflow
 To run a workflow, place all your `.py` and `.json[c]` files into any directory
 layout you want, but try to isolate your workflow files from other non-workflow
 `.py` and `.json[c]` files as all matching files under listed directories are 
