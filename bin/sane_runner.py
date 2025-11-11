@@ -18,7 +18,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Path to search for workflows, default is ./. Use multiple times for many paths"
+                      help="Path to search for workflows, no default. Use multiple times for many paths"
                       )
   parser.add_argument(
                       "-w", "--working_dir",
@@ -167,7 +167,8 @@ def main():
   logger.log( f"Logging output to {logfile}")
 
   if len( options.path ) == 0:
-    options.path = [ "./" ]
+    logger.log( "No paths provided" )
+    exit( 1 )
 
   if len( options.search_pattern ) == 0:
     options.search_pattern = [ "*.json", "*.jsonc", "*.py" ]
