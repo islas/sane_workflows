@@ -468,14 +468,8 @@ class PBSHost( HPCHost ):
         nodes = specified_resource_dict.pop( "nodes", 0 )
         if nodes == 0:
           for resource in nodeset_resources:
-            available = total.resources_available(
-                                                  { resource : specified_resource_dict[resource] },
-                                                  requestor=requestor,
-                                                  log=False
-                                                  )
-            if available:
-              nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
-              nodes = max( nodes, math.ceil(nodes_for_res) )
+            nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
+            nodes = max( nodes, math.ceil(nodes_for_res) )
 
         if not total.resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
           total.log( "Not enough nodes", level=15 )
