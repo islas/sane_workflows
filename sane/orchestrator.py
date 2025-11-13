@@ -409,7 +409,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.save( action_set )
     next_nodes = []
     processed_nodes = []
-    executor = ThreadPoolExecutor( max_workers=12, thread_name_prefix="thread" )
+    executor = ThreadPoolExecutor( max_workers=64, thread_name_prefix="thread" )
     results = {}
     already_logged = []
     self.log( f"Using working directory : '{self.working_directory}'" )
