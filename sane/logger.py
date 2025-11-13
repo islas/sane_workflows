@@ -36,20 +36,20 @@ class Logger:
   @logname.setter
   def logname( self, logname ):
     self._logname = logname
-    self._set_label( self.last_logname )
+    self._set_label( self.current_logname )
 
   def push_logscope( self, scope ):
     self._logscope_stack.append( scope )
-    self._set_label( self.last_logname )
+    self._set_label( self.current_logname )
 
   def pop_logscope( self ):
     if len( self._logscope_stack ) > 0:
       self._logscope_stack.pop()
-    self._set_label( self.last_logname )
+    self._set_label( self.current_logname )
 
   @property
-  def last_logname( self ):
-    return self._logname if len( self._logscope_stack ) == 0 else f"{self.logname}::{self._logscope_stack[-1]}"
+  def current_logname( self ):
+    return self._logname if len( self._logscope_stack ) == 0 else f"{self._logname}::{self._logscope_stack[-1]}"
 
   def _set_label( self, name ):
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), self.label_length + 3 )
