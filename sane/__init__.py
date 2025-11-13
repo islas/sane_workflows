@@ -28,3 +28,9 @@ internal_logger.addHandler( console_handler )
 logging.addLevelName( 25, "STDOUT" )
 for i in range( logging.DEBUG, logging.INFO ):
   logging.addLevelName( i, f"DEBUG {i}" )
+
+def log_exceptions( etype, value, traceback ):
+  from traceback import format_exception
+  lines = format_exception( etype, value, traceback )
+  for line in lines:
+    internal_logger.log( 50, line )
