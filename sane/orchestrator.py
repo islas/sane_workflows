@@ -754,6 +754,7 @@ class Orchestrator( jconfig.JSONConfig ):
       # Not running and not inactive, done in some capacity
       if state != sane.action.ActionState.SKIPPED:
         node.set( "time", results["time"] )
+        node.set( "timestamp", results["timestamp"] )
         total_time += float( results["time"] )
 
       if state == sane.action.ActionState.ERROR:
