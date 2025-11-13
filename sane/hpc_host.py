@@ -337,6 +337,13 @@ class PBSHost( HPCHost ):
                                                       )
       self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
 
+  @property
+  def resource_log( self ):
+    res_log = super().resource_log
+    for node_type, node_dict in self._resources.items():
+      res_log[node_type] = node_dict["total"].resource_log
+    return res_log
+
   def check_job_complete( self, job_id, retval, status ):
     if retval != 0:
       return False

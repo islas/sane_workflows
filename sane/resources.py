@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import re
-from datetime import time
+import datetime
 import math
 import operator
 import copy
@@ -352,6 +352,7 @@ class ResourceProvider( jconfig.JSONConfig ):
       self._mapper = ResourceMapper()
     else:
       self._mapper = mapper
+    self._resource_log = {}
 
   @property
   def resources( self ):
@@ -368,6 +369,7 @@ class ResourceProvider( jconfig.JSONConfig ):
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
         self._resources[resource] = AcquirableResource( resource, info )
+        self._resource_log[resource] = { "acquire" : [], "release" : [], "unit" : self._resources[resource].unit }
 
   def resources_available( self, resource_dict : dict, requestor : ResourceRequestor, log=True ):
     mapped_resource_dict = self.map_resource_dict( resource_dict )
@@ -432,6 +434,8 @@ class ResourceProvider( jconfig.JSONConfig ):
           continue
         self.log( f"Acquiring resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] -= res
+        now = datetime.datetime.now().isoformat()
+        self._resource_log[resource]["acquire"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
     else:
       self.log( f"Could not acquire resources{origin_msg}", level=10 )
       self.log_pop()
@@ -465,6 +469,8 @@ class ResourceProvider( jconfig.JSONConfig ):
       else:
         self.log( f"Releasing resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] += res
+        now = datetime.datetime.now().isoformat()
+        self._resource_log[resource]["release"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
     self.log_pop()
 
   def load_core_config( self, config, origin ):
@@ -504,6 +510,10 @@ class ResourceProvider( jconfig.JSONConfig ):
     if output_log:
       self.log_pop()
     return mapped_resource_dict
+
+  @property
+  def resource_log( self ):
+    return self._resource_log
 
 
 class NonLocalProvider( ResourceProvider ):
@@ -562,3 +572,7 @@ class NonLocalProvider( ResourceProvider ):
   def nonlocal_release_resources( self, resource_dict, requestor : ResourceRequestor ):
     """Tell us how to release nonlocal resources"""
     pass
+
+  @property
+  def resource_log( self ):
+    return { "local_resources" : self.local_resources.resource_log }
