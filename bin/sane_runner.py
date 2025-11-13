@@ -157,6 +157,7 @@ def main():
   parser  = get_parser()
   options = parser.parse_args()
   sane.internal_logger.setLevel( options.debug_level )
+  sys.excepthook = sane.log_exceptions
 
   logfile = os.path.abspath( f"{options.log_location}/{options.main_log}" )
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
