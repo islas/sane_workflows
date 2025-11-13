@@ -39,8 +39,8 @@ class Logger:
     self._set_label( self.last_logname )
 
   def push_logscope( self, scope ):
-    self._set_label( f"{self.logname}{scope}" )
     self._logscope_stack.append( scope )
+    self._set_label( self.last_logname )
 
   def pop_logscope( self ):
     if len( self._logscope_stack ) > 0:
