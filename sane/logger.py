@@ -2,7 +2,7 @@ import io
 import logging
 
 
-LABEL_LENGTH = 18
+DEFAULT_LABEL_LENGTH = 22
 logger = logging.getLogger( __name__ )
 
 
@@ -24,6 +24,7 @@ class Logger:
     self._level             = 0
     self._label             = ""
     self._logscope_stack    = []
+    self.label_length       = DEFAULT_LABEL_LENGTH
     self.pop_logscope()
 
     super().__init__( **kwargs )
@@ -51,7 +52,7 @@ class Logger:
     return self._logname if len( self._logscope_stack ) == 0 else f"{self.logname}::{self._logscope_stack[-1]}"
 
   def _set_label( self, name ):
-    self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), LABEL_LENGTH + 3 )
+    self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), self.label_length + 3 )
 
   def log( self, *args, level=logging.INFO, **kwargs ) :
     # https://stackoverflow.com/a/39823534

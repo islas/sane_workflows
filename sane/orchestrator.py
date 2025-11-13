@@ -379,6 +379,7 @@ class Orchestrator( jconfig.JSONConfig ):
     traversal_list = self.traversal_list( action_id_list )
     self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
+    longest_action = len( max( action_set, key=len ) )
     if visualize:
       self.print_actions( action_id_list, visualize=visualize )
     else:
@@ -403,6 +404,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( "Setting state of all inactive actions to pending" )
     # Mark all actions to be run as pending if not already run
     for node in traversal_list:
+      self.actions[node].max_label_length = longest_action + len( "thread_00] [::post_launch" )
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
         self.actions[node].set_state_pending()
 
@@ -559,7 +561,6 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.log( "Finished running queued actions" )
     # Report final statuses
-    longest_action = len( max( action_set, key=len ) )
     statuses = [ f"{node:<{longest_action}}: " + self.actions[node].status.value for node in action_set ]
     print_actions( statuses, print=self.log )
     status = all( [ self.actions[node].status == sane.action.ActionStatus.SUCCESS for node in action_set ] )

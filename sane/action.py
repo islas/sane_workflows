@@ -121,6 +121,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.wrap_stdout = True
 
     self.working_directory = "./"
+    self.max_label_length  = slogger.DEFAULT_LABEL_LENGTH
     self._launch_cmd       = action_launcher.__file__
     self.log_location      = None
     self._logfile          = f"{self.id}.log"
@@ -428,10 +429,14 @@ class Action( state.SaveState, res.ResourceRequestor ):
     try:
       self.__timestamp__ = datetime.datetime.now().replace( microsecond=0 ).isoformat()
       start_time = time.perf_counter()
-
+      self.label_length = self.max_label_length
       thread_name = threading.current_thread().name
+      logname     = self.id
       if thread_name is not None:
-        self.push_logscope( f"[{thread_name}]" )
+        logname = "{0:<10} [{1}".format( f"{thread_name}]", self.id )
+      self.logname = logname
+
+      self.push_logscope( "launch" )
       self._acquire()
       ok = self.pre_launch()
       self._release()
@@ -444,7 +449,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
       # Immediately save the current state of this action
       self.log( "Saving action information for launch..." )
+      self.label_length = slogger.DEFAULT_LABEL_LENGTH
+      self.logname = self.id
       self.save()
+      self.label_length = self.max_label_length
+      self.logname = logname
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
       action_dir = self.resolve_path( self.working_directory, working_directory )
@@ -499,7 +508,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
       # notify we have finished
       if thread_name is not None:
-        self.pop_logscope()
+        self.logname = self.id
+      self.pop_logscope()
       self.__orch_wake__()
       self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       return retval, content
@@ -508,6 +518,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.set_status_error()
       self._release()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
+      self.logname = self.id
+      self.label_length = slogger.DEFAULT_LABEL_LENGTH
       self.pop_logscope()
       self.__orch_wake__()
       self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
