@@ -8,6 +8,7 @@ import shutil
 import sys
 import threading
 import re
+import datetime
 from concurrent.futures import ThreadPoolExecutor
 import xml.etree.ElementTree as xmltree
 import xml.dom.minidom
@@ -103,6 +104,8 @@ class Orchestrator( jconfig.JSONConfig ):
     self.__searched__ = False
     self.__run_lock__ = threading.Lock()
     self.__wake__     = threading.Event()
+
+    self.__timestamp__ = None
 
     super().__init__( logname="orchestrator" )
 
@@ -421,6 +424,8 @@ class Orchestrator( jconfig.JSONConfig ):
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
 
     self.log( "Running actions..." )
+    start = datetime.datetime.now()
+    self.__timestamp__ = start.replace( microsecond=0 ).isoformat()
     while len( traversal_list ) > 0 or len( next_nodes ) > 0 or len( processed_nodes ) > 0:
       try:
         next_nodes.extend( self._dag.get_next_nodes( traversal_list ) )
@@ -562,6 +567,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
+    self.log( f"Finished in {datetime.datetime.now() - start}" )
     self.log( f"Save file at {self.save_file}" )
     self.save( action_set )
     self.log( f"JUnit file at {self.results_file}" )
