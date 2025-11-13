@@ -745,20 +745,29 @@ class Orchestrator( jconfig.JSONConfig ):
       node.set( "file", results["origins"][1] )
 
       state = sane.action.ActionState( results["state"] )
+      # Force skipped, incomplete
+      reason = None
+      if ( sane.action.ActionState.valid_run_state( state ) or state == sane.action.ActionState.INACTIVE ):
+        reason = f"Stopped in state '{state.value}'"
+        state  = sane.action.ActionState.SKIPPED
+
       # Not running and not inactive, done in some capacity
-      if not ( sane.action.ActionState.valid_run_state( state ) or state == sane.action.ActionState.INACTIVE ):
+      if state != sane.action.ActionState.SKIPPED:
         node.set( "time", results["time"] )
         total_time += float( results["time"] )
 
       if state == sane.action.ActionState.ERROR:
         err = xmltree.SubElement( node, "error" )
         errors += 1
-      elif state == sane.action.ActionState.SKIPPED:
-        skip = xmltree.SubElement( node, "skipped" )
-        skipped += 1
       elif sane.action.ActionStatus( results["status"] ) == sane.action.ActionStatus.FAILURE:
         fail = xmltree.SubElement( node, "failure" )
         failures += 1
+      elif state == sane.action.ActionState.SKIPPED:
+        skip = xmltree.SubElement( node, "skipped" )
+        if reason is None:
+          reason = "Requirements not met"
+        skip.set( "message", reason )
+        skipped += 1
 
       if len( results["origins"] ) > 2:
         props = xmltree.SubElement( node, "properties" )
