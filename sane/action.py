@@ -618,7 +618,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def run( self ):
-    self.push_logscope( "::run" )
+    self.push_logscope( "run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )

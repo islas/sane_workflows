@@ -15,7 +15,7 @@ if __name__ == "__main__":
   action_file       = sys.argv[2]
 
   action = sane.save_state.load( action_file )
-  action.push_logscope( "::launch" )
+  action.push_logscope( "launch" )
   action.log(  "*" * 15 + "{:^15}".format( "Inside action_launcher.py" ) + "*" * 15 )
   cwd = os.getcwd()
   action.log( f"Current directory: {cwd}")

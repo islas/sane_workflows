@@ -250,7 +250,7 @@ class Orchestrator( jconfig.JSONConfig ):
   def process_registered( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.push_logscope( "::register" )
+    self.push_logscope( "register" )
     keys = sorted( _registered_functions.keys(), reverse=True )
     for key in keys:
       for f in _registered_functions[key]:
@@ -260,7 +260,7 @@ class Orchestrator( jconfig.JSONConfig ):
   def process_patches( self ):
     # Higher number equals higher priority
     # this makes default registered generally go last
-    self.push_logscope( "::patch" )
+    self.push_logscope( "patch" )
     keys = sorted( self._patch_configs.keys(), reverse=True )
     for key in keys:
       for origin, patch in self._patch_configs[key].items():
