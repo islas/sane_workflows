@@ -681,7 +681,8 @@ class Orchestrator( jconfig.JSONConfig ):
                         "host" : self.current_host,
                         "save_location" : self.save_location,
                         "log_location" : self.log_location,
-                        "working_directory" : self.working_directory
+                        "working_directory" : self.working_directory,
+                        "resource_usage" : { self.__timestamp__ : { self.current_host : self.hosts[self.current_host].resource_log } }
                       }
     save_dict = jconfig.recursive_update( save_dict, save_dict_update )
     with open( self.save_file, "w" ) as f:
