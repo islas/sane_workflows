@@ -337,6 +337,13 @@ class PBSHost( HPCHost ):
                                                       )
       self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
 
+  @property
+  def resource_log( self ):
+    res_log = super().resource_log
+    for node_type, node_dict in self._resources.items():
+      res_log[node_type] = node_dict["total"].resource_log
+    return res_log
+
   def check_job_complete( self, job_id, retval, status ):
     if retval != 0:
       return False
@@ -461,14 +468,8 @@ class PBSHost( HPCHost ):
         nodes = specified_resource_dict.pop( "nodes", 0 )
         if nodes == 0:
           for resource in nodeset_resources:
-            available = total.resources_available(
-                                                  { resource : specified_resource_dict[resource] },
-                                                  requestor=requestor,
-                                                  log=False
-                                                  )
-            if available:
-              nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
-              nodes = max( nodes, math.ceil(nodes_for_res) )
+            nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
+            nodes = max( nodes, math.ceil(nodes_for_res) )
 
         if not total.resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
           total.log( "Not enough nodes", level=15 )
