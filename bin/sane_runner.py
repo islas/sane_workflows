@@ -292,8 +292,9 @@ def main():
   orchestrator.working_directory = options.working_dir
 
   # Load any previous statefulness
-  if not options.new:
-    orchestrator.load()
+  if options.new and os.path.exists( orchestrator.save_file ):
+    os.remove( orchestrator.save_file )
+  orchestrator.load()
 
   orchestrator.setup()
   success = True
