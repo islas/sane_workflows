@@ -106,11 +106,23 @@ def _dependency_met( dep_type, state, status, submit_ok ):
 
 
 class Action( state.SaveState, res.ResourceRequestor ):
+  """A single task
+
+  An Action is the singular unit within workflows that performs work. Actions
+  will always be in one of a finite set of states with an associated status.
+
+  * Actions can specify an Environment necessary to run
+  * Actions can specify resources necessry to run
+  * Actions can specify dependencies necessry to run
+  * Actions must have unique IDs within a workflow
+  * Actions will always execute under separate processes from the workflow Orchestrator
+  """
   CONFIG_TYPE = "Action"
   REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:\w+(?:\[\d+\])?\.)*\w+(?:\[\d+\])?)[ ]*}})" )
   IDX_RE = re.compile( r"(?P<attr>\w+)(?:\[(?P<idx>\d+)\])?" )
 
   def __init__( self, id ):
+    """Create Action with ID"""
     self._id = id
     self.config  = {}
     self.outputs = {}

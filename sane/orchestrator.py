@@ -55,9 +55,8 @@ def register( f, priority=0 ):
   return f
 
 
-def print_actions( action_list, n_per_line=4, print=print ):
+def print_actions( action_list, max_line=100, print=print ):
   longest_action = len( max( action_list, key=len ) )
-  max_line = 100
   n_per_line = int( max_line / longest_action )
 
   for i in range( 0, int( len( action_list ) / n_per_line ) + 1 ):
