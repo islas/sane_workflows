@@ -49,49 +49,45 @@ start of each of the above steps:
    :linenos:
    :emphasize-lines: 17, 21, 25, 34
 
-   sane_runner -p demo/ -a action_000 -r
-   2025-10-08 18:22:56 INFO     [sane_runner]        Logging output to /home/aislas/sane_workflows/log/runner.log
-   2025-10-08 18:22:56 INFO     [orchestrator]       Searching for workflow files...
-   2025-10-08 18:22:56 INFO     [orchestrator]         Searching demo/ for *.json
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/custom_def_usage.json
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/simple_action.json
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/resource_action.json
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/hpc_host.json
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/patches.json
-   2025-10-08 18:22:56 INFO     [orchestrator]         Searching demo/ for *.jsonc
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/simple_host.jsonc
-   2025-10-08 18:22:56 INFO     [orchestrator]         Searching demo/ for *.py
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/my_workflow.py
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/simple_host.py
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/actual_workflow.py
-   2025-10-08 18:22:56 INFO     [orchestrator]           Found demo/custom_defs.py
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading python file demo/my_workflow.py as 'my_workflow'
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading python file demo/simple_host.py as 'simple_host'
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading python file demo/actual_workflow.py as 'actual_workflow'
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading python file demo/custom_defs.py as 'custom_defs'
-   2025-10-08 18:22:56 INFO     [orchestrator::register] Creation of universe
-   2025-10-08 18:22:56 INFO     [orchestrator::register] Creation of world
-   2025-10-08 18:22:56 INFO     [orchestrator::register] Hello world from my_workflow
-   2025-10-08 18:22:56 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/custom_def_usage.json
-   2025-10-08 18:22:56 WARNING  [fib_seq_fixed]        Unused keys in config : ['unused_action_param']
-   2025-10-08 18:22:56 WARNING  [orchestrator]         Unused keys in config : ['unused_orch_param']
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/simple_action.json
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/resource_action.json
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/hpc_host.json
-   2025-10-08 18:22:56 INFO     [example_pbs]          Adding homogeneous node resources for 'cpu'
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/patches.json
-   2025-10-08 18:22:56 INFO     [orchestrator]       Loading config file demo/simple_host.jsonc
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch to Host 'unique_host_config'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch to Action 'fib_seq_fixed'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch to Action 'fib_seq_calc_mult'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_090'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_091'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_092'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_093'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_094'
-   2025-10-08 18:22:56 INFO     [orchestrator::patch] Applying patch filter to Action 'action_095'
-   2025-10-08 18:22:56 WARNING  [orchestrator::patch] Unused keys in patch : ['unused_patch_param']
+    sane_runner -p demo/ -a action_000 -r
+    2025-11-18 12:36:19 INFO     [sane_runner]            Logging output to /home/aislas/frameflow/log/runner.log
+    2025-11-18 12:36:19 INFO     [orchestrator]           Searching for workflow files...
+    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.json
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/custom_def_usage.json
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_action.json
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/hpc_host.json
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/patches.json
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/resource_action.json
+    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.jsonc
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_host.jsonc
+    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.py
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/my_workflow.py
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_host.py
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/actual_workflow.py
+    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/custom_defs.py
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/my_workflow.py as 'my_workflow'
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/simple_host.py as 'simple_host'
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/actual_workflow.py as 'actual_workflow'
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/custom_defs.py as 'custom_defs'
+    2025-11-18 12:36:19 INFO     [orchestrator::register] Creation of universe
+    2025-11-18 12:36:19 INFO     [orchestrator::register] Creation of world
+    2025-11-18 12:36:19 INFO     [orchestrator::register] Hello world from my_workflow
+    2025-11-18 12:36:19 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
+    2025-11-18 12:36:19 WARNING  [fib_seq_fixed]            Unused keys in config : ['unused_action_param']
+    2025-11-18 12:36:19 WARNING  [orchestrator]             Unused keys in config : ['unused_orch_param']
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/simple_action.json
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/hpc_host.json
+    2025-11-18 12:36:19 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/patches.json
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/resource_action.json
+    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/simple_host.jsonc
+    2025-11-18 12:36:19 INFO     [orchestrator::patch]    Processing patches from demo/patches.json
+    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Host 'unique_host_config'
+    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_fixed'
+    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_calc_mult'
+    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch filter 'action_09[0-5]' to [6] Actions
+    2025-11-18 12:36:19 WARNING  [orchestrator::patch]      Unused keys in patch : ['unused_patch_param']
 
 
 Selecting Actions
