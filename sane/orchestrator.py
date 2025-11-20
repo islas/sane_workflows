@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List, Dict, Callable
 import functools
 import importlib.util
 import json
@@ -29,12 +29,12 @@ _registered_functions = {}
 
 # https://stackoverflow.com/a/14412901
 def callable_decorator( f ):
-  '''
+  """
   a decorator decorator, allowing the decorator to be used as:
   @decorator(with, arguments, and=kwargs)
   or
   @decorator
-  '''
+  """
   @functools.wraps( f )
   def insitu_decorator( *args, **kwargs ):
     if len( args ) == 1 and len( kwargs ) == 0 and callable( args[0] ):
@@ -45,14 +45,6 @@ def callable_decorator( f ):
       return lambda realf: f( realf, *args, **kwargs )
 
   return insitu_decorator
-
-
-@callable_decorator
-def register( f, priority=0 ):
-  if priority not in _registered_functions:
-    _registered_functions[priority] = []
-  _registered_functions[priority].append( f )
-  return f
 
 
 def print_actions( action_list, max_line=100, print=print ):
@@ -81,6 +73,17 @@ class JSONCDecoder( json.JSONDecoder ):
 
 
 class Orchestrator( jconfig.JSONConfig ):
+  """Workflow controller containing all hosts and actions
+
+  The Orchestrator serves as the main entry point for constructing, managing,
+  and executing workflows. It uses a simple DAG (using Action IDs) to orchestrate
+  action scheduling.
+
+  The Orchestrator is also responsible for any intercommunication between hosts and actions,
+  as both actions and hosts are (generally) unaware of each other. Additionally, the Orchestrator
+  catalogues cummulative workflow runs to provide a final state of all actions, caching results
+  between runs if not cleared.
+  """
   def __init__( self ):
     self.actions = utdict.UniqueTypedDict( sane.action.Action )
     self.hosts   = utdict.UniqueTypedDict( sane.host.Host )
@@ -97,7 +100,9 @@ class Orchestrator( jconfig.JSONConfig ):
     self._working_directory = "./"
     self._patch_configs = {}
 
+    #: Paths to search for workflow files
     self.search_paths    = []
+    #: Python re string patterns to use on found files, if matched process the file
     self.search_patterns = []
 
     self.__searched__ = False
@@ -109,53 +114,90 @@ class Orchestrator( jconfig.JSONConfig ):
     super().__init__( logname="orchestrator" )
 
   @property
-  def working_directory( self ):
+  def working_directory( self ) -> str:
+    """The directory from which all paths and commands are evaluated from
+    """
     return os.path.abspath( self._working_directory )
 
   @working_directory.setter
-  def working_directory( self, path ):
+  def working_directory( self, path ) -> None:
     self._working_directory = path
     os.chdir( self._working_directory )
 
   @property
-  def save_location( self ):
+  def save_location( self ) -> str:
+    """The directory used for saving any intermediary SaveState or workflow cache
+
+    The provided path does not need to exist yet, but must exist in a location the user
+    of the workflow has adequate permissions.
+    """
     return os.path.abspath( self._save_location )
 
   @save_location.setter
-  def save_location( self, path ):
+  def save_location( self, path ) -> None:
     self._save_location = path
 
   @property
-  def log_location( self ):
+  def log_location( self ) -> str:
+    """The directory used for saving out any workflow log output and final results
+
+    The provided path does not need to exist yet, but must exist in a location the user
+    of the workflow has adequate permissions.
+    """
     return os.path.abspath( self._log_location )
 
   @log_location.setter
-  def log_location( self, path ):
+  def log_location( self, path ) -> None:
     self._log_location = path
 
   @property
-  def save_file( self ):
+  def save_file( self ) -> str:
+    """Absolute path to workflow cache save file, cannot be set"""
     return os.path.abspath( f"{self.save_location}/{self._filename}" )
 
   @property
-  def results_file( self ):
+  def results_file( self ) -> str:
+    """Absolute path to final workflow results file, cannot be set"""
     return os.path.abspath( f"{self.log_location}/results.xml" )
 
-  def add_action( self, action ):
+  def add_action( self, action : sane.action.Action ) -> None:
+    """Adds an action to :py:attr:`actions`, using the :py:attr:`action.id <Action.id>` as the key"""
     self.actions[action.id] = action
 
-  def add_host( self, host ):
+  def add_host( self, host : sane.host.Host ) -> None:
+    """Adds a host to :py:attr:`hosts`, using the :py:attr:`host.name <Host.name>` as the key"""
     self.hosts[host.name] = host
 
   @property
-  def current_host( self ):
+  def current_host( self ) -> str:
+    """Returns the current host name (key for :py:attr:`hosts`) for this current workflow run
+    
+    This value is only valid after :py:meth:`find_host()` has been called. For normal users,
+    this would be valid during :py:meth:`run_actions()`.
+    """
     return self._current_host
 
-  def traversal_list( self, action_id_list ):
+  def traversal_list( self, action_id_list : List[str] ) -> Dict[str, int]:
+    """Constructs the internal DAG and returns a traversal order consisting of { id : number of dependencies }
+
+    The traversal is a transitive reduction of the subgraph of the graph of :py:attr:`actions`,
+    with connectivity informed by :py:attr:`Action.dependencies`, consisting of all actions with
+    :py:attr:`ids <Action.id>` listed in `action_id_list` and any dependencies necessary to complete
+    the subgraph. The returned traversal can then be used to walk through the transitive reduction
+    by extracting all ids that are zero, updating the traversal to reduce any remaining ids' dependency
+    count by one for each respective id removed, and repeating the process. This is facilitated
+    internally via :py:class:`DAG`
+
+    :param action_id_list: A list of :py:attr:`Action.id` to traverse to
+    :return:               A dict of { :py:attr:`Action.id` : ``number of dependencies`` }
+    """
     self.construct_dag()
     return self._dag.traversal_list( action_id_list )
 
-  def construct_dag( self ):
+  def construct_dag( self ) -> None:
+    """Constructs an internal DAG using :py:attr:`Action.id` from :py:attr:`actions`
+    as nodes and graph edges from :py:attr:`Action.dependencies`
+    """
     self._dag.clear()
 
     for id, action in self.actions.items():
@@ -169,7 +211,7 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( msg, level=50 )
       raise Exception( msg )
 
-  def print_actions( self, action_id_list, visualize=False ):
+  def print_actions( self, action_id_list : List[str], visualize : bool = False ):
     print_actions( action_id_list, print=self.log )
     if visualize:
       output = dagvis.visualize( self._dag, action_id_list )
@@ -180,7 +222,8 @@ class Orchestrator( jconfig.JSONConfig ):
         self.log( line )
       self.log_pop()
 
-  def add_search_paths( self, search_paths ):
+  def add_search_paths( self, search_paths : List[str] ) -> None:
+    """Add a series of paths to search for workflow files. Cannot be used after :py:meth:`load_paths()` has been called"""
     if self.__searched__:
       self.log( "Paths already searched, adding paths later not supported", level=30 )
       return
@@ -191,7 +234,8 @@ class Orchestrator( jconfig.JSONConfig ):
       else:
         self.search_paths.append( search_path )
 
-  def add_search_patterns( self, search_patterns ):
+  def add_search_patterns( self, search_patterns : List[str] ) -> None:
+    """Add a series of Python re strings as filters for finding workflow files. Cannot be used after :py:meth:`load_paths()` has been called"""
     if self.__searched__:
       self.log( "Paths already searched, adding paths later not supported", level=30 )
       return
@@ -202,7 +246,20 @@ class Orchestrator( jconfig.JSONConfig ):
       else:
         self.search_patterns.append( search_pattern )
 
-  def load_paths( self ):
+  def load_paths( self ) -> None:
+    """Load workflow definitions from current search paths and filters
+
+    This is the primary load call after all necessary paths and filters have been set.
+    The order of operations is as follows:
+
+    1. Add all search paths to ``sys.path``
+    2. All valid files matching at least one search filter across all paths are gathered.
+    3. Files are sorted based on file extension into ``.py`` and ``.json[c]``
+    4. All ``.py`` files are loaded via :py:meth:`load_py_files()`
+    5. All registered calls (via :py:func:`@sane.register <sane.register>`) are invoked in priority order via :py:meth:`process_registered()`
+    6. All ``.json[c]`` files are then loaded via :py:meth:`load_config_files()` (``.json`` first, then ``.jsonc``)
+    7. All patches are processed in priority order via :py:meth:`process_patches()`
+    """
     if self.__searched__:
       self.log( f"Already searched and loaded", level=30 )
       return
@@ -246,7 +303,13 @@ class Orchestrator( jconfig.JSONConfig ):
     self.process_patches()
     self.__searched__ = True
 
-  def process_registered( self ):
+  def process_registered( self ) -> None:
+    """Process functions registered via :py:func:`@sane.register <sane.register>` in priority order
+    
+    All registered functions are called in descending priority order (highest
+    priority first), with equal priority resolved based on order of registration.
+    The functions are called with this :py:class:`Orchestrator` instance as the single argument
+    """
     # Higher number equals higher priority
     # this makes default registered generally go last
     self.push_logscope( "register" )
@@ -256,7 +319,43 @@ class Orchestrator( jconfig.JSONConfig ):
         f( self )
     self.pop_logscope()
 
-  def process_patches( self ):
+  def process_patches( self ) -> None:
+    """Process JSON patches in priority order
+
+    All patches are processed in descending priority order (highest priority first),
+    with equal priority left in an undefined order. Following the processing order
+    of :py:meth:`load_core_config()`, any patch for :py:class:`sane.Host` is processed
+    first, then :py:class:`sane.Action`.
+
+    Patches are applied, for a respective attribute (:py:attr:`hosts` or :py:attr:`actions`),
+    either by finding a matching key in the attribute or if a patch filter for all matching keys.
+    If no key(s) are found, the patch is not applied.
+
+    When referencing an object to be patched, it must use the key for the respective attribute
+    it is in. For hosts, it should be the :py:attr:`Host.name` used as a key in :py:attr:`hosts`,
+    and for actions it should be the :py:attr:`Action.id` used as a key in :py:attr:`actions`.
+
+    When referencing objects to be patched via a filter, use a Python re regex wrapped in ``[]``.
+
+    As an example of a valid patch:
+
+    .. code-block:: python
+
+        {
+          "hosts" :
+          {
+            "simple_host" : { ...things to patch... }
+          }
+          "actions" :
+          {
+            "[action_00[0-5]]" : { ...things to patch for maybe 5 actions... }
+          }
+        }
+
+    ``[action_00[0-5]]`` is a patch filter with ``action_00[0-5]`` as the match regex.
+
+    Regardless of the patch applied or not, the effects are logged.
+    """
     # Higher number equals higher priority
     # this makes default registered generally go last
     self.push_logscope( "patch" )
@@ -290,7 +389,15 @@ class Orchestrator( jconfig.JSONConfig ):
 
     self.pop_logscope()
 
-  def find_host( self, as_host ):
+  def find_host( self, as_host : str ):
+    """Finds the host to use for this workflow run
+
+    Cycle through all :py:class:`Host` in :py:attr:`hosts` and check via :py:meth:`Host.valid_host()`
+    stopping on the first host that is valid. This then sets :py:attr:`current_host`.
+
+    :param as_host: The preferred host name or alias to use when checking validity. If
+                    set to ``None``, a default will be used (see :py:meth:`Host.valid_host()`)
+    """
     for host_name, host in self.hosts.items():
       self.log( f"Checking host \"{host_name}\"" )
       if host.valid_host( as_host ):
@@ -367,7 +474,14 @@ class Orchestrator( jconfig.JSONConfig ):
         self.log( msg, level=50 )
         raise KeyError( msg )
 
-  def run_actions( self, action_id_list, as_host=None, skip_unrunnable=True, visualize=False ):
+  def run_actions( self, action_id_list : List[str], as_host : str = None, continue_on_err : bool = True, visualize : bool = False ):
+    """Run the workflow for the provided action id list and any dependencies
+
+    :param action_id_list:  A list of specifically requested ids from :py:attr:`actions` to run.
+    :param as_host:         The preferred host name or alias to run as, if provided.
+    :param continue_on_err: Continue workflow evaluation as best as possible even if an :py:class:`Action` encounters an error.
+    :param visualize:       Print out a CLI-friendly rendition of the dependency graph of actions to be run.
+    """
     # Setup does not take that long so make sure it is always run
     self.setup()
     self.check_action_id_list( action_id_list )
@@ -493,7 +607,7 @@ class Orchestrator( jconfig.JSONConfig ):
             else:
               self.log(
                         f"Unable to run Action '{node}', requirements not met",
-                        level=40 - int(skip_unrunnable) * 10
+                        level=40 - int(continue_on_err) * 10
                         )
               next_nodes.remove( node )
               processed_nodes.append( node )
@@ -537,7 +651,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
         run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
         if ( self.actions[node].state == sane.action.ActionState.FINISHED
-           or ( skip_unrunnable and not run_state ) ):
+           or ( continue_on_err and not run_state ) ):
           msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
           msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
           self.log( msg )
@@ -574,7 +688,65 @@ class Orchestrator( jconfig.JSONConfig ):
     self.save_junit()
     return status
 
-  def load_py_files( self, files, parent=None ):
+  def load_py_files( self, files : List[str] ):
+    """Load the provided list of python files as modules dynamically
+
+    Files are evaluated relative to the first path that yields this file from the
+    set of search paths added via :py:meth:`add_search_paths()`. 
+
+    An effective module name is generated from the relative path to the file from
+    the respective path. This module name is then dynamically imported using
+    ``importlib.import_module()``, relying on the fact that :py:meth:`load_paths()`
+    has added the search paths to ``sys.path``.
+
+    .. important::
+        For workflows that use Python files with helper functions, classes, etc. in
+        files separate from where a :py:func:`@sane.register <sane.register>` occurs
+        this means that the **provided search paths for this workflow** can be treated
+        as top-level searchable directories within your workflow's Python code.
+
+        For instance consider the following layout:
+
+        .. code::
+
+            project/
+            ├── .sane
+            │   ├── helpers
+            │   │   ├── custom_action.py
+            │   │   └── custom_host.py
+            │   └── tests
+            │       └── workflow_a.py
+            └── src
+
+        | The workflow may be invoked using:
+        | ``sane_runner -p .sane -a my_action -r``
+
+        Where ``my_action`` is defined in ``.sane/tests/workflow_a.py``:
+
+        .. code-block:: python
+
+            import sane
+            import helpers.custom_action  #< Relative to .sane 
+
+            @sane.register
+            def workflow_a( orch ):
+              orch.add_action( helpers.custom_action.MyAction( "a" ) )
+
+        And ``helpers.custom_action.MyAction`` is defined in ``.sane/helpers/custom_action.py``:
+
+        .. code-block:: python
+
+            import sane
+
+            class MyAction( sane.Action ):
+              def __init__( self, id ):
+                super().__init__( id )
+              # ... implementation ...
+
+        Since ``.sane`` is provided as a search path (and thus added to ``sys.path``),
+        we can treat the ``import`` of other modules within our search path as relative to it.
+
+    """
     for file in files:
       if not isinstance( file, pathlib.Path ):
         path_file = pathlib.Path( file ).relative_to( self.working_directory )
@@ -600,7 +772,12 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log( f"Loading python file {file} as '{module_name}'" )
       uspace.user_modules[module_name] = importlib.import_module( module_name )
 
-  def load_config_files( self, files ):
+  def load_config_files( self, files : List[str] ):
+    """Load the provided list of files as JSON files (JSON with ``//``-style comments allowed)
+    and call :py:meth:`load_config()` for each.
+
+    See :py:meth:`load_core_config` for class-specific load implementation.
+    """
     for file in files:
       self.log( f"Loading config file {file}")
       if not isinstance( file, pathlib.Path ):
@@ -612,7 +789,68 @@ class Orchestrator( jconfig.JSONConfig ):
         self.load_config( config, file )
         self.log_pop()
 
-  def load_core_config( self, config, origin ):
+  def load_core_config( self, config : Dict[str,object], origin : str ):
+    """Load the provided config dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
+
+    Following the convention of :py:meth:`JSONConfig.load_core_config`, any processed field
+    is removed from the ``config`` dict, and everything else is ignored.
+
+    Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
+
+    .. code-block:: python
+
+        {
+          "hosts" :
+          {
+            "<host-name>" : { "type" : "<some_host_type>, ...host config... },
+            ...other host declarations...
+          },
+          "actions" :
+          {
+            "<action-id>" : { "type" : "<some_action_type>, ...action config... },
+            ...other action declarations...
+          }
+          "patches" :
+          {
+            "priority" : int,
+            "hosts"   : ...same as above *except* "type"...
+            "actions" : ...same as above *except* "type"...
+          }
+        }
+
+    The ``"hosts"`` key is processed first, iterating over each ``"<host-name>"`` and its dict.
+    Inside of this respective ``"<host-name>"`` dict, the ``"type"`` field informs
+    which type of :py:class:`Host` to create. If no ``"type"`` is specified, the
+    default is :py:class:`Host`.
+
+    Once the host instance is created, its respective dict is loaded via its own
+    :py:meth:`Host.load_config`. Then the created host is added to with :py:meth:`add_host`
+
+    Next, the ``"actions"`` key is processed in a similar fashion, except the default
+    ``"type"`` is :py:class:`Action` and added via :py:meth:`add_action`
+
+    .. hint::
+        See :py:meth:`search_type` for more info on how the ``"type"`` field should be specified.
+
+    Finally, the ``"patches"`` key is processed. A default priority of ``0`` is used
+    if no priority is specified. Everything in the ``"patches"`` dict (except the ``"priority"``)
+    is saved for later use in :py:meth:`process_patches()` in an internal patch
+    priority queue. The content of this can generally be the same as when declaring
+    ``"hosts"`` or ``"actions"``, with limitations left the type's implementation of
+    loading the config for which the patch would be applied to (e.g. a derived ``Action``
+    may allow more or less fields in its ``load_config``/``load_core_config``/``load_extra_config``).
+    Each entry should correspond to an existing object in the workflow found in
+    :py:attr:`hosts` or :py:attr:`actions` - objects to be patched do not `need` to
+    be created via JSON config file.
+
+    .. hint::
+        See :py:meth:`process_patches()` for advanced usage of patching objects, including using patch filters.
+
+    .. note::
+        ``"type"`` is not a valid field in any of the ``"patches"`` sub-dicts as the config
+        will be applied to existing object instances and ``"type"`` is only used for
+        initial creation of objects in this method.
+    """
     hosts = config.pop( "hosts", {} )
     for id, host_config in hosts.items():
       host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
@@ -782,3 +1020,49 @@ class Orchestrator( jconfig.JSONConfig ):
     results_str = xml.dom.minidom.parseString( xmltree.tostring( root ) ).toprettyxml( indent="  " )
     with open( self.results_file, "w" ) as f:
       f.write( results_str )
+
+
+@callable_decorator
+def register( f : Callable[[Orchestrator], None], priority : int = 0 ):
+  """Adds a Python callable to the list of registered functions in :py:mod:`sane`
+
+  Any callable Python object which accepts :py:class:`Orchestrator` as the first positional
+  argument may be registered. This is the primary way to have :py:mod:`sane` directly call
+  Python code within a workflow. The aggregate list will then be invoked by an :py:class:`Orchestrator`
+  instance.
+
+  A priority can optionally be associated with this registration, corresponding to
+  precedence in invocations. Priorities are handled in descending order, i.e. highest priority first.
+  Equal priorities are evaluated in order of registration order.
+
+  See :py:meth:`Orchestrator.process_registered()` for more info.
+
+  The decorator may be called with no priority, in which case the default is ``0``.
+
+  Example:
+
+  .. code-block:: python
+
+      import sane
+
+      @sane.register
+      def last( orch ):
+        # defaul priority is 0
+        pass
+
+      @sane.register( priority=5 )
+      def second( orch )
+        pass
+
+      @sane.register( 99 )
+      def first( orch ):
+        pass
+
+  :param f: Callable to register for future use when an :py:class:`Orchestrator` instance
+            loads the workflow. The calling instance will pass itself as the single positional
+            argument to the registered callable.
+  """
+  if priority not in _registered_functions:
+    _registered_functions[priority] = []
+  _registered_functions[priority].append( f )
+  return f
