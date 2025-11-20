@@ -9,4 +9,3 @@ Reference
    cli
    json
    api
-   internal
