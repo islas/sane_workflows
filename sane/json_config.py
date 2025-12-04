@@ -64,17 +64,61 @@ class JSONConfig( logger.Logger ):
     if len( unused ) > 0:
       self.log( f"Unused keys in config : {unused}", level=30 )
 
-  def load_core_config( self, config : dict, origin : str=None ):
+  def load_core_config( self, config : dict, origin : str = None ):
+    """
+    Any processed field should be removed from the ``config`` dict, with
+    everything else ignored.
+
+    See :py:meth:`load_config` for parameters.
+    """
     pass
 
-  def load_extra_config( self, config : dict, origin : str=None ):
+  def load_extra_config( self, config : dict, origin : str = None ):
+    """Load any extra config options after :py:meth:`load_core_config`.
+
+    Any processed field should be removed from the ``config`` dict, with
+    everything else ignored.
+
+    See :py:meth:`load_config` for parameters.
+    """
     pass
 
   @property
   def origins( self ):
+    """A copy of all the workflow file paths (and line numbers if applicable) that formed this object"""
     return self.__origin__.copy()
 
   def search_type( self, type_str : str, noexcept=False ):
+    """Match a type (as an input string) to an actualy python :external:py:class:`type`
+
+    If at any point a search is successful, the function immediately returns the
+    found :external:py:class:`type`.
+
+    Search priority:
+
+    1. ``type_str`` using :external:py:mod:`pydoc` ``locate()`` (effectively search
+       current context for fully qualified type name)
+    2. Split ``type_str`` on last ``.`` in name and search any user-loaded module
+       that contains the prefix for an attribute matching the suffix. If no split
+       occurs all user modules are searched.
+
+    Valid type examples:
+
+    .. code-block:: python
+
+        import sane
+        import user_mod.nested.foo # module foo has CustomType
+
+        # ... in the context of this class ...
+        self.search_type( "sane.Action" )
+        self.search_type( "sane.host.Host" )
+        self.search_type( "user_mod.nested.foo.CustomType" )
+        # Using search method (2) if foo was loaded into the user modules by the workflow
+        # since "foo" is a substring of "user_mod.nested.foo"
+        self.search_type( "foo.CustomType" )
+    
+    :return: :external:py:class:`type` corresponding to the ``type_str``
+    """
     tinfo = pydoc.locate( type_str )
     if tinfo is not None:
       return tinfo

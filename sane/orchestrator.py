@@ -22,7 +22,7 @@ import sane.hpc_host
 import sane.json_config as jconfig
 import sane.user_space as uspace
 import sane.utdict as utdict
-
+from sane.helpers import copydoc
 
 _registered_functions = {}
 
@@ -65,7 +65,7 @@ class JSONCDecoder( json.JSONDecoder ):
   def __init__( self, **kw ) :
     super().__init__( **kw )
 
-  def decode( self, s : str ) -> Any :
+  def decode( self, s : str ):
     # Sanitize the input string for leading // comments ONLY and replace with
     # blank line so that line numbers are preserved
     s = '\n'.join( line if not line.lstrip().startswith( "//" ) else "" for line in s.split( '\n' ) )
@@ -189,7 +189,9 @@ class Orchestrator( jconfig.JSONConfig ):
     internally via :py:class:`DAG`
 
     :param action_id_list: A list of :py:attr:`Action.id` to traverse to
+    :type  action_id_list: list[str]
     :return:               A dict of { :py:attr:`Action.id` : ``number of dependencies`` }
+    :rtype:                dict[str, int]
     """
     self.construct_dag()
     return self._dag.traversal_list( action_id_list )
@@ -212,6 +214,10 @@ class Orchestrator( jconfig.JSONConfig ):
       raise Exception( msg )
 
   def print_actions( self, action_id_list : List[str], visualize : bool = False ):
+    """Print all listed actions neatly and optionally visualize the DAG connectivity
+
+    :param list[str] action_id_list: A list of :py:attr:`Action.id` to print
+    """
     print_actions( action_id_list, print=self.log )
     if visualize:
       output = dagvis.visualize( self._dag, action_id_list )
@@ -223,7 +229,10 @@ class Orchestrator( jconfig.JSONConfig ):
       self.log_pop()
 
   def add_search_paths( self, search_paths : List[str] ) -> None:
-    """Add a series of paths to search for workflow files. Cannot be used after :py:meth:`load_paths()` has been called"""
+    """Add a series of paths to search for workflow files. Cannot be used after :py:meth:`load_paths()` has been called
+    
+    :param list[str] search_paths: Paths to add to workflow search and later :py:attr:`sys.path`
+    """
     if self.__searched__:
       self.log( "Paths already searched, adding paths later not supported", level=30 )
       return
@@ -235,7 +244,11 @@ class Orchestrator( jconfig.JSONConfig ):
         self.search_paths.append( search_path )
 
   def add_search_patterns( self, search_patterns : List[str] ) -> None:
-    """Add a series of Python re strings as filters for finding workflow files. Cannot be used after :py:meth:`load_paths()` has been called"""
+    """Add a series of Python re strings as filters for finding workflow files. Cannot be used after :py:meth:`load_paths()` has been called
+    
+    :param list[str] search_pattern: regular expressions to filter filenames for
+                                     when searching for workflow files
+    """
     if self.__searched__:
       self.log( "Paths already searched, adding paths later not supported", level=30 )
       return
@@ -441,7 +454,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( f"Checking resource availability..." )
     host.log_push()
     for node in traversal_list:
-      can_run = host.resources_available( self.actions[node].resources( host.name ), requestor=self.actions[node] )
+      can_run = host.resources_available( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
@@ -457,7 +470,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log_pop()
     host.log_pop()
     self.log( "* " * 50 )
-    self.log( "* " * 10 + "{0:^60}".format( f" All prerun checks for '{host.name}' passed " ) + "* " * 10 )
+    self.log( "* " * 10 + "{0:^60}".format( f" All prerun checks for '{self.current_host}' passed " ) + "* " * 10 )
     self.log( "* " * 50 )
 
   def setup( self ):
@@ -533,7 +546,7 @@ class Orchestrator( jconfig.JSONConfig ):
     host_watchdog   = host.watchdog_func
     host_wd_results = None
     if host_watchdog is not None:
-      self.log( f"Launching Host '{host.name}' watchdog function" )
+      self.log( f"Launching Host '{self.current_host}' watchdog function" )
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
 
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
@@ -563,7 +576,7 @@ class Orchestrator( jconfig.JSONConfig ):
               resources_available = False
               with self.__run_lock__:  # protect logs
                 resources_available = host.acquire_resources(
-                                                              self.actions[node].resources( host.name ),
+                                                              self.actions[node].resources( self.current_host ),
                                                               requestor=self.actions[node]
                                                               )
               if resources_available:
@@ -584,7 +597,7 @@ class Orchestrator( jconfig.JSONConfig ):
                 with self.__run_lock__:  # protect logs
                   launch_wrapper = host.launch_wrapper( self.actions[node], dependencies )
 
-                self.log( f"Running '{node}' on '{host.name}'" )
+                self.log( f"Running '{node}' on '{self.current_host}'" )
                 with self.__run_lock__:
                   host.pre_launch( self.actions[node] )
                 self.log_flush()
@@ -612,7 +625,7 @@ class Orchestrator( jconfig.JSONConfig ):
               next_nodes.remove( node )
               processed_nodes.append( node )
               # Force evaluation and set to no longer run
-              self.actions[node].set_status_skipped()
+              self.actions[node].set_state_skipped()
               self.__wake__.set()
           elif self.actions[node].state != sane.action.ActionState.RUNNING:
             msg  = "Action {0:<24} already has {{state, status}} ".format( f"'{node}'" )
@@ -640,7 +653,7 @@ class Orchestrator( jconfig.JSONConfig ):
             retval, content = results[node].result()
             host.post_launch( self.actions[node], retval, content )
             # Regardless, return resources
-            host.release_resources( self.actions[node].resources( host.name ), requestor=self.actions[node] )
+            host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
             del results[node]
           except Exception as e:
             host.kill_watchdog = True
@@ -789,11 +802,9 @@ class Orchestrator( jconfig.JSONConfig ):
         self.load_config( config, file )
         self.log_pop()
 
+  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
   def load_core_config( self, config : Dict[str,object], origin : str ):
     """Load the provided config dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
-
-    Following the convention of :py:meth:`JSONConfig.load_core_config`, any processed field
-    is removed from the ``config`` dict, and everything else is ignored.
 
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 

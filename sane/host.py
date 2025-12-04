@@ -128,6 +128,18 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
   @property
   def info( self ):
+    """:py:class:`Host` info provided as a ``dict`` to the :py:class:`Action`
+    at runtime via :py:attr:`Action.host_info`
+
+    The default implementation provides the following:
+
+    .. parsed-literal::
+        {
+          "file"   : :py:attr:`save_file`,
+          "name"   : :py:attr:`name`,
+          "config" : :py:attr:`config`,
+        }
+    """
     info = {}
     info["file"] = self.save_file
     info["name"] = self.name
