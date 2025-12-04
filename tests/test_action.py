@@ -180,8 +180,9 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "${{ local }}",
                   "foobar" : "${noop}",
-                  "zoo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
-                }
+                  "moo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
+                },
+                "boo" : "${{ config.two[0] }}"
               }
     exp_dict = {
                 "foo" : "test",
@@ -190,8 +191,9 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "True",
                   "foobar" : "${noop}",
-                  "zoo" : [ "./", "1", "999" ]
-                }
+                  "moo" : [ "./", "1", "999" ]
+                },
+                "boo" : "2"
               }
     out_dict = self.action.dereference( ref_dict )
     self.assertEqual( exp_dict, out_dict )
