@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from .action import Action, DependencyType, ActionState
+from .action import Action, DependencyType, ActionState, ActionStatus
 from .environment import Environment
 from .host import Host
 from .hpc_host import HPCHost, PBSHost
