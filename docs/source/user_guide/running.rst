@@ -103,7 +103,7 @@ The ``--actions`` option allows explicitly listing a series of actions, space-de
 
    sane_runner -p demo -a action_000 action_001 ... action_099
 
-The ``--filter`` option allows a single Python `re`_ regular expression (regex) filter to be used to select which actions
+The ``--filter`` option allows a single Python :py:mod:`re` regular expression (regex) filter to be used to select which actions
 to be executed. There are no extra flags added to this regex (i.e. no case insensitive ``re.I``) and actions are included
 if ``re.match( filter, action.id )`` is not ``None``.
 .. code::
@@ -263,8 +263,3 @@ Where the ``sane.workflow.virtual_relaunch`` job will run ``sane_runner -p demo 
 
 The benefit of this relaunch system, aside from the aggregation of actions, is that it allows us to generally group actions
 but allow the host to inform us how that aggregation will look based on the resources specific to the host.
-
-.. _source repo:   https://github.com/islas/sane_workflows
-.. _demo folder:   https://github.com/islas/sane_workflows/tree/main/demo
-.. _re:            https://docs.python.org/3/library/re.html
-.. _logging level: https://docs.python.org/3/library/logging.html#logging-levels
