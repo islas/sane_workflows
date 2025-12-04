@@ -133,7 +133,7 @@ additional fields may be provided in the config.
 
 By default, you may utilize _action_ attributes inside of the generic `"config" : {}`
 dictionary field. The attributes are automatically scoped to the current _action_
-and are accessed via YAML-like dereferencing (`${{}}`):
+and are accessed via GitHub Actions style dereferencing (`${{}}`):
 ```jsonc
 // ... previous config
   "actions" :
