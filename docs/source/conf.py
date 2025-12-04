@@ -23,19 +23,48 @@ extensions = [
               "sphinx.ext.autodoc",
               "sphinx.ext.autosummary",
               "sphinx.ext.linkcode",
+              "sphinx.ext.intersphinx",
               "myst_parser"
               ]
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns = [ "links.rst" ]
 
 autodoc_class_signature = "separated"
+autodoc_typehints = "description"
+
+autodoc_type_aliases = {
+    "Actions": "Action",
+    "Resources": "Resource",
+    "AcquirableResources": "AcquirableResource",
+    "ResourceRequestors": "ResourceRequestor",
+    "ResourceProviders": "ResourceProvider",
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_theme_options = {
+                      "prev_next_buttons_location": "bottom",
+                      "style_external_links": True,
+                      # Toc options
+                      "collapse_navigation": False,
+                      "sticky_navigation": True,
+                      "navigation_depth": 4,
+                      "includehidden": True,
+                      "titles_only": False
+                      }
+# Pull in types and links from elsewhere
+intersphinx_mapping = {
+                        "python" : ( "https://docs.python.org/3/", None )
+                      }
+
+# Add global links
+rst_epilog = ""
+with open( "links.rst" ) as f:
+  rst_epilog += f.read()
 
 # Excellent solution from
 # https://github.com/readthedocs/sphinx-autoapi/issues/202#issuecomment-907582382
