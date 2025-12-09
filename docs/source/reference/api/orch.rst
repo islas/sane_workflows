@@ -9,12 +9,13 @@ Orchestrator
       :show-inheritance:
       :special-members:
 
+      .. _orch.ui:
+
       User Interface
       --------------
 
       User Methods
       ^^^^^^^^^^^^
-      .. automethod:: __init__
       .. automethod:: add_action
       .. automethod:: add_host
 
@@ -38,14 +39,17 @@ Orchestrator
 
       .. autoproperty:: save_location
       .. autoproperty:: log_location
-      .. autoproperty:: save_file
-      .. autoproperty:: results_file
-      .. autoproperty:: current_host
       .. autoproperty:: working_directory
 
       Internal API
       ------------
       While not to be invoked by the user, these functions may be useful reference.
+
+      .. automethod:: __init__
+
+      .. autoproperty:: current_host
+      .. autoproperty:: save_file
+      .. autoproperty:: results_file
 
       .. automethod:: run_actions
       .. automethod:: load_paths

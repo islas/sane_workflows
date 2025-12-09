@@ -23,6 +23,8 @@ Action
       :show-inheritance:
       :special-members:
 
+      .. _action.ui:
+
       User Interface
       --------------
 

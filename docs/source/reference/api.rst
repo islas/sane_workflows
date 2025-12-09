@@ -8,5 +8,7 @@ API
 
    api/orch.rst
    api/action.rst
+   api/host.rst
+   api/env.rst
    api/resources.rst
 
