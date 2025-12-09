@@ -282,7 +282,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                 "state" : self.state.value,
                 "status" : self.status.value,
                 "origins" : self.origins,
-                "outputs" : self.dereference( self.outputs, log=False )
+                "outputs" : self.dereference( self.outputs, log=False, noexcept=True )
                 }
     if self.state == ActionState.FINISHED:
       results["timestamp"] = self.__timestamp__
@@ -316,7 +316,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
           "outputs" : :py:attr:`outputs`
         }
     """
-    return self.dereference( { "config" : self.config, "outputs" : self.outputs }, log=False )
+    return self.dereference( { "config" : self.config, "outputs" : self.outputs }, log=False, noexcept=True )
 
   @property
   def logfile( self ) -> str:
@@ -789,7 +789,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def ref_string( self, input_str ):
     return len( list( Action.REF_RE.finditer( input_str ) ) ) > 0
 
-  def dereference_str( self, input_str : str, log=True ) -> str:
+  def dereference_str( self, input_str : str, log=True, noexcept=False ) -> str:
     """Dereference an input string using GitHub Actions style syntax scoped to the current object
     
     Continuously dereferences strings within the current object until no more 
@@ -834,6 +834,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
                    ``Exception`` will be thrown. Thus, at the time of dereferencing, the string
                    input **MUST** be valid.
 
+    :param log:      enable logging
+    :param noexcept: disable exceptions and instead allow failed dereference
     :return: string fully dereferenced
     """
     curr_matches = list( Action.REF_RE.finditer( input_str ) )
@@ -880,8 +882,16 @@ class Action( state.SaveState, res.ResourceRequestor ):
           ########################################################################
           if curr is None:
             msg = f"Dereferencing yielded None for '{attr_groups['attr']}' in '{substr}'"
-            self.log( msg, level=40 )
-            raise Exception( msg )
+            if noexcept:
+              # field not present
+              if log:
+                self.log( msg, level=30 )
+              return output_str
+            else:
+              msg = f"Dereferencing yielded None for '{attr_groups['attr']}' in '{substr}'"
+              self.log( msg, level=40 )
+              raise Exception( msg )
+          
 
           if attr_groups["idx"] is not None:
             curr = curr[ int(attr_groups["idx"]) ]
@@ -894,7 +904,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.log( f"     into => '{output_str}'" )
     return output_str
 
-  def dereference( self, obj, log=True ):
+  def dereference( self, obj, log=True, noexcept=False ):
     """Fully dereference all strings within the ``obj`` passed in
     
     For ``dict`` and ``list`` objects, each will be iterated over and this function
@@ -911,18 +921,18 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """
     if isinstance( obj, dict ):
       for key in obj.keys():
-        output = self.dereference( obj[key], log=log )
+        output = self.dereference( obj[key], log=log, noexcept=noexcept )
         if output is not None:
           obj[key] = output
       return obj
     elif isinstance( obj, list ):
       for i in range( len( obj ) ):
-        output = self.dereference( obj[i], log=log )
+        output = self.dereference( obj[i], log=log, noexcept=noexcept )
         if output is not None:
           obj[i] = output
       return obj
     elif isinstance( obj, str ):
-      return self.dereference_str( obj, log=log )
+      return self.dereference_str( obj, log=log, noexcept=noexcept )
     else:
       return obj
 
