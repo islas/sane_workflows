@@ -984,6 +984,7 @@ class Orchestrator( jconfig.JSONConfig ):
           # We never finished so reset
               ( self.actions[action].state == sane.action.ActionState.RUNNING )
           # We would like to re-attempt
+          or ( clear_errors and self.actions[action].state == sane.action.ActionState.SKIPPED )
           or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
           or ( clear_failures and self.actions[action].status == sane.action.ActionStatus.FAILURE )
           ):
