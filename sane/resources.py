@@ -411,7 +411,7 @@ class ResourceMapper(  ):
   def add_mapping( self, resource : str, aliases : List[str] ):
     """Add a mapping of ``resource`` name to a list of ``aliases``
 
-    :param list[str] aliases: A set of aliases to associate this ``resource name with.
+    :param list[str] aliases: A set of aliases to associate this ``resource`` name with.
     """
     self._mapping[resource] = ResourceMatch( name=resource, aliases=aliases )
 
@@ -723,7 +723,8 @@ class ResourceProvider( jconfig.JSONConfig ):
   def load_core_config( self, config, origin ):
     """Load the available resources for this :py:class:`ResourceProvider`
 
-    The following key is loaded verbatim into :py:meth:`add_resources`:
+    The following key is loaded verbatim into :py:meth:`add_resources`
+    and thus should use the same :py:class:`Resource.amount` syntax:
 
     * ``"resources"``
 

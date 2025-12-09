@@ -9,10 +9,12 @@ class Config( metaclass=ABCMeta ):
 
   @property
   def name( self ):
+    """The name of this object set at instantiation"""
     return self._name
 
   @property
   def aliases( self ):
+    """Aliases that this object may be referenced as"""
     return self._aliases.copy()
 
   @abstractmethod

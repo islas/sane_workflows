@@ -383,14 +383,22 @@ class Orchestrator( jconfig.JSONConfig ):
           for id, config in patch_dicts.items():
             if id in source:
               self.log( f"Applying patch to {gentype} '{id}'" )
+              source[id].log_push( 2 )
+              source[id].push_logscope( "patch" )
               source[id].load_config( config.copy(), origin )
+              source[id].pop_logscope()
+              source[id].log_pop( 2 )
             elif id.startswith( "[" ) and id.endswith( "]" ):
               filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
               if len( filter_ids ) > 0:
                 self.log( f"Applying patch filter '{id[1:-1]}' to [{len(filter_ids)}] {gentype}s" )
                 for filter_id in filter_ids:
                   self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
+                  source[filter_id].log_push( 2 )
+                  source[filter_id].push_logscope( "patch" )
                   source[filter_id].load_config( config.copy(), origin )
+                  source[filter_id].pop_logscope()
+                  source[filter_id].log_pop( 2 )
               else:
                 self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
             else:
@@ -498,7 +506,7 @@ class Orchestrator( jconfig.JSONConfig ):
     # Setup does not take that long so make sure it is always run
     self.setup()
     self.check_action_id_list( action_id_list )
-    self.log( "Running actions:" )
+    self.log( "Requested actions:" )
     self.print_actions( action_id_list )
     self.log( "and any necessary dependencies" )
 
@@ -507,8 +515,10 @@ class Orchestrator( jconfig.JSONConfig ):
     action_set = list(traversal_list.keys())
     longest_action = len( max( action_set, key=len ) )
     if visualize:
+      self.log( "Initial requested actions and dependency graph:" )
       self.print_actions( action_id_list, visualize=visualize )
     else:
+      self.log( "Full action set:" )
       self.print_actions( action_set )
     self.check_action_id_list( action_set )
 
@@ -710,7 +720,7 @@ class Orchestrator( jconfig.JSONConfig ):
     An effective module name is generated from the relative path to the file from
     the respective path. This module name is then dynamically imported using
     ``importlib.import_module()``, relying on the fact that :py:meth:`load_paths()`
-    has added the search paths to ``sys.path``.
+    has added the search paths to `sys.path`_.
 
     .. important::
         For workflows that use Python files with helper functions, classes, etc. in
@@ -796,6 +806,10 @@ class Orchestrator( jconfig.JSONConfig ):
       if not isinstance( file, pathlib.Path ):
         file = pathlib.Path( file )
 
+      if os.path.getsize( file ) == 0:
+        # empty file
+        continue
+
       with open( file, "r" ) as fp:
         config = json.load( fp, cls=JSONCDecoder )
         self.log_push()
@@ -829,13 +843,14 @@ class Orchestrator( jconfig.JSONConfig ):
           }
         }
 
-    The ``"hosts"`` key is processed first, iterating over each ``"<host-name>"`` and its dict.
-    Inside of this respective ``"<host-name>"`` dict, the ``"type"`` field informs
-    which type of :py:class:`Host` to create. If no ``"type"`` is specified, the
-    default is :py:class:`Host`.
+    The ``"hosts"`` key is processed first, iterating over each ``"<host-name>"``
+    and its dict. Inside of this respective ``"<host-name>"`` dict, the ``"type"``
+    field informs which type of :py:class:`Host` to create. If no ``"type"`` is
+    specified, the default is :py:class:`Host`. The ``"<host-name>"`` is used as
+    the :py:attr:`Host.name` during instantiation.
 
     Once the host instance is created, its respective dict is loaded via its own
-    :py:meth:`Host.load_config`. Then the created host is added to with :py:meth:`add_host`
+    :py:meth:`Host.load_config`. Then the created host is added with :py:meth:`add_host`
 
     Next, the ``"actions"`` key is processed in a similar fashion, except the default
     ``"type"`` is :py:class:`Action` and added via :py:meth:`add_action`

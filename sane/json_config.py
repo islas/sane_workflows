@@ -67,7 +67,8 @@ class JSONConfig( logger.Logger ):
   def load_core_config( self, config : dict, origin : str = None ):
     """
     Any processed field should be removed from the ``config`` dict, with
-    everything else ignored.
+    everything else ignored. All listed options are cummulative and optional
+    unless specified otherwise.
 
     See :py:meth:`load_config` for parameters.
     """
@@ -97,7 +98,7 @@ class JSONConfig( logger.Logger ):
     Search priority:
 
     1. ``type_str`` using :external:py:mod:`pydoc` ``locate()`` (effectively search
-       current context for fully qualified type name)
+       current context for type of that fully `qualified name`_ )
     2. Split ``type_str`` on last ``.`` in name and search any user-loaded module
        that contains the prefix for an attribute matching the suffix. If no split
        occurs all user modules are searched.

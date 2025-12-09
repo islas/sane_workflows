@@ -968,7 +968,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     another subprocess via :py:meth:`execute_subprocess`.
 
     .. hint:: The subprocess of running ``config["command"]`` in the default implementation
-              of this function will inherit the :py:meth:`~Environment.setup` settings.
+              of this function will inherit the :py:meth:`Environment.setup` settings.
               See :py:class:`subprocess.Popen` ``env=None`` for more info.
 
     :return: The return value of running this action. Used by ``action_launcher.py``
