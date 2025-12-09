@@ -7,5 +7,6 @@ SANE Workflows
    :caption: Contents:
 
    start/index
+   tutorial/index
    user_guide/index
    reference/index

@@ -1,6 +1,7 @@
 *****************
 Running Workflows
 *****************
+.. py:module:: sane
 
 As the primary goal is to spend more time running workflows than writing them,
 this section is listed first. An example workflow is provided in the `source repo`_
@@ -11,15 +12,17 @@ Runner
 ======
 SANE workflows provides a single entry point for executing workflows: ``sane_runner``. 
 
-This python executable facilitates the creation of an :ref:`Orchestrator`, passing options and initializing the
+This python executable facilitates the creation of an :py:class:`Orchestrator`, passing options and initializing the
 orchestrator instance, then performing the user requested commands. All documentation moving forward will use
 ``sane_runner`` and runner interchangeably to refer to this entry point.
 
-It is not *strictly necessary* to use the provided entry point, and one *could* directly use the :ref:`Orchestrator`
+It is not *strictly necessary* to use the provided entry point, and one *could* directly use the :py:class:`Orchestrator`
 however it is **highly recommended** that users first use ``sane_runner``, directly setting up their own orchestrator instance
 only when the runner features are insufficient. 
 
 The next sections assume the exclusive usage of the runner.
+
+.. _running.paths:
 
 Paths
 =====
@@ -36,8 +39,8 @@ Once provided, these paths will be searched *in order* for all applicable files.
 as follows:
 
 1. Python files loaded as modules
-2. Execute all Python functions decorated with ``@sane.register`` according to priority in descending order (highest priority first)
-3. Read each JSON file, creating :ref:`Hosts` and :ref:`Actions` as necessary in that order, storing any patches
+2. Execute all Python functions decorated with :py:func:`@sane.register <sane.register>` according to priority in descending order (highest priority first)
+3. Read each JSON file, creating :py:class:`Hosts <Host>` and :py:class:`Actions <Action>` as necessary in that order, storing any patches
 4. Execute all JSON patches found according to priority in descending order (highest priority first)
 
 At the end of this processing a workflow is fully ready to use and **SHOULD NOT** be further modified by the user.
@@ -166,6 +169,8 @@ To start a workflow from scratch and clear the saved info users can either remov
 Advanced Usage
 ==============
 
+.. _running.specific_host:
+
 Specific Host
 -------------
 The ``-sh``/``--specific_host`` option allows users to select a host by name or alias instead of the default find method.
@@ -224,7 +229,7 @@ granularity.
 
 Virtual Relaunch
 ----------------
-The ``-vr``/``--virtual_relaunch`` option is a powerful option when paired with :ref:`NonLocalProvider` hosts. By providing
+The ``-vr``/``--virtual_relaunch`` option is a powerful option when paired with :py:class:`~resources.NonLocalProvider` hosts. By providing
 a set of runtime resources at the command line, the user-requested action set is bundled and *"relaunched"* to the runner
 under a single in situ action that has the resource requirements specified with this option.
 

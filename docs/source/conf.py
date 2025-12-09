@@ -24,7 +24,11 @@ extensions = [
               "sphinx.ext.autosummary",
               "sphinx.ext.linkcode",
               "sphinx.ext.intersphinx",
-              "myst_parser"
+              # External extensions
+              "myst_parser", # .md include
+              "sphinx_toolbox.collapse",            # collapse sections
+              "sphinx_toolbox.decorators",          # py:deco doesn't work
+              "sphinx_toolbox.more_autodoc.regex"   # regex highlighting
               ]
 
 templates_path = ["_templates"]
@@ -32,14 +36,6 @@ exclude_patterns = [ "links.rst" ]
 
 autodoc_class_signature = "separated"
 autodoc_typehints = "description"
-
-autodoc_type_aliases = {
-    "Actions": "Action",
-    "Resources": "Resource",
-    "AcquirableResources": "AcquirableResource",
-    "ResourceRequestors": "ResourceRequestor",
-    "ResourceProviders": "ResourceProvider",
-}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
