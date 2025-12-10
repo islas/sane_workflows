@@ -13,6 +13,7 @@ if __name__ == "__main__":
 
   working_directory = sys.argv[1]
   action_file       = sys.argv[2]
+  sane.internal_logger.setLevel( sane.logger.STDOUT )
 
   action = sane.save_state.load( action_file )
   action.push_logscope( "launch" )

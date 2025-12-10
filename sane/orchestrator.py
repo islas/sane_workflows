@@ -88,7 +88,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.actions = utdict.UniqueTypedDict( sane.action.Action )
     self.hosts   = utdict.UniqueTypedDict( sane.host.Host )
     self.dry_run = False
-    self.verbose = False
     self.force_local = False
 
     self._dag    = dag.DAG()
@@ -142,7 +141,8 @@ class Orchestrator( jconfig.JSONConfig ):
     """The directory used for saving out any workflow log output and final results
 
     The provided path does not need to exist yet, but must exist in a location the user
-    of the workflow has adequate permissions.
+    of the workflow has adequate permissions. DO NOT change this value once
+    :py:class:`Action: have been added.
     """
     return os.path.abspath( self._log_location )
 
@@ -163,6 +163,8 @@ class Orchestrator( jconfig.JSONConfig ):
   def add_action( self, action : sane.action.Action ) -> None:
     """Adds an action to :py:attr:`actions`, using the :py:attr:`action.id <Action.id>` as the key"""
     self.actions[action.id] = action
+    action.log_location = self.log_location
+    action.setup_logs()
 
   def add_host( self, host : sane.host.Host ) -> None:
     """Adds a host to :py:attr:`hosts`, using the :py:attr:`host.name <Host.name>` as the key"""
@@ -594,14 +596,13 @@ class Orchestrator( jconfig.JSONConfig ):
                 self.actions[node].__host_info__ = host.info
                 jconfig.recursive_update( self.actions[node]._dependencies, { id : dep_action.info for id, dep_action in dependencies.items() } )
                 # if these are not set then default to action settings
-                if self.verbose:
-                  self.actions[node].verbose = self.verbose
+
                 if self.force_local:
                   self.actions[node].local = self.force_local
 
                 self.actions[node].dry_run = self.dry_run
                 self.actions[node].save_location = self.save_location
-                self.actions[node].log_location = self.log_location
+                # self.actions[node].log_location = self.log_location
 
                 launch_wrapper = None
                 with self.__run_lock__:  # protect logs
@@ -705,6 +706,7 @@ class Orchestrator( jconfig.JSONConfig ):
     else:
       self.log( "Not all actions finished with success" )
     self.log( f"Finished in {datetime.datetime.now() - start}" )
+    self.log( f"Logfiles at {self.log_location}")
     self.log( f"Save file at {self.save_file}" )
     self.save( action_set )
     self.log( f"JUnit file at {self.results_file}" )
@@ -887,11 +889,11 @@ class Orchestrator( jconfig.JSONConfig ):
         host_type = self.search_type( host_typename )
 
       host = host_type( id )
+      self.add_host( host )
+
       host.log_push()
       host.load_config( host_config, origin )
       host.log_pop()
-
-      self.add_host( host )
 
     actions = config.pop( "actions", {} )
     for id, action_config in actions.items():
@@ -900,11 +902,11 @@ class Orchestrator( jconfig.JSONConfig ):
       if action_typename != sane.action.Action.CONFIG_TYPE:
         action_type = self.search_type( action_typename )
       action = action_type( id )
+      self.add_action( action )
+
       action.log_push()
       action.load_config( action_config, origin )
       action.log_pop()
-
-      self.add_action( action )
 
     # Handle very similar to the register functions, including priority
     patches = config.pop( "patches", {} )
@@ -941,7 +943,6 @@ class Orchestrator( jconfig.JSONConfig ):
                           action : self.actions[action].results for action in action_id_list
                         },
                         "dry_run" : self.dry_run,
-                        "verbose" : self.verbose,
                         "host" : self.current_host,
                         "save_location" : self.save_location,
                         "log_location" : self.log_location,
@@ -959,7 +960,6 @@ class Orchestrator( jconfig.JSONConfig ):
     self.log( f"Loading save file {self.save_file}" )
 
     self.dry_run = save_dict["dry_run"]
-    self.verbose = save_dict["verbose"]
 
     self._current_host = save_dict["host"]
 

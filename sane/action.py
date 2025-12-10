@@ -9,6 +9,7 @@ import time
 from typing import Dict, List, Tuple, Union
 from enum import Enum, EnumMeta
 
+from sane import log_formatter
 import sane.logger as slogger
 import sane.save_state as state
 import sane.json_config as jconfig
@@ -138,8 +139,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.outputs = {}
     self.environment = None
 
-    #: Echo :py:meth:`run()` output to terminal (output is always captured in :py:attr:`logfile`)
-    self.verbose = False
     #: Stub :py:meth:`launch()` to skip execution of :py:meth:`run()`
     self.dry_run = False
     self.wrap_stdout = True
@@ -148,7 +147,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.max_label_length  = slogger.DEFAULT_LABEL_LENGTH
     self._launch_cmd       = action_launcher.__file__
     self.log_location      = None
-    self._logfile          = f"{self.id}.log"
     self._state            = ActionState.INACTIVE
     self._status           = ActionStatus.NONE
     self._dependencies     = {}
@@ -175,12 +173,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
     # Quickly remove sync objects then restore
     tmp_run_lock = self._run_lock
     tmp_wake     = self.__wake__
+    tmp_logger   = self.logger
     self._run_lock = None
     self.__wake__  = None
+    self.logger    = None
     super().save()
     # Now restore
     self._run_lock = tmp_run_lock
     self.__wake__  = tmp_wake
+    self.logger    = tmp_logger
 
   def __orch_wake__( self ) -> None:
     """Wake up the :py:class:`Orchestrator` from another thread.
@@ -282,7 +283,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
                 "state" : self.state.value,
                 "status" : self.status.value,
                 "origins" : self.origins,
-                "outputs" : self.dereference( self.outputs, log=False, noexcept=True )
+                "outputs" : self.dereference( self.outputs, log=False, noexcept=True ),
+                "logfile" : self.logfile,
+                "runlog" : self.runlog
                 }
     if self.state == ActionState.FINISHED:
       results["timestamp"] = self.__timestamp__
@@ -320,11 +323,32 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   @property
   def logfile( self ) -> str:
+    """Full recording of logs for this action"""
+    if self.log_location is None:
+      return None
+    else:
+      return os.path.abspath( f"{self.log_location}/{self.id}.log" )
+
+  @property
+  def runlog( self ) -> str:
     """Absolute path to logfile capturing this :py:meth:`Action.run()` output"""
     if self.log_location is None:
       return None
     else:
-      return os.path.abspath( f"{self.log_location}/{self._logfile}" )
+      return os.path.abspath( f"{self.log_location}/{self.id}.runlog" )
+
+  def setup_logs( self ):
+    # Before this we may need to capture output to main log
+    # afterwards, forward output to respective handlers
+
+    # Set default log level to lower value to suppress
+    self.default_log_level = slogger.ACT_INFO
+    # Create our own logger instance
+    self.logger = slogger.logging.getLogger( __name__ ).getChild( self.id )
+    file_handler = slogger.logging.FileHandler( self.logfile, mode="w" )
+    file_handler.setFormatter( log_formatter )
+    self.logger.addHandler( file_handler )
+    self.logger.setLevel( slogger.STDOUT )
 
   @property
   def dependencies( self ) -> dict:
@@ -516,10 +540,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
                           cmd : str,
                           arguments : list = None,
                           logfile : str = None,
-                          verbose= False,
-                          dry_run= False,
-                          capture= False,
-                          shell= False
+                          verbose=False,
+                          dry_run=False,
+                          capture=False,
+                          shell=False,
+                          log_level=slogger.ACT_INFO
                           ) -> tuple[int, str]:
     """Execution wrapper for running a command using :py:class:`subprocess.Popen`
 
@@ -552,8 +577,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
     self._acquire()
-    self.log( "Running command:" )
-    self.log( "  {0}".format( command ) )
+    self.log( "Running command:", level=log_level )
+    self.log( "  {0}".format( command ), level=log_level )
     self._release()
 
     retval  = -1
@@ -568,7 +593,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if verbose:
         self.log( "Command output will be printed to this terminal" )
       if logfile is not None:
-        self.log( "Command output will be captured to logfile {0}".format( logfile ) )
+        self.log( "Command output will be captured to logfile {0}".format( logfile ), level=log_level )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
@@ -591,9 +616,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
         logfileOutput = open( logfile, "w+", buffering=1 )
 
       # Temporarily swap in a very crude logger
-      log = lambda *args: self.log( *args, level=25 )
+      log = lambda *args: self.log( *args, level=slogger.STDOUT )
       if self.__exec_raw__:
-        log = lambda msg: slogger.logger.getChild( "raw" ).log( 25, msg )
+        log = lambda msg: self.logger.getChild( "raw" ).log( slogger.STDOUT, msg )
 
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
@@ -623,7 +648,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ##
       ############################################################################
     else:
-      self.log( "Doing dry-run, no ouptut" )
+      self.log( "Doing dry-run, no ouptut", level=log_level )
       retval = 0
       output = "12345"
 
@@ -659,7 +684,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       #. :py:meth:`pre_launch()` (shared :py:class:`Action` mutex locked around this call)
       #. :py:meth:`save()`
       #. resolve internal launch command (:ref:`action_launcher.py`) and ``launch_wrapper``
-      #. :py:meth:`execute_subprocess()` of resolved command, capturing to :py:attr:`logfile` and using :py:attr:`verbose` and :py:attr:`dry_run`
+      #. :py:meth:`execute_subprocess()` of resolved command, capturing to :py:attr:`runlog` using :py:attr:`dry_run` if set
       #. final :py:attr:`state` and :py:attr:`status` recorded
       #. :py:meth:`post_launch()` called with output of (4) (shared :py:class:`Action` mutex locked around this call)
       #. :py:meth:`__orch_wake__` the :py:class:`Orchestrator`
@@ -698,6 +723,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.logname = logname
 
       self.push_logscope( "launch" )
+      self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
+
       self._acquire()
       ok = self.pre_launch()
       self._release()
@@ -736,19 +763,18 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
       retval = -1
       content = ""
-
-      if self._logfile is None and not self.verbose:
+      if self.logfile is None:
         self._acquire()
-        self.log( "Action will not be printed to screen or saved to logfile", level=30 )
-        self.log( "Consider modifying the action to use one of these two options", level=30 )
+        self.log( "Action will not be saved to logfile", level=30 )
         self._release()
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,
-                                                logfile=self.logfile,
+                                                logfile=self.runlog,
                                                 capture=True,
-                                                verbose=self.verbose,
-                                                dry_run=self.dry_run
+                                                verbose=True,
+                                                dry_run=self.dry_run,
+                                                log_level=slogger.MAIN_LOG
                                                 )
 
       self._state = ActionState.FINISHED

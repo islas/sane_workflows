@@ -268,10 +268,13 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
 
   def save( self ):
     tmp_wake     = self.__wake__
+    tmp_logger   = self.logger
     self.__wake__  = None
+    self.logger    = None
     super().save()
     # Now restore
     self.__wake__  = tmp_wake
+    self.logger    = tmp_logger
 
   def __orch_wake__( self ):
     """Wake up the :py:class:`Orchestrator` from another thread.

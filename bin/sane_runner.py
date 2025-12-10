@@ -85,9 +85,11 @@ def get_parser():
                       )
   parser.add_argument(
                       "-v", "--verbose",
-                      action="store_true",
-                      default=None,
-                      help="Verbose output from actions running"
+                      action="store_const",
+                      dest="debug_level",
+                      default=20,
+                      const=18,
+                      help="Verbose output to main log, shorthand for `-g 18`"
                       )
   parser.add_argument(
                       "-g", "--debug_level",
@@ -163,6 +165,7 @@ def main():
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
   file_handler = logging.FileHandler( logfile, mode="w" )
   file_handler.setFormatter( sane.log_formatter )
+  file_handler.addFilter( sane.internal_filter )
   sane.internal_logger.addHandler( file_handler )
   logger.log( f"Logging output to {logfile}")
 
@@ -175,6 +178,10 @@ def main():
 
   ##############################################################################
   orchestrator = sane.Orchestrator()
+  orchestrator.save_location = options.save_location
+  orchestrator.log_location = options.log_location
+  orchestrator.working_directory = options.working_dir
+
   orchestrator.add_search_paths( options.path )
   orchestrator.add_search_patterns( options.search_pattern )
   orchestrator.load_paths()
@@ -280,17 +287,9 @@ def main():
       # Change action list to do this instead
       action_list = [ "virtual_relaunch" ]
 
-  if options.verbose is not None:
-    logger.log( "Changing all actions output to verbose" )
-    orchestrator.verbose = options.verbose
-
   if options.force_local is not None:
     logger.log( "Forcing all actions to run local" )
     orchestrator.force_local = options.force_local
-
-  orchestrator.save_location = options.save_location
-  orchestrator.log_location = options.log_location
-  orchestrator.working_directory = options.working_dir
 
   # Load any previous statefulness
   if options.new and os.path.exists( orchestrator.save_file ):
