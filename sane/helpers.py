@@ -1,4 +1,6 @@
 import functools
+import collections
+
 
 def copydoc( *funcs, append=True ):
   """Copy docstrings from funcs"""
@@ -24,3 +26,13 @@ def copydoc( *funcs, append=True ):
     orig.__doc__ = full_doc
     return orig
   return mod_doc
+
+
+def recursive_update( dest, source ):
+  """Update mapping dest with source"""
+  for k, v in source.items():
+    if isinstance( v, collections.abc.Mapping ):
+      dest[k] = recursive_update( dest.get( k, {} ), v )
+    else:
+      dest[k] = v
+  return dest

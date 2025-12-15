@@ -7,9 +7,9 @@ import copy
 from typing import Dict, List
 
 import sane.logger as logger
-import sane.json_config as jconfig
-import sane.config as config
-from sane.helpers import copydoc
+import sane.options as opts
+import sane.match as match
+from sane.helpers import copydoc, recursive_update
 
 # Format using PBS-stye
 # http://docs.adaptivecomputing.com/torque/4-1-3/Content/topics/2-jobs/requestingRes.htm
@@ -391,7 +391,7 @@ def timedelta_to_timelimit( timedelta ) :
                                     )
 
 
-class ResourceMatch( config.Config ):
+class ResourceMatch( match.NameMatch ):
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
 
@@ -422,7 +422,7 @@ class ResourceMapper(  ):
     return resource
 
 
-class ResourceRequestor( jconfig.JSONConfig ):
+class ResourceRequestor( opts.OptionLoader ):
   """Aggregates any arbitrary resource requests to be made to a :py:class:`ResourceProvider`
   
   .. note:: Resources listed here are stored verbatim and thus can be anything.
@@ -458,7 +458,7 @@ class ResourceRequestor( jconfig.JSONConfig ):
       for override_key in self._override_resources.keys():
         # Allow partial match
         if override_key in override:
-          jconfig.recursive_update( resource_dict, self._override_resources[override_key] )
+          recursive_update( resource_dict, self._override_resources[override_key] )
           break
     return resource_dict
 
@@ -526,8 +526,8 @@ class ResourceRequestor( jconfig.JSONConfig ):
         else:
           self._resources[resource] = info
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  def load_core_config( self, config : dict, origin : str ):
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  def load_core_options( self, options : dict, origin : str ):
     """Load :py:class:`ResourceRequestor` resource requirements
 
     The following key is loaded verbatim into :py:meth:`add_resource_requirments`:
@@ -538,16 +538,16 @@ class ResourceRequestor( jconfig.JSONConfig ):
 
     * ``"local"`` => :py:attr:`local`
     """
-    self.add_resource_requirements( config.pop( "resources", {} ) )
+    self.add_resource_requirements( options.pop( "resources", {} ) )
 
-    local = config.pop( "local", None )
+    local = options.pop( "local", None )
     if local is not None:
       self.local = local
 
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )
 
 
-class ResourceProvider( jconfig.JSONConfig ):
+class ResourceProvider( opts.OptionLoader ):
   """Manages and provides use of :py:class:`AcquirableResources <AcquirableResource>`
 
   During workflow execution the :py:class:`ResourceProvider` will be given the
@@ -582,7 +582,7 @@ class ResourceProvider( jconfig.JSONConfig ):
     dict will be used to create :py:class:`AcquirabeResource` instances that track
     resource requests from a :py:class:`ResourceRequestor`.
 
-    As an example:
+    An example *options* :external:py:class:`dict`
 
     .. code-block:: python
 
@@ -719,8 +719,8 @@ class ResourceProvider( jconfig.JSONConfig ):
         self._resource_log[resource]["release"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
     self.log_pop()
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  def load_core_config( self, config, origin ):
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  def load_core_options( self, options, origin ):
     """Load the available resources for this :py:class:`ResourceProvider`
 
     The following key is loaded verbatim into :py:meth:`add_resources`
@@ -734,7 +734,7 @@ class ResourceProvider( jconfig.JSONConfig ):
 
     * ``"mapping"``
 
-    An example config:
+    An example *options* :external:py:class:`dict`
 
     .. code-block:: python
 
@@ -750,7 +750,7 @@ class ResourceProvider( jconfig.JSONConfig ):
         }
       }
 
-    The above ``config`` would provide map ``"cpus"`` to ``"ncpus"`` and add an
+    The above *options* would provide map ``"cpus"`` to ``"ncpus"`` and add an
     :py:class:`AcquirableResource` of type ``"ncpus"`` with amount 123 and an
     :py:class:`AcquirableResource` of type ``"mem"`` with amount 64mb to the
     :py:attr:`resources`.
@@ -764,15 +764,15 @@ class ResourceProvider( jconfig.JSONConfig ):
               that for one reason or another wish to refer to the same resources
               by different names.
     """
-    resources = config.pop( "resources", {} )
+    resources = options.pop( "resources", {} )
     if len( resources ) > 0:
       self.add_resources( resources )
 
-    mapping = config.pop( "mapping", {} )
+    mapping = options.pop( "mapping", {} )
     for resource, aliases in mapping.items():
       self._mapper.add_mapping( resource, aliases )
 
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )
 
   def map_resource( self, resource : str ) -> str:
     """Map the input ``resource`` to an internal name, if available
@@ -844,9 +844,9 @@ class NonLocalProvider( ResourceProvider ):
     #: manage local resource requests
     self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  @copydoc( ResourceProvider.load_core_config )
-  def load_core_config( self, config, origin ):
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( ResourceProvider.load_core_options )
+  def load_core_options( self, options, origin ):
     """Load local resources into :py:attr:`local_resources` and control flags
     
     The following key is loaded verbatim into :py:attr:`local_resources` via
@@ -860,7 +860,7 @@ class NonLocalProvider( ResourceProvider ):
     * ``"default_local"`` => :py:attr:`default_local`
     * ``"force_local"`` => :py:attr:`force_local`
 
-    An example config:
+    An example *options* :external:py:class:`dict`
 
     .. code-block:: python
 
@@ -873,16 +873,16 @@ class NonLocalProvider( ResourceProvider ):
           "default_local" : True
         }
     """
-    super().load_core_config( config, origin )
-    resources = config.pop( "local_resources", {} )
+    super().load_core_options( options, origin )
+    resources = options.pop( "local_resources", {} )
     if len( resources ) > 0:
       self.local_resources.add_resources( resources )
 
-    default_local = config.pop( "default_local", None )
+    default_local = options.pop( "default_local", None )
     if default_local is not None:
       self.default_local = default_local
 
-    force_local = config.pop( "force_local", None )
+    force_local = options.pop( "force_local", None )
     if force_local is not None:
       self.force_local = force_local
 

@@ -123,9 +123,9 @@ class ActionTests( unittest.TestCase ):
 
     self.remove_save_files( host )
 
-  def test_action_from_config( self ):
-    """Test setting up an action from a config dict"""
-    config = {
+  def test_action_from_options( self ):
+    """Test setting up an action from a options dict"""
+    options = {
                 "environment" : "foobar",
                 "local"       : True,
                 "config"      : { "one" : 1, "two" : [2], "three" : { "foo" : 3 } },
@@ -152,8 +152,8 @@ class ActionTests( unittest.TestCase ):
                   }
                 }
               }
-    self.action.load_config( config )
-    self.assertEqual( config, {} )
+    self.action.load_options( options )
+    self.assertEqual( options, {} )
     self.assertIn( "dep_action0", self.action.dependencies )
     self.assertIn( "dep_action1", self.action.dependencies )
     self.assertIn( "dep_action2", self.action.dependencies )
@@ -167,7 +167,7 @@ class ActionTests( unittest.TestCase ):
   def test_action_dereference( self ):
     """Test the action's ability to use YAML-like attribute dereferencing"""
     # Start with a sufficiently complex config
-    self.test_action_from_config()
+    self.test_action_from_options()
     ref_str = "foo ${{ id }} ${{ environment}} ${{ local }} ${{ working_directory }}"
     exp_str = "foo test foobar True ./"
     out_str = self.action.dereference_str( ref_str )

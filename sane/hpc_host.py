@@ -43,18 +43,18 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
                           }
     self._cmd_delim = None
 
-  def load_core_config( self, config, origin ):
-    queue = config.pop( "queue", None )
+  def load_core_options( self, options, origin ):
+    queue = options.pop( "queue", None )
     if queue is not None:
       self.queue = queue
 
-    account = config.pop( "account", None )
+    account = options.pop( "account", None )
     if account is not None:
       self.account = account
 
-    self.job_suffix = config.pop( "job_suffix", "" )
+    self.job_suffix = options.pop( "job_suffix", "" )
 
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )
 
   def _format_arguments( self, arguments ):
     resources = []
@@ -297,13 +297,13 @@ class PBSHost( HPCHost ):
       nodeset["total"].log_pop( levels )
       nodeset["node"].log_pop( levels )
 
-  def load_core_config( self, config, origin ):
+  def load_core_options( self, options, origin ):
     # Note: This is very delicate and maybe should be restructured
     # Pull out resources first to override
-    resources = config.pop( "resources", {} )
+    resources = options.pop( "resources", {} )
 
-    # Now read rest of config *first* in case we have mappings
-    super().load_core_config( config, origin )
+    # Now read rest of options *first* in case we have mappings
+    super().load_core_options( options, origin )
 
     # Finally process resources
     for node_type, hardware_info in resources.items():

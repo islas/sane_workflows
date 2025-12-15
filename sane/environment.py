@@ -7,8 +7,8 @@ from collections import OrderedDict
 from subprocess import PIPE, Popen
 
 
-import sane.config as config
-import sane.json_config as jconfig
+import sane.match as match
+import sane.options as opts
 from sane.helpers import copydoc
 
 def env_from_script( script, *arguments, **kwargs ):
@@ -47,7 +47,7 @@ def env_from_script( script, *arguments, **kwargs ):
   return status, stderr.decode()
 
 
-class Environment( config.Config, jconfig.JSONConfig ):
+class Environment( match.NameMatch, opts.OptionLoader ):
   """Control the setup of an environment on a particular :py:class:`Host`"""
   LMOD_MODULE = "env_modules_python"
   CONFIG_TYPE = "Environment"
@@ -290,9 +290,9 @@ class Environment( config.Config, jconfig.JSONConfig ):
     """Return true if :py:attr:`~Environment.name` or :py:attr:`~Environment.aliases` is an exact match to ``requested_env``"""
     return self.exact_match( requested_env )
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  def load_core_config( self, config, origin ):
-    """Load the config options into this :py:class:`Environment`
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  def load_core_options( self, options, origin ):
+    """Load the *options* into this :py:class:`Environment`
     
     The following keys are loaded to their respective attribute. If not present,
     the attributes are unmodified.
@@ -315,7 +315,7 @@ class Environment( config.Config, jconfig.JSONConfig ):
 
     * ``"env_scripts"``
 
-    An example config:
+    An example *options* :external:py:class:`dict`:
 
     .. code-block:: python
 
@@ -338,21 +338,21 @@ class Environment( config.Config, jconfig.JSONConfig ):
           ]
         }
     """
-    aliases = list( set( config.pop( "aliases", [] ) ) )
+    aliases = list( set( options.pop( "aliases", [] ) ) )
     if aliases != []:
       self._aliases = aliases
 
-    self.setup_scripts( *config.pop( "env_scripts", [] ) )
+    self.setup_scripts( *options.pop( "env_scripts", [] ) )
 
-    lmod_path = config.pop( "lmod_path", None )
+    lmod_path = options.pop( "lmod_path", None )
     if lmod_path is not None:
       self.lmod_path = lmod_path
 
-    for env_cmd in config.pop( "env_vars", [] ):
+    for env_cmd in options.pop( "env_vars", [] ):
       self.setup_env_vars( **env_cmd )
 
-    for lmod_cmd in config.pop( "lmod_cmds", [] ):
+    for lmod_cmd in options.pop( "lmod_cmds", [] ):
       cmd  = lmod_cmd.pop( "cmd" )
       args = lmod_cmd.pop( "args", [] )
       self.setup_lmod_cmds( cmd, *args, **lmod_cmd )
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )

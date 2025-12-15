@@ -12,10 +12,10 @@ from enum import Enum, EnumMeta
 from sane import log_formatter
 import sane.logger as slogger
 import sane.save_state as state
-import sane.json_config as jconfig
+import sane.options as opts
 import sane.action_launcher as action_launcher
 import sane.resources as res
-from sane.helpers import copydoc
+from sane.helpers import copydoc, recursive_update
 
 
 class ValueMeta( EnumMeta ):
@@ -1026,17 +1026,17 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def __str__( self ):
     return f"Action({self.id})"
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  @copydoc( res.ResourceRequestor.load_core_config )
-  def load_core_config( self, config, origin ):
-    """Load :py:class:`Action` settings from the provided config dict, all keys are optional.
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( res.ResourceRequestor.load_core_options )
+  def load_core_options( self, options, origin ):
+    """Load :py:class:`Action` settings from the provided *options* dict, all keys are optional.
 
     The following keys are loaded verbatim into their respective attribute:
 
     * ``"environment"`` => :py:attr:`environment`
     * ``"working_directory"`` => :py:attr:`working_directory`
 
-    The following key is loaded and calls :py:func:`~json_config.recursive_update`
+    The following key is loaded and calls :py:func:`~helpers.recursive_update`
     preserve any unmodified existing values:
 
     * ``"config"`` => :py:attr:`config`
@@ -1046,7 +1046,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     * ``"dependencies"``
 
-    An example input config:
+    An example *options* :external:py:class:`dict`
 
     .. parsed-literal::
 
@@ -1059,18 +1059,18 @@ class Action( state.SaveState, res.ResourceRequestor ):
           "dependencies" : { "action_b" : "afterok", "action_c" : "afternotok" }
         }
     """
-    environment = config.pop( "environment", None )
+    environment = options.pop( "environment", None )
     if environment is not None:
       self.environment = environment
 
-    dir = config.pop( "working_directory", None )
+    dir = options.pop( "working_directory", None )
     if dir is not None:
       self.working_directory = dir
 
-    act_config = config.pop( "config", None )
+    act_config = options.pop( "config", None )
     if act_config is not None:
-      jconfig.recursive_update( self.config, act_config )
+      recursive_update( self.config, act_config )
 
-    self.add_dependencies( *config.pop( "dependencies", {} ).items() )
+    self.add_dependencies( *options.pop( "dependencies", {} ).items() )
 
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )

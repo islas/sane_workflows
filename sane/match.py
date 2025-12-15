@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class Config( metaclass=ABCMeta ):
+class NameMatch( metaclass=ABCMeta ):
   def __init__( self, name, aliases=[], **kwargs ):
     self._name    = name
     self._aliases = list(set(aliases))
@@ -18,17 +18,17 @@ class Config( metaclass=ABCMeta ):
     return self._aliases.copy()
 
   @abstractmethod
-  def match( self, requested_config ):
+  def match( self, requested_name ):
     return False
 
-  def exact_match( self, requested_config ):
-    return ( self._name == requested_config or requested_config in self._aliases )
+  def exact_match( self, requested_name ):
+    return ( self._name == requested_name or requested_name in self._aliases )
 
-  def partial_match( self, requested_config ):
+  def partial_match( self, requested_name ):
     return (
-            self._name in requested_config
+            self._name in requested_name
             or next(
-                    ( True for alias in self._aliases if alias in requested_config ),
+                    ( True for alias in self._aliases if alias in requested_name ),
                     False
                     )
             )

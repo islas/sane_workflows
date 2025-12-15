@@ -1,16 +1,16 @@
 import socket
 from typing import Dict
 
-import sane.config as config
-import sane.json_config as jconfig
+import sane.match as match
+import sane.options as opts
 import sane.logger as logger
 import sane.save_state as state
 import sane.utdict as utdict
 import sane.environment
 import sane.resources
-from sane.helpers import copydoc
+from sane.helpers import copydoc, recursive_update
 
-class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
+class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
   """Primary :py:class:`ResourceProvider` and container for :py:class:`Environment` available within a workflow."""
   CONFIG_TYPE = "Host"
 
@@ -105,10 +105,10 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     env._base = self.base_env
     self.environments[env.name] = env
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  @copydoc( sane.resources.ResourceProvider.load_core_config )
-  def load_core_config( self, config, origin ):
-    """Load the :py:class:`Host` configuration into this instance.
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( sane.resources.ResourceProvider.load_core_options )
+  def load_core_options( self, options, origin ):
+    """Load the :py:class:`Host` *options* into this instance.
     
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 
@@ -118,10 +118,10 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
           "aliases" : [ ...str.. ],
           "default_env" : "<env-name>",
           "config" : { ...anything... }
-          "base_env" : { "type" : "<some_env_type>", ...env config... },
+          "base_env" : { "type" : "<some_env_type>", ...env options... },
           "environments" :
           {
-            "<env-name>" : { "type" : "<some_env_type>", ...env config... },
+            "<env-name>" : { "type" : "<some_env_type>", ...env options... },
             ...other env declarations...
           }
         }
@@ -132,7 +132,7 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     * ``"aliases"`` => :py:attr:`aliases`
     * ``"default_env"`` => :py:attr:`default_env`
 
-    The following key is loaded and calls :py:func:`~json_config.recursive_update`
+    The following key is loaded and calls :py:func:`~helpers.recursive_update`
     preserve any unmodified existing values:
 
     * ``"config"`` => :py:attr:`config`
@@ -148,13 +148,13 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
     default is :py:class:`Environment`.
 
     For both ``"environments"`` and ``"base_env"``, once the environment instance
-    is created, its respective dict is loaded via its own :py:meth:`Environment.load_config`.
+    is created, its respective dict is loaded via its own :py:meth:`Environment.load_options`.
     Then the created :py:class:`Environment` is added with :py:meth:`add_environment`
 
     .. hint::
         See :py:meth:`search_type` for more info on how the ``"type"`` field should be specified.
  
-    An example input config:
+    An example *options* :external:py:class:`dict`:
     
     .. parsed-literal::
 
@@ -165,23 +165,23 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
           "base_env" :
           {
             "type" : "sane.Environment",
-            ...env config...
+            ...env options...
           },
           "environments" :
           {
-            "gnu" : { "type" : "sane.Environment", ...env config... }
+            "gnu" : { "type" : "sane.Environment", ...env options... }
           }
         }
     """
-    aliases = list( set( config.pop( "aliases", [] ) ) )
+    aliases = list( set( options.pop( "aliases", [] ) ) )
     if aliases != []:
       self._aliases = aliases
 
-    default_env = config.pop( "default_env", None )
+    default_env = options.pop( "default_env", None )
     if default_env is not None:
       self.default_env = default_env
 
-    base_env = config.pop( "base_env", None )
+    base_env = options.pop( "base_env", None )
     if base_env is not None:
       if self.base_env is None:
         env_typename = base_env.pop( "type", sane.environment.Environment.CONFIG_TYPE )
@@ -192,16 +192,16 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
         env = env_type( self.name + "_env" )
       else:
         env = base_env
-      env.load_config( base_env, origin )
+      env.load_options( base_env, origin )
       self.base_env = env
 
-    env_configs      = config.pop( "environments", {} )
-    for id, env_config in env_configs.items():
+    env_opts      = options.pop( "environments", {} )
+    for id, env_options in env_opts.items():
       if id in self.environments:
         self.log( f"Applying patch to Environment '{id}'" )
         env = self.environments[id]
       else:
-        env_typename = env_config.pop( "type", sane.environment.Environment.CONFIG_TYPE )
+        env_typename = env_options.pop( "type", sane.environment.Environment.CONFIG_TYPE )
         env_type = sane.environment.Environment
         # TODO: I think the pickling will fail for custom environments right now without
         # also adding the source defs of the host's envs to its own
@@ -211,13 +211,13 @@ class Host( config.Config, state.SaveState, sane.resources.ResourceProvider ):
         env = env_type( id )
         self.add_environment( env )
 
-      env.load_config( env_config, origin )
+      env.load_options( env_options, origin )
 
-    host_config = config.pop( "config", None )
+    host_config = options.pop( "config", None )
     if host_config is not None:
-      jconfig.recursive_update( self.config, host_config )
+      recursive_update( self.config, host_config )
 
-    super().load_core_config( config, origin )
+    super().load_core_options( options, origin )
 
   def pre_launch( self, action : sane.Action ):
     """Called within the main thread just before calling :py:meth:`Action.launch`"""

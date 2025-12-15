@@ -7,21 +7,11 @@ import sane.logger as logger
 import sane.user_space as uspace
 
 
-def recursive_update( dest, source ):
-  """Update mapping dest with source"""
-  for k, v in source.items():
-    if isinstance( v, collections.abc.Mapping ):
-      dest[k] = recursive_update( dest.get( k, {} ), v )
-    else:
-      dest[k] = v
-  return dest
-
-
-class JSONConfig( logger.Logger ):
+class OptionLoader( logger.Logger ):
   def __new__( cls, *args, **kwargs ):
     # ideally this has (*args, **kwargs) but since this is the only class to have
     # a __new__ within all sane MRO, just dump the arguments
-    instance = super( JSONConfig, cls ).__new__( cls )
+    instance = super( OptionLoader, cls ).__new__( cls )
     stack = inspect.stack()
     instance.__origin_instantiation__ = f"{stack[1][1]}:{stack[1][2]}"
     return instance
@@ -30,57 +20,59 @@ class JSONConfig( logger.Logger ):
     super().__init__( **kwargs )
     self.__origin__ = [ sys.modules[self.__module__].__file__, self.__origin_instantiation__ ]
 
-  def load_config( self, config : dict, origin : str = None ):
+  def load_options( self, options : dict, origin : str = None ):
     """Base class implementation for loading of dict-based attributes into instance
 
-    Take a config dict of relevant attributes and load them via :py:meth:`load_core_config`
-    then :py:meth:`load_extra_config`. The config dict should be modified in each call
+    Take a *options* dict of relevant attributes and load them via :py:meth:`load_core_options`
+    then :py:meth:`load_extra_options`. The *options* dict should be modified in each call
     to remove processed fields so that at the very end of this method, any unused
-    keys in the config dict may be logged.
+    keys in the *options* dict may be logged.
 
-    The :py:meth:`load_extra_config` is meant as a user-overwritable method so that
-    :py:meth:`load_core_config` may retain core underlying base class implementation
+    The :py:meth:`load_extra_options` is meant as a user-overwritable method so that
+    :py:meth:`load_core_options` may retain core underlying base class implementation
     details without the risk of base class loading not being called.
 
     To keep track of every time this function is called and potentially modifying
     this instance an origin may be provided, noting where the change is coming from.
 
-    :param config: A dict of class-specific attributes.
+    :param options: A dict of class-specific attributes.
 
       .. important::
 
-            The config dict is modified such that only unused values are left in
+            The *options* dict is modified such that only unused values are left in
             it at the end of this method
+
     :param origin: A string identifier of where this load is coming from
     """
     if origin is not None:
       self.__origin__.append( str( origin ) )
-    self.load_core_config( config, origin )
-    self.load_extra_config( config, origin )
-    self.check_unused( config )
+    self.load_core_options( options, origin )
+    self.load_extra_options( options, origin )
+    self.check_unused( options )
 
-  def check_unused( self, config : dict ):
-    unused = list( config.keys() )
+  def check_unused( self, options : dict ):
+    unused = list( options.keys() )
+
     if len( unused ) > 0:
-      self.log( f"Unused keys in config : {unused}", level=30 )
+      self.log( f"Unused keys in dict: {unused}", level=30 )
 
-  def load_core_config( self, config : dict, origin : str = None ):
+  def load_core_options( self, options : dict, origin : str = None ):
     """
-    Any processed field should be removed from the ``config`` dict, with
-    everything else ignored. All listed options are cummulative and optional
+    Any processed field should be removed from the *options* dict, with
+    everything else ignored. All listed *options* are cummulative and optional
     unless specified otherwise.
 
-    See :py:meth:`load_config` for parameters.
+    See :py:meth:`load_options` for parameters.
     """
     pass
 
-  def load_extra_config( self, config : dict, origin : str = None ):
-    """Load any extra config options after :py:meth:`load_core_config`.
+  def load_extra_options( self, options : dict, origin : str = None ):
+    """Load any extra *options* after :py:meth:`load_core_options`.
 
-    Any processed field should be removed from the ``config`` dict, with
+    Any processed field should be removed from the *options* dict, with
     everything else ignored.
 
-    See :py:meth:`load_config` for parameters.
+    See :py:meth:`load_options` for parameters.
     """
     pass
 

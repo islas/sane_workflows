@@ -19,10 +19,10 @@ import sane.dag as dag
 import sane.dagvis as dagvis
 import sane.host
 import sane.hpc_host
-import sane.json_config as jconfig
+import sane.options as opts
 import sane.user_space as uspace
 import sane.utdict as utdict
-from sane.helpers import copydoc
+from sane.helpers import copydoc, recursive_update
 
 _registered_functions = {}
 
@@ -72,7 +72,7 @@ class JSONCDecoder( json.JSONDecoder ):
     return super().decode( s )
 
 
-class Orchestrator( jconfig.JSONConfig ):
+class Orchestrator( opts.OptionLoader ):
   """Workflow controller containing all hosts and actions
 
   The Orchestrator serves as the main entry point for constructing, managing,
@@ -97,7 +97,7 @@ class Orchestrator( jconfig.JSONConfig ):
     self._log_location  = "./"
     self._filename      = "orchestrator.json"
     self._working_directory = "./"
-    self._patch_configs = {}
+    self._patch_options = {}
 
     #: Paths to search for workflow files
     self.search_paths    = []
@@ -142,7 +142,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
     The provided path does not need to exist yet, but must exist in a location the user
     of the workflow has adequate permissions. DO NOT change this value once
-    :py:class:`Action: have been added.
+    :py:class:`Action` have been added.
     """
     return os.path.abspath( self._log_location )
 
@@ -339,7 +339,7 @@ class Orchestrator( jconfig.JSONConfig ):
 
     All patches are processed in descending priority order (highest priority first),
     with equal priority left in an undefined order. Following the processing order
-    of :py:meth:`load_core_config()`, any patch for :py:class:`sane.Host` is processed
+    of :py:meth:`load_core_options()`, any patch for :py:class:`sane.Host` is processed
     first, then :py:class:`sane.Action`.
 
     Patches are applied, for a respective attribute (:py:attr:`hosts` or :py:attr:`actions`),
@@ -374,20 +374,20 @@ class Orchestrator( jconfig.JSONConfig ):
     # Higher number equals higher priority
     # this makes default registered generally go last
     self.push_logscope( "patch" )
-    keys = sorted( self._patch_configs.keys(), reverse=True )
+    keys = sorted( self._patch_options.keys(), reverse=True )
     for key in keys:
-      for origin, patch in self._patch_configs[key].items():
+      for origin, patch in self._patch_options[key].items():
         self.log( f"Processing patches from {origin}" )
         self.log_push()
         # go through patches in priority order then apply hosts then actions, respectively
         for pop_key, gentype, source in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
           patch_dicts = patch.pop( pop_key, {} )
-          for id, config in patch_dicts.items():
+          for id, options in patch_dicts.items():
             if id in source:
               self.log( f"Applying patch to {gentype} '{id}'" )
               source[id].log_push( 2 )
               source[id].push_logscope( "patch" )
-              source[id].load_config( config.copy(), origin )
+              source[id].load_options( options.copy(), origin )
               source[id].pop_logscope()
               source[id].log_pop( 2 )
             elif id.startswith( "[" ) and id.endswith( "]" ):
@@ -398,7 +398,7 @@ class Orchestrator( jconfig.JSONConfig ):
                   self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
                   source[filter_id].log_push( 2 )
                   source[filter_id].push_logscope( "patch" )
-                  source[filter_id].load_config( config.copy(), origin )
+                  source[filter_id].load_options( options.copy(), origin )
                   source[filter_id].pop_logscope()
                   source[filter_id].log_pop( 2 )
               else:
@@ -594,7 +594,7 @@ class Orchestrator( jconfig.JSONConfig ):
               if resources_available:
                 # Set info first
                 self.actions[node].__host_info__ = host.info
-                jconfig.recursive_update( self.actions[node]._dependencies, { id : dep_action.info for id, dep_action in dependencies.items() } )
+                recursive_update( self.actions[node]._dependencies, { id : dep_action.info for id, dep_action in dependencies.items() } )
                 # if these are not set then default to action settings
 
                 if self.force_local:
@@ -799,9 +799,9 @@ class Orchestrator( jconfig.JSONConfig ):
 
   def load_config_files( self, files : List[str] ):
     """Load the provided list of files as JSON files (JSON with ``//``-style comments allowed)
-    and call :py:meth:`load_config()` for each.
+    and call :py:meth:`load_options()` for each.
 
-    See :py:meth:`load_core_config` for class-specific load implementation.
+    See :py:meth:`load_core_options` for class-specific load implementation.
     """
     for file in files:
       self.log( f"Loading config file {file}")
@@ -813,14 +813,14 @@ class Orchestrator( jconfig.JSONConfig ):
         continue
 
       with open( file, "r" ) as fp:
-        config = json.load( fp, cls=JSONCDecoder )
+        options = json.load( fp, cls=JSONCDecoder )
         self.log_push()
-        self.load_config( config, file )
+        self.load_options( options, file )
         self.log_pop()
 
-  @copydoc( jconfig.JSONConfig.load_core_config, append=False )
-  def load_core_config( self, config : Dict[str,object], origin : str ):
-    """Load the provided config dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
+  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  def load_core_options( self, options : Dict[str,object], origin : str ):
+    """Load the provided *options* dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
 
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 
@@ -829,12 +829,12 @@ class Orchestrator( jconfig.JSONConfig ):
         {
           "hosts" :
           {
-            "<host-name>" : { "type" : "<some_host_type>, ...host config... },
+            "<host-name>" : { "type" : "<some_host_type>", ...host options... },
             ...other host declarations...
           },
           "actions" :
           {
-            "<action-id>" : { "type" : "<some_action_type>, ...action config... },
+            "<action-id>" : { "type" : "<some_action_type>", ...action options... },
             ...other action declarations...
           }
           "patches" :
@@ -852,7 +852,7 @@ class Orchestrator( jconfig.JSONConfig ):
     the :py:attr:`Host.name` during instantiation.
 
     Once the host instance is created, its respective dict is loaded via its own
-    :py:meth:`Host.load_config`. Then the created host is added with :py:meth:`add_host`
+    :py:meth:`Host.load_options`. Then the created host is added with :py:meth:`add_host`
 
     Next, the ``"actions"`` key is processed in a similar fashion, except the default
     ``"type"`` is :py:class:`Action` and added via :py:meth:`add_action`
@@ -865,8 +865,8 @@ class Orchestrator( jconfig.JSONConfig ):
     is saved for later use in :py:meth:`process_patches()` in an internal patch
     priority queue. The content of this can generally be the same as when declaring
     ``"hosts"`` or ``"actions"``, with limitations left the type's implementation of
-    loading the config for which the patch would be applied to (e.g. a derived ``Action``
-    may allow more or less fields in its ``load_config``/``load_core_config``/``load_extra_config``).
+    loading the *options* for which the patch would be applied to (e.g. a derived ``Action``
+    may allow more or less fields in its ``load_options``/``load_core_options``/``load_extra_options``).
     Each entry should correspond to an existing object in the workflow found in
     :py:attr:`hosts` or :py:attr:`actions` - objects to be patched do not `need` to
     be created via JSON config file.
@@ -875,13 +875,13 @@ class Orchestrator( jconfig.JSONConfig ):
         See :py:meth:`process_patches()` for advanced usage of patching objects, including using patch filters.
 
     .. note::
-        ``"type"`` is not a valid field in any of the ``"patches"`` sub-dicts as the config
+        ``"type"`` is not a valid field in any of the ``"patches"`` sub-dicts as the *options*
         will be applied to existing object instances and ``"type"`` is only used for
         initial creation of objects in this method.
     """
-    hosts = config.pop( "hosts", {} )
-    for id, host_config in hosts.items():
-      host_typename = host_config.pop( "type", sane.host.Host.CONFIG_TYPE )
+    hosts = options.pop( "hosts", {} )
+    for id, host_options in hosts.items():
+      host_typename = host_options.pop( "type", sane.host.Host.CONFIG_TYPE )
       host_type = sane.host.Host
       if host_typename == sane.hpc_host.PBSHost.CONFIG_TYPE:
         host_type = sane.hpc_host.PBSHost
@@ -892,12 +892,12 @@ class Orchestrator( jconfig.JSONConfig ):
       self.add_host( host )
 
       host.log_push()
-      host.load_config( host_config, origin )
+      host.load_options( host_options, origin )
       host.log_pop()
 
-    actions = config.pop( "actions", {} )
-    for id, action_config in actions.items():
-      action_typename = action_config.pop( "type", sane.action.Action.CONFIG_TYPE )
+    actions = options.pop( "actions", {} )
+    for id, action_options in actions.items():
+      action_typename = action_options.pop( "type", sane.action.Action.CONFIG_TYPE )
       action_type = sane.action.Action
       if action_typename != sane.action.Action.CONFIG_TYPE:
         action_type = self.search_type( action_typename )
@@ -905,17 +905,17 @@ class Orchestrator( jconfig.JSONConfig ):
       self.add_action( action )
 
       action.log_push()
-      action.load_config( action_config, origin )
+      action.load_options( action_options, origin )
       action.log_pop()
 
     # Handle very similar to the register functions, including priority
-    patches = config.pop( "patches", {} )
+    patches = options.pop( "patches", {} )
     if len( patches ) > 0:
       priority = patches.pop( "priority", 0 )
-      if priority not in self._patch_configs:
-        self._patch_configs[priority] = {}
-      self._patch_configs[priority][origin] = patches
-    super().load_core_config( config, origin )
+      if priority not in self._patch_options:
+        self._patch_options[priority] = {}
+      self._patch_options[priority][origin] = patches
+    super().load_core_options( options, origin )
 
   def _load_save_dict( self ):
     save_dict = {}
@@ -949,7 +949,7 @@ class Orchestrator( jconfig.JSONConfig ):
                         "working_directory" : self.working_directory,
                         "resource_usage" : { self.__timestamp__ : { self.current_host : self.hosts[self.current_host].resource_log } }
                       }
-    save_dict = jconfig.recursive_update( save_dict, save_dict_update )
+    save_dict = recursive_update( save_dict, save_dict_update )
     with open( self.save_file, "w" ) as f:
       json.dump( save_dict, f, indent=2 )
 
