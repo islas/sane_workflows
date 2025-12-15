@@ -21,7 +21,7 @@ class ActionTests( unittest.TestCase ):
     self.action.verbose = True
     # Redirect logging to buffer
     # https://stackoverflow.com/a/7483862
-    sane.console_handler.stream = sys.stdout
+    sane.logger.console_handler.stream = sys.stdout
 
   def tearDown( self ):
     self.remove_save_files( self.action )

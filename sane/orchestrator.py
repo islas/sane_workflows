@@ -513,7 +513,6 @@ class Orchestrator( opts.OptionLoader ):
     self.log( "and any necessary dependencies" )
 
     traversal_list = self.traversal_list( action_id_list )
-    self.log( "Full action set:" )
     action_set = list(traversal_list.keys())
     longest_action = len( max( action_set, key=len ) )
     if visualize:

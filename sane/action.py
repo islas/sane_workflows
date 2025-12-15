@@ -9,7 +9,6 @@ import time
 from typing import Dict, List, Tuple, Union
 from enum import Enum, EnumMeta
 
-from sane import log_formatter
 import sane.logger as slogger
 import sane.save_state as state
 import sane.options as opts
@@ -346,7 +345,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     # Create our own logger instance
     self.logger = slogger.logging.getLogger( __name__ ).getChild( self.id )
     file_handler = slogger.logging.FileHandler( self.logfile, mode="w" )
-    file_handler.setFormatter( log_formatter )
+    file_handler.setFormatter( slogger.log_formatter )
     self.logger.addHandler( file_handler )
     self.logger.setLevel( slogger.STDOUT )
 
@@ -590,10 +589,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ## Call subprocess
       ##
       # https://stackoverflow.com/a/18422264
-      if verbose:
-        self.log( "Command output will be printed to this terminal" )
       if logfile is not None:
         self.log( "Command output will be captured to logfile {0}".format( logfile ), level=log_level )
+      if verbose:
+        self.log( "Command output will be printed to this terminal" )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
