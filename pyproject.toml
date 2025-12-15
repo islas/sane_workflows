@@ -35,6 +35,7 @@ Issues = "https://github.com/islas/sane_workflows/issues"
 
 [project.scripts]
 sane_runner = "sane:sane_runner.main"
+sane_view   = "sane:sane_view.main"
 
 [tool.setuptools]
 include-package-data = true
