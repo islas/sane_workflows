@@ -54,7 +54,7 @@ Host
       Defining these functions does not require calling :py:class:`super` or other intrinsic
       Python knowledge beyond the interface of the function and any user logic.
 
-      .. automethod:: load_extra_config
+      .. automethod:: load_extra_options
 
       .. automethod:: pre_run_actions
       .. automethod:: pre_launch
@@ -71,8 +71,8 @@ Host
 
       .. autoproperty:: info
 
-      .. automethod:: load_config
-      .. automethod:: load_core_config
+      .. automethod:: load_options
+      .. automethod:: load_core_options
       .. automethod:: search_type
 
       .. automethod:: resources_available

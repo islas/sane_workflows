@@ -55,8 +55,8 @@ Orchestrator
       .. automethod:: load_paths
       .. automethod:: load_py_files
       .. automethod:: load_config_files
-      .. automethod:: load_config
-      .. automethod:: load_core_config
+      .. automethod:: load_options
+      .. automethod:: load_core_options
       .. automethod:: search_type
 
       .. automethod:: process_registered

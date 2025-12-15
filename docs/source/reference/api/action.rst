@@ -42,7 +42,7 @@ Action
 
           A user-defined ``dict`` that can hold anything `picklable`_
 
-          Automatic config :py:meth:`loading <load_core_config>` and 
+          Automatic config :py:meth:`loading <load_core_options>` and 
           :py:meth:`dereferencing <dereference>` is supported for this attribute.
           This is meant as a general information container without the
           need for defining a custom :py:class:`Action` with custom attributes.
@@ -95,7 +95,7 @@ Action
       Python knowledge beyond the interface of the function and any user logic.
 
       .. automethod:: extra_requirements_met
-      .. automethod:: load_extra_config
+      .. automethod:: load_extra_options
 
       .. automethod:: pre_launch
       .. automethod:: pre_run
@@ -119,17 +119,17 @@ Action
 
       .. autoattribute:: __timestamp__
       .. autoattribute:: __time__
-      .. autoattribute:: verbose
       .. autoattribute:: dry_run
 
       .. autoproperty:: logfile
+      .. autoproperty:: runlog
       .. autoproperty:: origins
       .. autoproperty:: status
       .. autoproperty:: state
       .. autoproperty:: results
 
-      .. automethod:: load_config
-      .. automethod:: load_core_config
+      .. automethod:: load_options
+      .. automethod:: load_core_options
       .. automethod:: execute_subprocess
       .. automethod:: launch
 

@@ -32,7 +32,7 @@ Resources
 
       Internal API
       ------------
-      .. automethod:: load_core_config
+      .. automethod:: load_core_options
 
 
   .. autoclass:: sane.resources.ResourceProvider
@@ -52,7 +52,7 @@ Resources
 
       Internal API
       ------------
-      .. automethod:: load_core_config
+      .. automethod:: load_core_options
       .. automethod:: resources_available
       .. automethod:: acquire_resources
       .. automethod:: release_resources
@@ -73,7 +73,7 @@ Resources
 
     Internal API
     ------------
-    .. automethod:: load_core_config
+    .. automethod:: load_core_options
 
     Customizable Functions
     ----------------------
