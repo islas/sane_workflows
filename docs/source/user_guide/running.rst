@@ -77,8 +77,8 @@ start of each of the above steps:
     2025-11-18 12:36:19 INFO     [orchestrator::register] Hello world from my_workflow
     2025-11-18 12:36:19 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
     2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
-    2025-11-18 12:36:19 WARNING  [fib_seq_fixed]            Unused keys in config : ['unused_action_param']
-    2025-11-18 12:36:19 WARNING  [orchestrator]             Unused keys in config : ['unused_orch_param']
+    2025-11-18 12:36:19 WARNING  [fib_seq_fixed]            Unused keys in dict : ['unused_action_param']
+    2025-11-18 12:36:19 WARNING  [orchestrator]             Unused keys in dict : ['unused_orch_param']
     2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/simple_action.json
     2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/hpc_host.json
     2025-11-18 12:36:19 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'

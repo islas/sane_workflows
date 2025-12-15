@@ -1,0 +1,28 @@
+div.leftside {
+  width: 43%;
+  padding: 0px 3px 0px 0px;
+  float: left;
+}
+
+div.rightside {
+  margin-left: 45%;
+  /* float: right; */
+}
+
+/* Example for ReadTheDocs theme, adjust class names as needed */
+div.document p.small-font {
+    font-size: 0.8em;
+    /* !important may be needed to override default styles */
+}
+
+.bolditalic {
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* Make sphinx toolbox collapse look like it can be clicked */
+div.document details summary {
+  cursor: pointer;
+  text-decoration: underline;
+  color:green
+}

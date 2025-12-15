@@ -10,3 +10,4 @@
 .. _decorator:     https://docs.python.org/3/glossary.html#term-decorator
 .. _namespace package: https://docs.python.org/3/reference/import.html#namespace-packages
 .. _qualified name:    https://docs.python.org/3/glossary.html#term-qualified-name
+.. _DAG:           https://en.wikipedia.org/wiki/Directed_acyclic_graph

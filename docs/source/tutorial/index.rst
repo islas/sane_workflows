@@ -8,6 +8,14 @@ In this tutorial we will work through creating a workflow for a
 project called ``mango``. The files will be added gradually as we
 build up our understanding of SANE workflows.
 
+.. note:: **For clarification**: We will be using the following *optional* flags to exercise
+          workflows. It is **not necessary** to understand these options beyond the description
+          here for the purposes of the tutorial.
+
+          * ``-sh`` :ref:`running.specific_host` option to ensure our host is selected
+          * ``-n`` :ref:`New Run <running.saves>` option to always rerun our workflow entirely
+          * ``-v``  :ref:`running.verbose` option to get full output in one location rather than split amongst multiple files
+
 
 Structure
 =========
@@ -20,45 +28,36 @@ itself is just workflow files.
 
 For the purposes of this tutorial, we will be placing files under ``.sane``.
 
-Alternate :py:class:`Host` definitions or specialized patches
-(see :py:meth:`~Orchestrator.process_patches`) that are specific
-to a user or particular machine not directly supported by your project
-can be placed completely outside your project or repository and
-pulled into the workflow at runtime using the :ref:`--path <running.paths>`
-flag.
+Especially when using the python interface, it may be beneficial to place files
+under another folder inside the workflow root folder. This acts as the root
+`namespace package`_ for python imports.
 
-Finally, especially when using the python interface, it may be
-beneficial to place files under another folder inside the workflow
-root folder. This acts as the root `namespace package`_ for python imports.
-
-Let's work through an example layout for our ``mango`` workflow
-before we start looking at adding files and content said files.
-
-Take this directory structure:
+Let's look at an example directory structure for our ``mango`` workflow before
+we begin the tutorial:
 
 .. code-block:: none
 
     .sane/
     ├── common.jsonc
-    ├── mango
-    │   ├── actions
-    │   │   ├── grow.jsonc
-    │   │   └── harvest.py
-    │   ├── custom
-    │   │   ├── actions.py
-    │   │   ├── envs.py
-    │   │   └── hosts.py
-    │   │   └── funcs.py
-    │   └── hosts
-    │       ├── desert.py
-    │       └── forest.jsonc
-    └── scripts
-        └── grow.sh
-        └── harvest.sh
+    └─── mango
+        ├── actions
+        │   ├── grow.jsonc
+        │   └── harvest.py
+        ├── custom
+        │   ├── actions.py
+        │   ├── envs.py
+        │   └── hosts.py
+        │   └── funcs.py
+        ├── hosts
+        │   ├── desert.py
+        │   └── forest.jsonc
+        └── scripts
+            └── grow.sh
+            └── harvest.sh
 
-In the above directory structure, our python and JSON files will
-not be specifically isolated. The :py:class:`Orchestrator` will find
-them for us.
+In the above directory structure, our python and JSON files are
+not be specifically isolated. The :py:class:`Orchestrator` **will find
+them for us**.
 
 Instead, we will made sure to place all custom python modules that
 we want to ``import`` later within our workflow under at least
@@ -68,11 +67,12 @@ From there, any extra folders or organization is left for us to
 decide. For this example, we will organized actions and hosts into
 separate folders as well.
 
-We also will have helper scripts under ``.sane/scripts/`` that the will
+We also will have helper scripts under ``.sane/mangoscripts/`` that the will
 not be read in with the rest of the workflow files as its extension
 is neither ``.py`` nor ``.json[c]``.
 
-Go to the next section to begin the tutorial and adding these files.
+Go to the next section to begin the tutorial, where we will work through
+adding example files.
 
 .. toctree::
     :maxdepth: 2
