@@ -155,6 +155,8 @@ Results are written in a JUnit XML file in the log directory:
    2025-10-08 18:22:56 INFO     [orchestrator]       JUnit file at /home/aislas/sane_workflows/log/results.xml
    2025-10-08 18:22:56 INFO     [sane_runner]        Finished 
 
+.. _running.saves:
+
 Saves
 =====
 To prevent the re-running of actions that have already completed, SANE workflows record the workflow state alongside the
@@ -216,9 +218,11 @@ The following have no dependencies:
 | Action ``action_015`` is dependent on ``action_000`` and ``action_001``.
 | Action ``action_025`` is dependent on ``action_010`` and ``action_011``.
 
+.. _running.verbose:
+
 Verbose
 -------
-The ``-v``/``--verbose`` option forces actions' ``launch()`` output to be echoed to the terminal in addition to the already
+The ``-v``/``--verbose`` option forces actions' output to be echoed to the terminal in addition to the already
 captured output in the actions' logfile.
 
 Debug
