@@ -1,7 +1,7 @@
 import os
 
 import sane
-import sane.json_config as jconfig
+import sane.options as opts
 
 class MyAction( sane.Action ):
   def __init__( self, id ):
@@ -28,7 +28,7 @@ class MyAction( sane.Action ):
 class MyActionWithArgs( MyAction ):
   def __init__( self, id ):
     super().__init__( id )
-    self.dummy = jconfig.JSONConfig( logname="foo" )
+    self.dummy = opts.OptionLoader( logname="foo" )
 
 
   def run( self ):
@@ -41,7 +41,7 @@ class MyActionWithArgs( MyAction ):
       self.log( "Please provide arguments", level=30 )
 
     self.log( self.dummy.check_unused )
-    self.log( jconfig.JSONConfig )
+    self.log( opts.OptionLoader )
     return 0
 
 
