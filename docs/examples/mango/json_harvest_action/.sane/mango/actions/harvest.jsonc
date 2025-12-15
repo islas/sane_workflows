@@ -1,0 +1,16 @@
+{
+  "actions" :
+  {
+    "harvest_action" :
+    {
+      "config" :
+      {
+        "command" : ".sane/mango/scripts/harvest.sh"
+      },
+      "environment": "valley",
+      // no resource requirements listed for this action
+      // set dependency to "grow_action"
+      "dependencies" : { "grow_action" : "afterok" }
+    }
+  }
+}
