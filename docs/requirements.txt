@@ -1,0 +1,5 @@
+Sphinx                        >= 7.4.7
+sphinx-pyproject              >= 0.3.0
+sphinx-rtd-theme              >= 3.0.2
+sphinx-toolbox                >= 4.1.0
+myst-parser                   >= 3.0.1
