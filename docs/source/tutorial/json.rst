@@ -216,7 +216,7 @@ we can see that we have quite a few *options* options:
   * ``"base_env"``
   * ``"environments"``
 
-  From :py:meth:`ResourceProvider.load_core_options`:
+  From :py:meth:`ResourceProvider.load_core_options <resources.ResourceProvider.load_core_options>`:
 
   * ``"resources"``
   * ``"mapping"``
@@ -371,7 +371,7 @@ To quickly summarize, the :py:meth:`Action.load_core_options` supports:
   * ``"config"``
   * ``"dependencies"``
 
-  From :py:meth:`ResourceRequestor.load_core_options`:
+  From :py:meth:`ResourceRequestor.load_core_options <resources.ResourceRequestor.load_core_options>`:
 
   * ``"resources"``
   * ``"local"``

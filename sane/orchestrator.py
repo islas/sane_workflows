@@ -188,7 +188,7 @@ class Orchestrator( opts.OptionLoader ):
     the subgraph. The returned traversal can then be used to walk through the transitive reduction
     by extracting all ids that are zero, updating the traversal to reduce any remaining ids' dependency
     count by one for each respective id removed, and repeating the process. This is facilitated
-    internally via :py:class:`DAG`
+    internally via a `DAG`_
 
     :param action_id_list: A list of :py:attr:`Action.id` to traverse to
     :type  action_id_list: list[str]
@@ -817,7 +817,7 @@ class Orchestrator( opts.OptionLoader ):
         self.load_options( options, file )
         self.log_pop()
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   def load_core_options( self, options : Dict[str,object], origin : str ):
     """Load the provided *options* dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
 

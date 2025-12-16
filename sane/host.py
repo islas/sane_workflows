@@ -11,7 +11,7 @@ import sane.resources
 from sane.helpers import copydoc, recursive_update
 
 class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
-  """Primary :py:class:`ResourceProvider` and container for :py:class:`Environment` available within a workflow."""
+  """Primary :py:class:`~resources.ResourceProvider` and container for :py:class:`Environment` available within a workflow."""
   CONFIG_TYPE = "Host"
 
   def __init__( self, name, aliases=[] ):
@@ -105,8 +105,8 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
     env._base = self.base_env
     self.environments[env.name] = env
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
-  @copydoc( sane.resources.ResourceProvider.load_core_options )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
+  @copydoc( sane.resources.ResourceProvider.load_core_options, module="resources" )
   def load_core_options( self, options, origin ):
     """Load the :py:class:`Host` *options* into this instance.
     

@@ -475,7 +475,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                  when this requirement may be affected to ensure the workflow does
                  not silently hang with the Action never running.
 
-    :param dependency_actions: :py:class:`Actions` this instance is dependent on
+    :param dependency_actions: all :py:class:`Action` this instance is dependent on
     :type dependency_actions: dict[str, Action]
     """
     return True
@@ -1025,8 +1025,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def __str__( self ):
     return f"Action({self.id})"
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
-  @copydoc( res.ResourceRequestor.load_core_options )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
+  @copydoc( res.ResourceRequestor.load_core_options, module="resources" )
   def load_core_options( self, options, origin ):
     """Load :py:class:`Action` settings from the provided *options* dict, all keys are optional.
 

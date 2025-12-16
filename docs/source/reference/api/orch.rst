@@ -52,6 +52,8 @@ Orchestrator
       .. autoproperty:: results_file
 
       .. automethod:: run_actions
+      .. automethod:: add_search_paths
+      .. automethod:: add_search_patterns
       .. automethod:: load_paths
       .. automethod:: load_py_files
       .. automethod:: load_config_files

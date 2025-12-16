@@ -70,6 +70,7 @@ Host
       :ref:`custom Hosts <adv_use_hosts>`.
 
       .. autoproperty:: info
+      .. automethod:: valid_host
 
       .. automethod:: load_options
       .. automethod:: load_core_options

@@ -243,15 +243,15 @@ class Resource:
 
 
 class AcquirableResource( Resource ):
-  """A :py:class:`Resource` that also tracks the amount acquired internally
+  """A :py:class:`~sane.resources.Resource` that also tracks the amount acquired internally
 
-  This class internally contains another :py:class:`Resource` that tracks the
+  This class internally contains another :py:class:`~sane.resources.Resource` that tracks the
   acquirable amount of the resouce. The original acquirable amount always matches
   the :py:attr:`amount` set at instantiation, and setting :py:attr:`amount`
   afterwards results in undefined behavior.
 
-  All supported binary operations on an :py:class:`AcquirableResource` return a
-  new :py:class:`AcquirableResource` and operate on the underlying :py:attr:`acquirable`
+  All supported binary operations on an :py:class:`~sane.resources.AcquirableResource` return a
+  new :py:class:`~sane.resources.AcquirableResource` and operate on the underlying :py:attr:`acquirable`
   amount. The :py:attr:`AcquirableResource.amount` is unaffected.
 
   For example:
@@ -436,18 +436,18 @@ class ResourceRequestor( opts.OptionLoader ):
     self._override_resources   = {}
 
     #: Control if the resources requested should be provided from a local pool
-    #: if a :py:class:`NonLocalProvider` is used. If set to ``None`` then resource
+    #: if a :py:class:`~sane.resources.NonLocalProvider` is used. If set to ``None`` then resource
     #: delegation is left to the provider, ``True`` to force local, and ``False``
-    #: to force non-local. If the provider is a normal :py:class:`ResourceProvider`
+    #: to force non-local. If the provider is a normal :py:class:`~sane.resources.ResourceProvider`
     #: this option has no effect.
     self.local = None
 
   def resources( self, override : str = None ) -> dict:
     """Return a copy of the current resources requested
 
-    During workflow execution, the :py:attr:`~Orchestrator.current_host` will be
+    During workflow execution, the :py:attr:`~sane.Orchestrator.current_host` will be
     provided as the ``override`` value when requesting resources from the
-    :py:class:`Host` via :py:meth:`ResourceProvider.acquire_resources()`
+    :py:class:`sane.Host` via :py:meth:`resources.ResourceProvider.acquire_resources()`
 
     :param override: If an override ``dict`` exists in the resources, return a
                      copy of the resources recursively updated to prioritize the
@@ -465,15 +465,15 @@ class ResourceRequestor( opts.OptionLoader ):
   def add_resource_requirements( self, resource_dict : dict ):
     """Add resource requirements to this requestor
 
-    .. hint:: See :py:class:`Resource` for syntax on default supported values
+    .. hint:: See :py:class:`~sane.resources.Resource` for syntax on default supported values
 
     Add an arbitrary dict of key-value pairs to this requestor. The key-value pairs
-    in this dict will eventually be requested from a :py:class:`ResourceRequestor`
+    in this dict will eventually be requested from a :py:class:`~sane.resources.ResourceRequestor`
     for:
       
-      * :py:meth:`~ResourceRequestor.acquire_resources()`
-      * :py:meth:`~ResourceRequestor.release_resources()`
-      * :py:meth:`~ResourceRequestor.resources_available()`
+      * :py:meth:`~sane.resources.ResourceProvider.acquire_resources()`
+      * :py:meth:`~sane.resources.ResourceProvider.release_resources()`
+      * :py:meth:`~sane.resources.ResourceProvider.resources_available()`
 
     If the value in a key-value pair is of type ``dict``, it will be considered
     an override resource request specific to the name of the key. This override
@@ -498,16 +498,16 @@ class ResourceRequestor( opts.OptionLoader ):
         }
 
     The values of ``"specific_provider"`` will only be used (in addition to any
-    unmodified values in the top-level dict) if the :py:attr:`~Orchestrator.current_host`
+    unmodified values in the top-level dict) if the :py:attr:`~sane.Orchestrator.current_host`
     matches this key.
 
     .. note:: While the ``resource_dict`` can be arbitrary values, it is on the
-              :py:class:`ResourceProvider` (i.e. :py:class:`Host`) to be able to
+              :py:class:`~sane.resources.ResourceProvider` (i.e. :py:class:`sane.Host`) to be able to
               provide these resources. 
               
-              Notably, any resources that do not follow the :py:class:`Resource`
+              Notably, any resources that do not follow the :py:class:`~sane.resources.Resource`
               syntax are left strictly to the provider class implementation. The
-              default classes do not support values outside of :py:class:`Resource`
+              default classes do not support values outside of :py:class:`~sane.resources.Resource`
               unless specified.
 
     """
@@ -528,9 +528,9 @@ class ResourceRequestor( opts.OptionLoader ):
 
   @copydoc( opts.OptionLoader.load_core_options, append=False )
   def load_core_options( self, options : dict, origin : str ):
-    """Load :py:class:`ResourceRequestor` resource requirements
+    """Load :py:class:`~sane.resources.ResourceRequestor` resource requirements
 
-    The following key is loaded verbatim into :py:meth:`add_resource_requirments`:
+    The following key is loaded verbatim into :py:meth:`add_resource_requirements`:
 
     * ``"resources"``
 
@@ -548,12 +548,12 @@ class ResourceRequestor( opts.OptionLoader ):
 
 
 class ResourceProvider( opts.OptionLoader ):
-  """Manages and provides use of :py:class:`AcquirableResources <AcquirableResource>`
+  """Manages and provides use of :py:class:`AcquirableResources <sane.resources.AcquirableResource>`
 
-  During workflow execution the :py:class:`ResourceProvider` will be given the
-  :py:attr:`~ResourceRequestor.resources` of each runnable :py:class:`ResourceRequestor`
+  During workflow execution the :py:class:`~sane.resources.ResourceProvider` will be given the
+  :py:attr:`~sane.resources.ResourceRequestor.resources` of each runnable :py:class:`~sane.resources.ResourceRequestor`
   (``Action``) to check for availability, acquire, and finally release the
-  :py:attr:`~ResourceRequestor.resources` at completion.
+  :py:attr:`~sane.resources.ResourceRequestor.resources` at completion.
   """
   def __init__( self, mapper=None, **kwargs ):
     super().__init__( **kwargs )
@@ -576,11 +576,11 @@ class ResourceProvider( opts.OptionLoader ):
   def add_resources( self, resource_dict : dict, override=False ):
     """Add resources to this provider that can be acquired
 
-    .. hint:: See :py:class:`Resource` for syntax on default supported values
+    .. hint:: See :py:class:`~sane.resources.Resource` for syntax on default supported values
 
     Add a dict of key-value pairs to this provider. The key-value pairs in this
-    dict will be used to create :py:class:`AcquirabeResource` instances that track
-    resource requests from a :py:class:`ResourceRequestor`.
+    dict will be used to create :py:class:`~sane.resources.AcquirableResource` instances that track
+    resource requests from a :py:class:`~sane.resources.ResourceRequestor`.
 
     An example *options* :external:py:class:`dict`
 
@@ -595,12 +595,12 @@ class ResourceProvider( opts.OptionLoader ):
     The above ``resource_dict`` would provide 12 counts of ``"cpus"``, 1024 :sup:`3`
     ``b`` units of ``"mem"``, and 2 counts of ``"slots"``. 
     
-    .. important:: The :py:class:`ResourceProvider` has no inherent understanding
+    .. important:: The :py:class:`~sane.resources.ResourceProvider` has no inherent understanding
                    of the units, amounts, or names of resources. Internally, resources
                    will be tracked but at acquisition these resources will not
                    correspond to any form of real hardware / software allocations
                    or locks unless logic within a custom implementation of a derived
-                   :py:class:`ResourceProvider` specifies.
+                   :py:class:`~sane.resources.ResourceProvider` specifies.
     """
     mapped_resource_dict = self.map_resource_dict( resource_dict )
     for resource, info in mapped_resource_dict.items():
@@ -719,17 +719,17 @@ class ResourceProvider( opts.OptionLoader ):
         self._resource_log[resource]["release"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
     self.log_pop()
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="sane.options" )
   def load_core_options( self, options, origin ):
-    """Load the available resources for this :py:class:`ResourceProvider`
+    """Load the available resources for this :py:class:`~sane.resources.ResourceProvider`
 
     The following key is loaded verbatim into :py:meth:`add_resources`
-    and thus should use the same :py:class:`Resource.amount` syntax:
+    and thus should use the same :py:class:`~sane.resources.Resource.amount` syntax:
 
     * ``"resources"``
 
     The following key is loaded into the internal :py:attr:`_mapper` as a ``dict[str,list[str]]``
-    via :py:meth:`ResourceMapper.add_mapping`, where each key in the ``dict`` is
+    via :py:meth:`~sane.resources.ResourceMapper.add_mapping`, where each key in the ``dict`` is
     a resource name/type and the value is a list of strings to use as aliases:
 
     * ``"mapping"``
@@ -751,17 +751,19 @@ class ResourceProvider( opts.OptionLoader ):
       }
 
     The above *options* would provide map ``"cpus"`` to ``"ncpus"`` and add an
-    :py:class:`AcquirableResource` of type ``"ncpus"`` with amount 123 and an
-    :py:class:`AcquirableResource` of type ``"mem"`` with amount 64mb to the
+    :py:class:`~sane.resources.AcquirableResource` of type ``"ncpus"`` with amount 123 and an
+    :py:class:`~sane.resources.AcquirableResource` of type ``"mem"`` with amount 64mb to the
     :py:attr:`resources`.
 
-    .. note:: When using a mapping, the :py:class:`ResourceRequestor` and :py:class:`ResourceProvider`
-              can use any of the alias names or map key itself in its ``resources``.
-              Within the :py:class:`ResourceProvider`, all ``resources`` will always
-              be internally mapped to the corresponding map key if available.
+    .. note:: When using a mapping, the :py:class:`~sane.resources.ResourceRequestor` and
+              :py:class:`~sane.resources.ResourceProvider` can use any of the alias names
+              or map key itself in its ``resources``. Within the :py:class:`~sane.resources.ResourceProvider`,
+              all ``resources`` will always be internally mapped to the corresponding
+              map key if available.
 
-              This allows the creation of :py:class:`ResourceRequestor` and :py:class:`ResourceProvider`
-              that for one reason or another wish to refer to the same resources
+              This allows the creation of :py:class:`~sane.resources.ResourceRequestor`
+              and :py:class:`~sane.resources.ResourceProvider` that for one reason or
+              another wish to refer to the same resources
               by different names.
     """
     resources = options.pop( "resources", {} )
@@ -820,37 +822,37 @@ class ResourceProvider( opts.OptionLoader ):
 
 
 class NonLocalProvider( ResourceProvider ):
-  """An abstract base class specialization of :py:class:`ResourceProvider`
+  """An abstract base class specialization of :py:class:`~sane.resources.ResourceProvider`
   
   This class introduces the concept of a "local" pool of resources separate from
   the rest of the :py:attr:`resources` this provider offers. This nomenclature
   suggests that all :py:attr:`resources` directly in this class (not in the
   :py:attr:`local_resources`) are thus nonlocal.
   
-  The internal local pool is itself a :py:class:`ResourceProvider`.
-  The local pool and this instance share a common :py:class:`ResourceMapper`.
+  The internal local pool is itself a :py:class:`~sane.resources.ResourceProvider`.
+  The local pool and this instance share a common :py:class:`~sane.resources.ResourceMapper`.
   """
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
-    #: Set whether :py:class:`ResourceRequestor` with
-    #: :py:attr:`~Resourcerequestor.local` set to ``None``
-    #: should default to using :py:attr:`local_resource`
+    #: Set whether :py:class:`~sane.resources.ResourceRequestor` with
+    #: :py:attr:`~sane.resources.Resourcerequestor.local` set to ``None``
+    #: should default to using :py:attr:`local_resources`
     self.default_local = False
-    #: Set to force all :py:class:`ResourceRequestor` to
+    #: Set to force all :py:class:`~sane.resources.ResourceRequestor` to
     #: acquire from :py:attr:`local_resources`, regardless
-    #: of :py:attr:`ResourceRequestor.local` setting
+    #: of :py:attr:`~sane.resources.ResourceRequestor.local` setting
     self.force_local = False
-    #: An internal :py:class:`ResourceProvider` to
+    #: An internal :py:class:`~sane.resources.ResourceProvider` to
     #: manage local resource requests
     self.local_resources = ResourceProvider( mapper=self._mapper, logname=f"{self.logname}::local" )
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="sane.options" )
   @copydoc( ResourceProvider.load_core_options )
   def load_core_options( self, options, origin ):
     """Load local resources into :py:attr:`local_resources` and control flags
     
     The following key is loaded verbatim into :py:attr:`local_resources` via
-    :py:meth:`ResourceProvider.add_resources`:
+    :py:meth:`~sane.resources.ResourceProvider.add_resources`:
 
     * ``"local_resources"``
 

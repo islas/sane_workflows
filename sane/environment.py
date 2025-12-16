@@ -290,7 +290,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
     """Return true if :py:attr:`~Environment.name` or :py:attr:`~Environment.aliases` is an exact match to ``requested_env``"""
     return self.exact_match( requested_env )
 
-  @copydoc( opts.OptionLoader.load_core_options, append=False )
+  @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   def load_core_options( self, options, origin ):
     """Load the *options* into this :py:class:`Environment`
     

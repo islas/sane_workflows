@@ -1,7 +1,8 @@
 Resources
 =========
 
-.. py:module:: sane.resources
+.. py:module:: sane
+  :no-index:
 
   .. autoclass:: sane.resources.Resource
       :members:
@@ -10,6 +11,7 @@ Resources
 
   .. autoclass:: sane.resources.AcquirableResource
       :members:
+      :show-inheritance:
       :exclude-members: __new__
       :member-order: bysource
 
