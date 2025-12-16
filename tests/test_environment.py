@@ -39,17 +39,17 @@ class EnvironmentTests( unittest.TestCase ):
     self.assertNotIn( "NEWUSEFUL_VARIABLE", post_env )
     self.assertEqual( post_env["OLDUSEFUL_VARIABLE"], "/usr/notbin/:/definitely/my/home/:/usr/yesbin/" )
 
-  def test_environment_from_config( self ):
-    """Test setting up an environment from a config dict"""
+  def test_environment_from_options( self ):
+    """Test setting up an environment from a options dict"""
     env = dict( os.environ.copy() )
-    self.environment.load_config( {} )
+    self.environment.load_options( {} )
     post_env = dict( os.environ.copy() )
     self.assertEqual( env, post_env )
     self.assertEqual( self.environment._setup_env_vars, {} )
     self.assertEqual( self.environment._setup_lmod_cmds, {} )
 
     env = dict( os.environ.copy() )
-    config = {
+    options = {
                 "aliases" : [ "foo", "bar" ],
                 "lmod_path" : f"{self.root}/tests/mock_lmod.py",
                 "env_vars" :
@@ -62,12 +62,12 @@ class EnvironmentTests( unittest.TestCase ):
                   { "cmd" : "load", "args" : [ "gcc", "netcdf" ] }
                 ]
               }
-    self.environment.load_config( config )
+    self.environment.load_options( options )
     post_env = dict( os.environ.copy() )
     self.assertEqual( env, post_env )
     self.assertNotEqual( self.environment._setup_env_vars, {} )
     self.assertNotEqual( self.environment._setup_lmod_cmds, {} )
-    self.assertEqual( config, {} )
+    self.assertEqual( options, {} )
     self.environment.setup()
     self.assertIn( "foo", self.environment.aliases )
     self.assertIn( "bar", self.environment.aliases )

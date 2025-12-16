@@ -1,0 +1,19 @@
+{
+  "hosts" :
+  {
+    "forest" :
+    {
+      "resources" :
+      {
+        // this coud be cpus but we'll use trees because
+        // that is where mangos grow
+        "trees" : 12
+      },
+      "environments" :
+      {
+        "valley" : { "env_vars" : [ { "cmd" : "set", "var" : "GROWTH_RATE", "val" : 85 } ] },
+        "river"  : { "env_vars" : [ { "cmd" : "set", "var" : "GROWTH_RATE", "val" : 65 } ] }
+      }
+    }
+  }
+}

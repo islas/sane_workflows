@@ -16,6 +16,14 @@
       "aliases" : [ "simple_host" ],
       // Default environment to use if no match is found
       "default_env" : "some_default_env",
+      // Directly sets the config of a host
+      "config" : {
+        // Include anything else in here you wish to use across your host, "config" directly sets
+        // a python dict {} within the host so any parsable values are valid.
+        "<anything>" : "<anyvalue>",
+        "<anything-else>" : { "<anykey>" : "<anyvalue>" },
+        "<anything-else2>" : [ "<anyvalue>" ]
+      }
       // base environment of host always run before other envs
       // name will be <host-name>_env where <host-name> is substituted for user provided name
       "base_env" :
@@ -39,7 +47,7 @@
           "env_vars"  : [ { "cmd" : "prepend|append|set|unset", "var" : "foo", "val" : 0, "category" : "useless" } ],
           // Directly passed to setup_lmod_cmds()
           "lmod_cmds" : [ { "cmd" : "load", "args" : [ "gcc", "netcdf" ], "category" : "useless" } ]
-          // Anything after this is passed via config dict to load_extra_config()
+          // Anything after this is passed via config dict to load_extra_options()
         },
         // An example of different ID with just type specified
         "maybe_derived" :
@@ -62,7 +70,7 @@
       {
         "<resource-truename>" : [ "<aliases>" ]
       }
-      // Anything after this is passed via config dict to load_extra_config()
+      // Anything after this is passed via config dict to load_extra_options()
     },
     "<hpc-pbs-host>" :
     {
@@ -156,7 +164,7 @@
           "account" :"<HPC account to run with>"
         }
       }
-      // Anything after this is passed via config dict to load_extra_config()
+      // Anything after this is passed via config dict to load_extra_options()
     }
   },
   "patches" :
@@ -179,5 +187,5 @@
       "<id>" : {}
     }
   }
-  // Anything after this is passed via config dict to load_extra_config()
+  // Anything after this is passed via config dict to load_extra_options()
 }

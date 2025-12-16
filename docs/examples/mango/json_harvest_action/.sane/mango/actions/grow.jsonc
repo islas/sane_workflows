@@ -1,0 +1,17 @@
+{
+  "actions" :
+  {
+    "grow_action" :
+    {
+      "config" :
+      {
+        "command" : ".sane/mango/scripts/grow.sh",
+        // this must be a list
+        "arguments" : [ 4 ]
+      },
+      "environment": "valley",
+      // We need trees to grow on
+      "resources" : { "trees" : 4 }
+    }
+  }
+}
