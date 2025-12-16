@@ -5,6 +5,8 @@
 import importlib
 import inspect
 import os
+import subprocess
+
 from sphinx_pyproject import SphinxConfig
 
 # -- Project information -----------------------------------------------------
@@ -14,7 +16,9 @@ config = SphinxConfig("../../pyproject.toml", globalns=globals())
 project = "SANE Workflows"
 copyright = "2025, islas"
 author = "islas"
-release = "1.0.0"
+release = version
+
+nitpicky = False
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -66,7 +70,20 @@ with open( "links.rst" ) as f:
 
 # Excellent solution from
 # https://github.com/readthedocs/sphinx-autoapi/issues/202#issuecomment-907582382
-code_url = f"https://github.com/islas/sane_workflows/tree/v{version}"
+ref = None
+try:
+  result = subprocess.run( ["git", "describe", "--exact-match"], capture_output=True, text=True, check=True )
+  ref = result.stdout.strip()
+except:
+  try:
+    result = subprocess.run( ["git", "rev-parse", "--abbrev-ref", "@{u}"], capture_output=True, text=True, check=True )
+    ref = result.stdout.replace( "origin/" , "" ).strip()
+  except:
+    print( "No git source found" )
+    raise Exception()
+
+print( f"Using git ref : {ref}" )
+code_url = f"https://github.com/islas/sane_workflows/tree/{ref}"
 def linkcode_resolve(domain, info):
   if domain != "py":
     return None
