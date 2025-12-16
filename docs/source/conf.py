@@ -5,13 +5,20 @@
 import importlib
 import inspect
 import os
+import sys
 import subprocess
 
 from sphinx_pyproject import SphinxConfig
 
+
+filepath = os.path.dirname( os.path.abspath( __file__ ) )
+package_path = os.path.abspath( os.path.join( filepath, "../../" ) )
+if package_path not in sys.path:
+  sys.path.append( package_path )
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-config = SphinxConfig("../../pyproject.toml", globalns=globals())
+config = SphinxConfig( os.path.join( package_path, "pyproject.toml" ), globalns=globals())
 
 project = "SANE Workflows"
 copyright = "2025, islas"
