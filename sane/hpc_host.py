@@ -10,7 +10,7 @@ import sane.host
 
 
 class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
-  HPC_DELAY_PERIOD_SECONDS = 30
+  HPC_DELAY_PERIOD_SECONDS = 5
 
   def __init__( self, name, aliases=[] ):
     super().__init__( name=name, aliases=aliases )
@@ -20,6 +20,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     # Defaults
     self.queue   = None
     self.account = None
+
+    self.job_suffix = ""
 
     self._job_ids = {}
 
@@ -41,16 +43,18 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
                           }
     self._cmd_delim = None
 
-  def load_core_config( self, config, origin ):
-    queue = config.pop( "queue", None )
+  def load_core_options( self, options, origin ):
+    queue = options.pop( "queue", None )
     if queue is not None:
       self.queue = queue
 
-    account = config.pop( "account", None )
+    account = options.pop( "account", None )
     if account is not None:
       self.account = account
 
-    super().load_core_config( config, origin )
+    self.job_suffix = options.pop( "job_suffix", "" )
+
+    super().load_core_options( options, origin )
 
   def _format_arguments( self, arguments ):
     resources = []
@@ -81,11 +85,33 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
       submission.append( self._cmd_delim )
     return submission
 
-  def _launch_local( self, action ):
-    return action.local or ( action.local is None and self.default_local )
+  @property
+  def watchdog_func( self ):
+    return self.capture_job_complete
+
+  def capture_job_complete( self, actions, only_watchdog=True ):
+    completed = {}
+    while not self.kill_watchdog and ( only_watchdog or len( completed ) != len( self._job_ids ) ):
+      time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
+      for action_name, job_id in self._job_ids.items():
+        if action_name not in completed and ( self.dry_run or self.job_complete( job_id ) ):
+          completed[action_name] = job_id
+          status = self.dry_run or self.job_status( job_id )
+          disclaimer = ""
+          if self.dry_run:
+            disclaimer = " (dry-run)"
+          self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}{disclaimer}" )
+          if status:
+            actions[action_name].set_status_success()
+          else:
+            actions[action_name].set_status_failure()
+
+          self.on_job_complete( job_id, actions[action_name] )
+          # Wake the orch
+          self.__orch_wake__()
 
   def post_launch( self, action, retval, content ):
-    if not self._launch_local( action ):
+    if not self.launch_local( action ):
       if retval != 0:
         msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
@@ -98,18 +124,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
       self.log( "Waiting for HPC jobs to complete" )
       self.log_push()
       self.log( "*ATTENTION* : This is a blocking/sync phase to wait for all jobs to complete - BE PATIENT" )
-      completed = {}
-      while len( completed ) != len( self._job_ids ):
-        time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
-        for action_name, job_id in self._job_ids.items():
-          if action_name not in completed and self.job_complete( job_id ):
-            completed[action_name] = job_id
-            status = self.job_status( job_id )
-            self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}" )
-            if status:
-              actions[action_name].set_status_success()
-            else:
-              actions[action_name].set_status_failure()
+      self.kill_watchdog = False
+      self.capture_job_complete( actions, only_watchdog=False )
       self.log_pop()
       self.log( "All HPC jobs complete" )
     elif self.dry_run:
@@ -144,23 +160,26 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     output = output.decode( "utf-8" )
     return self.check_job_status( job_id, retval, output )
 
+  def on_job_complete( self, job_id, action ):
+    pass
+
   def launch_wrapper( self, action, dependencies ):
     """A launch wrapper must be defined for HPC submissions"""
-    if self._launch_local( action ):
+    if self.launch_local( action ):
       return None
 
     dep_jobs = {}
     for id, dep_action in dependencies.items():
-      if not self._launch_local( dep_action ):
+      if not self.launch_local( dep_action ):
         if dep_action.status == sane.action.ActionStatus.SUBMITTED:
-          if action.dependencies[id] not in dep_jobs:
+          if action.dependencies[id]["dep_type"] not in dep_jobs:
             # quickly add the key for this type of dependency
-            dep_jobs[action.dependencies[id]] = []
+            dep_jobs[action.dependencies[id]["dep_type"]] = []
           # Construct dependency type -> job id
           if dep_action.id not in self._job_ids:
             raise KeyError( f"Missing job id for '{dep_action.id}'" )
           else:
-            dep_jobs[action.dependencies[id]].append( self._job_ids[dep_action.id] )
+            dep_jobs[action.dependencies[id]["dep_type"]].append( self._job_ids[dep_action.id] )
         # else:
           # We should not need to do this as the orch would be the one to check
           # that our dependencies were met before asking this action to launch
@@ -179,7 +198,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
     submit_args = self.submit_args( specific_resources, action.logname )
     default_submit = {
-                              "name"       : f"sane.workflow.{action.id}",
+                              "name"       : f"sane.workflow.{action.id}{self.job_suffix}",
                               "output"     : action.logfile,
                               "queue"      : queue,
                               "account"    : account,
@@ -283,13 +302,13 @@ class PBSHost( HPCHost ):
       nodeset["total"].log_pop( levels )
       nodeset["node"].log_pop( levels )
 
-  def load_core_config( self, config, origin ):
+  def load_core_options( self, options, origin ):
     # Note: This is very delicate and maybe should be restructured
     # Pull out resources first to override
-    resources = config.pop( "resources", {} )
+    resources = options.pop( "resources", {} )
 
-    # Now read rest of config *first* in case we have mappings
-    super().load_core_config( config, origin )
+    # Now read rest of options *first* in case we have mappings
+    super().load_core_options( options, origin )
 
     # Finally process resources
     for node_type, hardware_info in resources.items():
@@ -322,6 +341,13 @@ class PBSHost( HPCHost ):
                                                         }
                                                       )
       self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
+
+  @property
+  def resource_log( self ):
+    res_log = super().resource_log
+    for node_type, node_dict in self._resources.items():
+      res_log[node_type] = node_dict["total"].resource_log
+    return res_log
 
   def check_job_complete( self, job_id, retval, status ):
     if retval != 0:
@@ -447,14 +473,8 @@ class PBSHost( HPCHost ):
         nodes = specified_resource_dict.pop( "nodes", 0 )
         if nodes == 0:
           for resource in nodeset_resources:
-            available = total.resources_available(
-                                                  { resource : specified_resource_dict[resource] },
-                                                  requestor=requestor,
-                                                  log=False
-                                                  )
-            if available:
-              nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
-              nodes = max( nodes, math.ceil(nodes_for_res) )
+            nodes_for_res = max( specified_resource_dict[resource] / node.resources[resource].total, 1 )
+            nodes = max( nodes, math.ceil(nodes_for_res) )
 
         if not total.resources_available( { "nodes" : nodes }, requestor=requestor, log=False ):
           total.log( "Not enough nodes", level=15 )
@@ -587,7 +607,13 @@ class PBSHost( HPCHost ):
     return available
 
   def nonlocal_release_resources( self, resource_dict : dict, requestor : sane.resources.ResourceRequestor ):
-    requisition = self._requisitions[requestor.logname]
+    # Our job submission is taking resources, so we can't just reclaim them when the
+    # Action that submitted our job is done
+    pass
+
+  def on_job_complete( self, job_id, action ):
+    # Release the resources now
+    requisition = self._requisitions[action.logname]
     for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].release_resources( req["amounts"], requestor )
-    del self._requisitions[requestor.logname]
+      self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+    del self._requisitions[action.logname]

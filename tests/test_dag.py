@@ -3,6 +3,7 @@ import unittest
 from sane.dag import DAG
 from sane.dagvis import visualize as dagvis
 
+
 class DagTests( unittest.TestCase ):
 
   def setUp( self ):
@@ -35,7 +36,6 @@ class DagTests( unittest.TestCase ):
     self.assertEqual( traversal_list, {} )
     for node_list in expected:
       self.assertEqual( node_list, [] )
-
 
   def test_dag_no_nodes( self ):
     """A valid DAG consisting of no nodes"""

@@ -1,7 +1,7 @@
 import unittest
 
 import sane
-
+from sane.helpers import recursive_update
 
 class HPCHostTests( unittest.TestCase ):
   def setUp( self ):
@@ -11,8 +11,8 @@ class HPCHostTests( unittest.TestCase ):
     """Ensure that a pbs host can be created standalone"""
     pass
 
-  def test_pbs_host_from_config( self ):
-    self.host.load_config(
+  def test_pbs_host_from_options( self ):
+    self.host.load_options(
       {
         "resources" :
         {
@@ -52,13 +52,13 @@ class HPCHostTests( unittest.TestCase ):
     self.assertIn( "memory", self.host.resources["gpu"]["total"].resources )
 
     self.assertEqual( 82 * 64, self.host.resources["gpu"]["total"].resources["ncpus"].total )
-    self.assertEqual( 82 *  4, self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
+    self.assertEqual( 82 * 4,  self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
     self.assertEqual( 82 * 1024**3 * 512, self.host.resources["gpu"]["total"].resources["memory"].total )
 
 
   def test_pbs_host_resource_requisition( self ):
     dummy = sane.Action( "dummy" )
-    self.test_pbs_host_from_config()
+    self.test_pbs_host_from_options()
     _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256 }, dummy )
     result = self.host._format_arguments( self.host.requisition_to_submit_args( submit_selection ) )
     print( submit_selection )
@@ -75,7 +75,7 @@ class HPCHostTests( unittest.TestCase ):
 
 
   def test_pbs_host_resource_gen_wrapper( self ):
-    self.test_pbs_host_from_config()
+    self.test_pbs_host_from_options()
     action = sane.Action( "foo" )
     action.add_resource_requirements( { "nodes" : 4, "cpus" : 256, "queue" : "bar", "account" : "zoozar" } )
     available = self.host.resources_available( action.resources( "test" ), action )
@@ -85,7 +85,7 @@ class HPCHostTests( unittest.TestCase ):
     print( wrapper )
 
   def test_pbs_host_orch_integration( self ):
-    self.test_pbs_host_from_config()
+    self.test_pbs_host_from_options()
     orch = sane.Orchestrator()
     self.host.add_environment( sane.Environment( "generic" ) )
     orch.add_host( self.host )
@@ -100,4 +100,3 @@ class HPCHostTests( unittest.TestCase ):
       orch.run_actions( ["my_action"], as_host="test" )
     action.add_resource_requirements( { "test" : { "queue" : "queue_foo", "account" : "account_foo" } } )
     orch.run_actions( ["my_action"], as_host="test" )
-

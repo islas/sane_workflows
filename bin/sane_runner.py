@@ -18,7 +18,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Path to search for workflows, if not specified default is ./. Use multiple times for many paths"
+                      help="Path to search for workflows, no default. Use multiple times for many paths"
                       )
   parser.add_argument(
                       "-w", "--working_dir",
@@ -31,7 +31,7 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, if not specified default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
+                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
                       )
   act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
   act_list = act_group.add_mutually_exclusive_group()
@@ -65,7 +65,6 @@ def get_parser():
                     action="store_true",
                     help="Run actions as dry-run"
                     )
-  
   parser.add_argument(
                       "-sh", "--specific_host",
                       type=str,
@@ -86,9 +85,11 @@ def get_parser():
                       )
   parser.add_argument(
                       "-v", "--verbose",
-                      action="store_true",
-                      default=None,
-                      help="Verbose output from actions running"
+                      action="store_const",
+                      dest="debug_level",
+                      default=20,
+                      const=18,
+                      help="Verbose output to main log, shorthand for `-g 18`"
                       )
   parser.add_argument(
                       "-g", "--debug_level",
@@ -145,6 +146,7 @@ def get_parser():
                             )
   return parser
 
+
 def main():
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
@@ -157,22 +159,29 @@ def main():
   parser  = get_parser()
   options = parser.parse_args()
   sane.internal_logger.setLevel( options.debug_level )
+  sys.excepthook = sane.log_exceptions
 
   logfile = os.path.abspath( f"{options.log_location}/{options.main_log}" )
   os.makedirs( os.path.dirname( logfile ), exist_ok=True )
   file_handler = logging.FileHandler( logfile, mode="w" )
   file_handler.setFormatter( sane.log_formatter )
+  file_handler.addFilter( sane.internal_filter )
   sane.internal_logger.addHandler( file_handler )
   logger.log( f"Logging output to {logfile}")
 
   if len( options.path ) == 0:
-    options.path = [ "./" ]
+    logger.log( "No paths provided" )
+    exit( 1 )
 
   if len( options.search_pattern ) == 0:
     options.search_pattern = [ "*.json", "*.jsonc", "*.py" ]
 
   ##############################################################################
   orchestrator = sane.Orchestrator()
+  orchestrator.save_location = options.save_location
+  orchestrator.log_location = options.log_location
+  orchestrator.working_directory = options.working_dir
+
   orchestrator.add_search_paths( options.path )
   orchestrator.add_search_patterns( options.search_pattern )
   orchestrator.load_paths()
@@ -236,7 +245,7 @@ def main():
       relaunch_options.virtual_relaunch = None
       relaunch_options.specific_host = host_name
       relaunch_options.main_log = "virtual_runner.log"
-      opt_append = [ "search_path", "search_pattern" ]
+      opt_append = [ "path", "search_pattern" ]
       if relaunch_options.actions:
         del relaunch_options.filter
       else:
@@ -278,21 +287,14 @@ def main():
       # Change action list to do this instead
       action_list = [ "virtual_relaunch" ]
 
-  if options.verbose is not None:
-    logger.log( "Changing all actions output to verbose" )
-    orchestrator.verbose = options.verbose
-
   if options.force_local is not None:
     logger.log( "Forcing all actions to run local" )
     orchestrator.force_local = options.force_local
 
-  orchestrator.save_location = options.save_location
-  orchestrator.log_location = options.log_location
-  orchestrator.working_directory = options.working_dir
-
   # Load any previous statefulness
-  if not options.new:
-    orchestrator.load()
+  if options.new and os.path.exists( orchestrator.save_file ):
+    os.remove( orchestrator.save_file )
+  orchestrator.load()
 
   orchestrator.setup()
   success = True
@@ -313,6 +315,7 @@ def main():
   # Flip success as 1 == True and 0 == False
   # but exit codes 0 == ok anything else not ok
   exit( not int(success) )
+
 
 if __name__ == "__main__":
   main()

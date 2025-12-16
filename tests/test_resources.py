@@ -174,7 +174,7 @@ class ResourceTests( unittest.TestCase ):
     with self.assertRaises( ValueError ):
       result = lhs + rhs_num
     result = lhs - rhs_res
-    # An acquirable resource should result in a similar acquirable resource with 
+    # An acquirable resource should result in a similar acquirable resource with
     # the underlying acquirable modified
     self.assertNotEqual( lhs.total - rhs_num, result.total )
     self.assertNotEqual( lhs.acquirable.total, result.acquirable.total )
@@ -191,14 +191,14 @@ class ResourceTests( unittest.TestCase ):
 
     result = copy.deepcopy( lhs )
     result -= rhs_res
-    # An acquirable resource should result in a similar acquirable resource with 
+    # An acquirable resource should result in a similar acquirable resource with
     # the underlying acquirable modified
     self.assertNotEqual( lhs.total - rhs_num, result.total )
     self.assertNotEqual( lhs.acquirable.total, result.acquirable.total )
     self.assertEqual( lhs.total, result.total )
     self.assertEqual( lhs.acquirable.total - rhs_num, result.acquirable.total )
 
-    rhs_num = 1024*5
+    rhs_num = 1024 * 5
     rhs_res = res.Resource( "foo", "5kb" )
     with self.assertRaises( ValueError ):
       result = lhs - rhs_res

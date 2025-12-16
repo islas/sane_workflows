@@ -21,7 +21,7 @@ class ActionTests( unittest.TestCase ):
     self.action.verbose = True
     # Redirect logging to buffer
     # https://stackoverflow.com/a/7483862
-    sane.console_handler.stream = sys.stdout
+    sane.logger.console_handler.stream = sys.stdout
 
   def tearDown( self ):
     self.remove_save_files( self.action )
@@ -123,9 +123,9 @@ class ActionTests( unittest.TestCase ):
 
     self.remove_save_files( host )
 
-  def test_action_from_config( self ):
-    """Test setting up an action from a config dict"""
-    config = {
+  def test_action_from_options( self ):
+    """Test setting up an action from a options dict"""
+    options = {
                 "environment" : "foobar",
                 "local"       : True,
                 "config"      : { "one" : 1, "two" : [2], "three" : { "foo" : 3 } },
@@ -143,25 +143,31 @@ class ActionTests( unittest.TestCase ):
                   "memory" : "1234gb",
                   "gpus:a100" : 9999,
                   "timelimit"   : "12:34:56",
-                  "host" : { "cpus" : 20, "account" : "foo", "queue" : "bar", "select" : "select=2:mpiprocs4:ncpus:128+3:ncpus=4" }
+                  "host" :
+                  {
+                    "cpus" : 20,
+                    "account" : "foo",
+                    "queue" : "bar",
+                    "select" : "select=2:mpiprocs4:ncpus:128+3:ncpus=4"
+                  }
                 }
               }
-    self.action.load_config( config )
-    self.assertEqual( config, {} )
+    self.action.load_options( options )
+    self.assertEqual( options, {} )
     self.assertIn( "dep_action0", self.action.dependencies )
     self.assertIn( "dep_action1", self.action.dependencies )
     self.assertIn( "dep_action2", self.action.dependencies )
     self.assertIn( "dep_action3", self.action.dependencies )
-    self.assertEqual( self.action.dependencies["dep_action0"], sane.action.DependencyType.AFTEROK )
-    self.assertEqual( self.action.dependencies["dep_action1"], sane.action.DependencyType.AFTERNOTOK )
-    self.assertEqual( self.action.dependencies["dep_action2"], sane.action.DependencyType.AFTERANY )
-    self.assertEqual( self.action.dependencies["dep_action3"], sane.action.DependencyType.AFTER )
+    self.assertEqual( self.action.dependencies["dep_action0"]["dep_type"], sane.action.DependencyType.AFTEROK )
+    self.assertEqual( self.action.dependencies["dep_action1"]["dep_type"], sane.action.DependencyType.AFTERNOTOK )
+    self.assertEqual( self.action.dependencies["dep_action2"]["dep_type"], sane.action.DependencyType.AFTERANY )
+    self.assertEqual( self.action.dependencies["dep_action3"]["dep_type"], sane.action.DependencyType.AFTER )
     self.assertEqual( self.action.environment, "foobar" )
 
   def test_action_dereference( self ):
     """Test the action's ability to use YAML-like attribute dereferencing"""
     # Start with a sufficiently complex config
-    self.test_action_from_config()
+    self.test_action_from_options()
     ref_str = "foo ${{ id }} ${{ environment}} ${{ local }} ${{ working_directory }}"
     exp_str = "foo test foobar True ./"
     out_str = self.action.dereference_str( ref_str )
@@ -174,8 +180,9 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "${{ local }}",
                   "foobar" : "${noop}",
-                  "zoo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
-                }
+                  "moo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
+                },
+                "boo" : "${{ config.two[0] }}"
               }
     exp_dict = {
                 "foo" : "test",
@@ -184,8 +191,9 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "True",
                   "foobar" : "${noop}",
-                  "zoo" : [ "./", "1", "999" ]
-                }
+                  "moo" : [ "./", "1", "999" ]
+                },
+                "boo" : "2"
               }
     out_dict = self.action.dereference( ref_dict )
     self.assertEqual( exp_dict, out_dict )
@@ -197,4 +205,3 @@ class ActionTests( unittest.TestCase ):
     exp_str = "1"
     out_str = self.action.dereference_str( ref_str )
     self.assertEqual( exp_str, out_str )
-

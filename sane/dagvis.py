@@ -13,6 +13,7 @@ def visualize( dag : DAG, nodes, align=False ):
   # o = -|- overpass
   # e =  *  end
   # n = ' ' null
+
   def rindex_with_children( nodes_ordered, visited ):
     for node in reversed( nodes_ordered ):
       children = dag._nodes[node]
@@ -28,7 +29,7 @@ def visualize( dag : DAG, nodes, align=False ):
         # fully visited its children so use this index
         return nodes_ordered.index( node )
     # All checked nodes are okay so just go to the beginning
-    return -1 #len( nodes_ordered ) - 1
+    return -1
 
   not_visited = traversal_list.copy()
 
@@ -47,8 +48,8 @@ def visualize( dag : DAG, nodes, align=False ):
       indexes = [ node_cols[p] for p in parents ]
       last_c  = rindex_with_children( col_nodes, node_rows.keys() )
       first_p = min( indexes, default=len(dag._nodes) )
-      curr_nodes = col_nodes[:last_c+1].copy()
-      curr_chars = [ "a" if i > first_p else "n" for i, char in enumerate( col_chars[:last_c+1] ) ]
+      curr_nodes = col_nodes[:last_c + 1].copy()
+      curr_chars = [ "a" if i > first_p else "n" for i, char in enumerate( col_chars[:last_c + 1] ) ]
 
       # Now for each direct parent go up the rows and ensure we are connectd
       for pidx, p in zip( indexes, parents ):

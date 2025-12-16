@@ -44,12 +44,12 @@ class OrchestratorTests( unittest.TestCase ):
     self.orch.process_registered()
     self.assertIn( "unique_host_py", self.orch.hosts )
 
-  def test_orchestrator_load_config_host( self ):
+  def test_orchestrator_load_config_file_host( self ):
     """Test the ability to load simple host from config files"""
     self.orch.load_config_files( [ f"{self.root}/demo/simple_host.jsonc"] )
     self.assertIn( "unique_host_config", self.orch.hosts )
 
-  def test_orchestrator_load_config_action( self ):
+  def test_orchestrator_load_config_file_action( self ):
     """Test the ability to load simple action from config files"""
     self.orch.load_config_files( [ f"{self.root}/demo/simple_action.json"] )
     self.assertIn( "unique_action_config", self.orch.actions )
@@ -61,19 +61,19 @@ class OrchestratorTests( unittest.TestCase ):
     with self.assertRaises( FileNotFoundError ):
       self.orch.load_py_files( [ f"{self.root}/nosuchfile/in/this/project.py"] )
 
-  def test_orchestrator_patch_config( self ):
+  def test_orchestrator_patch_options( self ):
     """Test the ability to patch config files with other config"""
-    self.test_orchestrator_load_config_host()
-    self.test_orchestrator_load_config_action()
-    self.orch.load_config( { "patches" : { "priority" : 10, "hosts" : { "unique_host_config" : { "default_env" : "soup" } } } } )
+    self.test_orchestrator_load_config_file_host()
+    self.test_orchestrator_load_config_file_action()
+    self.orch.load_options( { "patches" : { "priority" : 10, "hosts" : { "unique_host_config" : { "default_env" : "soup" } } } } )
     self.orch.process_patches()
     self.assertEqual( "soup", self.orch.hosts["unique_host_config"]._default_env )
 
-    self.orch.load_config( { "patches" : { "priority" : 10, "hosts" : { "unique_host_wrong" : { "aliases" : ["soup"] } } } } )
+    self.orch.load_options( { "patches" : { "priority" : 10, "hosts" : { "unique_host_wrong" : { "aliases" : ["soup"] } } } } )
     self.orch.process_patches()
     self.assertNotIn( "unique_host_wrong", self.orch.hosts )
     self.assertNotEqual( ["soup"], self.orch.hosts["unique_host_config"].aliases )
 
-    self.orch.load_config( { "patches" : { "actions" : { "unique_action_config" : { "environment" : "soup" } } } } )
+    self.orch.load_options( { "patches" : { "actions" : { "unique_action_config" : { "environment" : "soup" } } } } )
     self.orch.process_patches()
     self.assertEqual( "soup", self.orch.actions["unique_action_config"].environment )

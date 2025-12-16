@@ -12,7 +12,7 @@ def load( filename ):
   with open( filename, "r" ) as f:
     state = json.load( f )
 
-  sys.path.extend( state["import_paths"] )
+  sys.path[:0] = state["import_paths"]
   importlib.import_module( state["module"] )
 
   obj = None

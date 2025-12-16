@@ -20,7 +20,7 @@ class SaneRunnerTests( unittest.TestCase ):
     # Redirect logging to buffer
     # https://stackoverflow.com/a/7483862
     self.output = io.StringIO()
-    sane.console_handler.stream = self.output
+    sane.logger.console_handler.stream = self.output
     self.root = os.path.abspath( os.path.join( os.path.dirname( __file__ ), ".." ) )
 
   def tearDown( self ):
@@ -66,7 +66,7 @@ class SaneRunnerTests( unittest.TestCase ):
     self.exit_ok( sane.sane_runner.main )
 
     output = self.output.getvalue()
-    self.assertIn( "Running actions:", output )
+    self.assertIn( "Requested actions:", output )
     for i in range( 3 ):
       action = f"action_{i:03d}"
       self.assertIn( action, output )
@@ -77,7 +77,7 @@ class SaneRunnerTests( unittest.TestCase ):
     self.exit_ok( sane.sane_runner.main )
 
     output = self.output.getvalue()
-    self.assertIn( "Running actions:", output )
+    self.assertIn( "Requested actions:", output )
     for i in range( 10 ):
       action = f"action_{i:03d}"
       self.assertIn( action, output )
@@ -90,11 +90,9 @@ class SaneRunnerTests( unittest.TestCase ):
     self.exit_ok( sane.sane_runner.main )
 
     output = self.output.getvalue()
-    self.assertIn( "Running actions:", output )
+    self.assertIn( "Requested actions:", output )
     for i in range( 3 ):
       # No action in main log, but the action log file should exist
       action = f"action_{i:03d}"
       self.assertNotIn( action, output )
       self.assertTrue( os.path.isfile( f"{self.root}/log/{action}.log") )
-
-
