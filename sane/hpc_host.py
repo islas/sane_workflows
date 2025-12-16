@@ -105,6 +105,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
             actions[action_name].set_status_success()
           else:
             actions[action_name].set_status_failure()
+
+          self.on_job_complete( job_id, actions[action_name] )
           # Wake the orch
           self.__orch_wake__()
 
@@ -157,6 +159,9 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     retval = proc.returncode
     output = output.decode( "utf-8" )
     return self.check_job_status( job_id, retval, output )
+
+  def on_job_complete( self, job_id, action ):
+    pass
 
   def launch_wrapper( self, action, dependencies ):
     """A launch wrapper must be defined for HPC submissions"""
@@ -602,7 +607,13 @@ class PBSHost( HPCHost ):
     return available
 
   def nonlocal_release_resources( self, resource_dict : dict, requestor : sane.resources.ResourceRequestor ):
-    requisition = self._requisitions[requestor.logname]
+    # Our job submission is taking resources, so we can't just reclaim them when the
+    # Action that submitted our job is done
+    pass
+
+  def on_job_complete( self, job_id, action ):
+    # Release the resources now
+    requisition = self._requisitions[action.logname]
     for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].release_resources( req["amounts"], requestor )
-    del self._requisitions[requestor.logname]
+      self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+    del self._requisitions[action.logname]
