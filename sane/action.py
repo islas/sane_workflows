@@ -544,7 +544,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                           capture=False,
                           shell=False,
                           log_level=slogger.ACT_INFO
-                          ) -> tuple[int, str]:
+                          ) -> Tuple[int, str]:
     """Execution wrapper for running a command using :py:class:`subprocess.Popen`
 
     Notably, this wrapper handles:
@@ -566,6 +566,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     :param capture:   optional capture stderr/stdout to ``str`` return
     :param shell:     optional treat execution as shell command (see :py:class:`subprocess.Popen` for more detail)
     :return: ``tuple`` of execution return value and any stderr/stdout capture
+    :rtype: tuple[int, str]
     """
     args = [cmd]
 
