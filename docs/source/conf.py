@@ -76,8 +76,8 @@ try:
   ref = result.stdout.strip()
 except:
   try:
-    result = subprocess.run( ["git", "rev-parse", "--abbrev-ref", "@{u}"], capture_output=True, text=True, check=True )
-    ref = result.stdout.replace( "origin/" , "" ).strip()
+    result = subprocess.run( ["git", "branch", "-a", "--contains"], capture_output=True, text=True, check=True )
+    ref = result.stdout.strip().split( "\n" )[-1].split( "origin/" )[-1].strip()
   except:
     print( "No git source found" )
     raise Exception()
