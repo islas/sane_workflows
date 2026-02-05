@@ -24,6 +24,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     self.job_suffix = ""
 
     self._job_ids = {}
+    self._completed = {}
 
     # These must be filled out by derived classes
     self._state_cmd = None
@@ -90,12 +91,11 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     return self.capture_job_complete
 
   def capture_job_complete( self, actions, only_watchdog=True ):
-    completed = {}
-    while not self.kill_watchdog and ( only_watchdog or len( completed ) != len( self._job_ids ) ):
+    while not self.kill_watchdog and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
       time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
       for action_name, job_id in self._job_ids.items():
-        if action_name not in completed and ( self.dry_run or self.job_complete( job_id ) ):
-          completed[action_name] = job_id
+        if action_name not in self._completed and ( self.dry_run or self.job_complete( job_id ) ):
+          self._completed[action_name] = job_id
           status = self.dry_run or self.job_status( job_id )
           disclaimer = ""
           if self.dry_run:
