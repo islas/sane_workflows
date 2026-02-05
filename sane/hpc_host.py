@@ -609,7 +609,7 @@ class PBSHost( HPCHost ):
 
   def requisition_to_submit_args( self, requisition ):
     host_arguments = []
-    queues = []
+    queues = [[None]]   # Default to [None] if no requisition exists
     for nodeset, req in requisition.items():
       submit_args = []
       if len( host_arguments ) == 0:
