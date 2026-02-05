@@ -10,6 +10,7 @@ import threading
 import re
 import datetime
 from concurrent.futures import ThreadPoolExecutor
+from collections import OrderedDict
 import xml.etree.ElementTree as xmltree
 import xml.dom.minidom
 
@@ -812,7 +813,7 @@ class Orchestrator( opts.OptionLoader ):
         continue
 
       with open( file, "r" ) as fp:
-        options = json.load( fp, cls=JSONCDecoder )
+        options = json.load( fp, cls=JSONCDecoder, object_pairs_hook=OrderedDict )
         self.log_push()
         self.load_options( options, file )
         self.log_pop()
@@ -924,7 +925,7 @@ class Orchestrator( opts.OptionLoader ):
 
     try:
       with open( self.save_file, "r" ) as f:
-        save_dict = json.load( f, cls=JSONCDecoder )
+        save_dict = json.load( f, cls=JSONCDecoder, object_pairs_hook=OrderedDict )
     except Exception as e:
       self.log( f"Could not open {self.save_file}", level=50 )
       raise e
