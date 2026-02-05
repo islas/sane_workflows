@@ -3,6 +3,7 @@ import re
 import math
 import time
 import subprocess
+from functools import reduce
 
 import sane.action
 import sane.resources
@@ -190,13 +191,20 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     account = specific_resources.get( "account", self.account )
     timelimit = specific_resources.get( "timelimit", None )
 
+    submit_args, submit_queue = self.submit_args( specific_resources, action.logname )
+
+    if queue is not None and submit_queue is not None:
+      self.log( f"Host or Action provided queue '{queue}' does not match resource queue '{submit_queue}'", level=40 )
+      raise RuntimeError( "Mismatched queue" )
+
+    queue = queue or submit_queue
+
     if queue is None or account is None:
       missing = "queue" if queue is None else "account"
       msg = f"No {missing} provided for Host {self.name} or Action {action.id} in HPC submission resources"
       self.log( msg, level=40 )
       raise KeyError( msg )
 
-    submit_args = self.submit_args( specific_resources, action.logname )
     default_submit = {
                               "name"       : f"sane.workflow.{action.id}{self.job_suffix}",
                               "output"     : action.logfile,
@@ -320,16 +328,18 @@ class PBSHost( HPCHost ):
       else:
         nodes = int( hardware_info["nodes"] )
         exclusive = hardware_info.get( "exclusive", False )
+        queues = hardware_info.get( "queues", [None] )
         node_resource_dict = hardware_info["resources"]
-        self.add_resources( node_type, node_resource_dict, nodes, exclusive )
+        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues )
 
-  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False ):
+  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None] ):
     if node_type in self._resources:
       self.log( f"Node type '{node_type}' already exists" )
     else:
       self.log( f"Adding homogeneous node resources for '{node_type}'" )
       self._resources[node_type] = {
                                       "exclusive" : exclusive,
+                                      "queues"    : queues,
                                       "node" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" ),
                                       "total" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" )
                                     }
@@ -413,13 +423,28 @@ class PBSHost( HPCHost ):
         resource_dicts.append( select_dict )
 
     requisition = {}
+    queue       = resource_dict.get( "queue", None )
     resolved = True
-    for res_dict in resource_dicts:
-      # These are the resources we *can* provide
-      available_resources = set()
-      for homogeneous_nodes, node_resources in self._resources.items():
-        available_resources = available_resources | set( node_resources["node"].resources.keys() )
 
+    # These are the resources we *can* provide by queue
+    available_resources_by_queue = {}
+    available_resources = set()
+    for homogeneous_nodes, node_resources in self._resources.items():
+      for q in node_resources["queues"]:
+        # Init the set if not already tracked
+        if q not in available_resources_by_queue:
+          available_resources_by_queue[q] = set()
+
+        # Add to that queue what we can possibly offer
+        available_resources_by_queue[q] = available_resources_by_queue[q] | set( node_resources["node"].resources.keys() )
+        available_resources = available_resources | available_resources_by_queue[q]
+
+
+    # Sanitize resource dict into specifics and find the numeric resources we will
+    # concern ourselves with fulfilling
+    specified_resource_dicts = []
+    numeric_resources_per_dict = []
+    for res_dict in resource_dicts:
       specified_resource_dict = res_dict.copy()
       # Map to specific name-mapped resources, converting generics to specifics
       # Use list to get the instantaneous resources
@@ -438,10 +463,37 @@ class PBSHost( HPCHost ):
           specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
           numeric_resources.append( resource )
 
+      specified_resource_dicts.append( specified_resource_dict )
+      numeric_resources_per_dict.append( numeric_resources )
+
+    # Find which queue and which nodesets to use
+    if queue is None:
+      all_resources = set()
+      for nr in numeric_resources_per_dict:
+        all_resources = all_resources | set( nr )
+
+      for q, available_resources in available_resources_by_queue.items():
+        if all_resources <= available_resources:
+          queue = q
+          break
+    else:
+      # make sure queue selected will suffice, nominally speaking
+      if queue not in available_resources_by_queue:
+        msg = f"Requested queue '{queue}' does not exist"
+        self.log( msg, level=50 )
+        raise RuntimeError( msg )
+      elif not all_resources <= available_resources_by_queue[queue]:
+        msg = f"Requested queue '{queue}' cannot provide all required resources"
+        self.log( msg, 50 )
+        raise RuntimeError( msg )
+      # else: # queue is fine to try to provide all resources
+
+    self.log( f"Creating resource requisition from queue '{queue}'", level=15 )
+    for specified_resource_dict, numeric_resources in zip( specified_resource_dicts, numeric_resources_per_dict ):
       self.log( f"Finding resources for '{requestor.logname}' : {specified_resource_dict}", level=15 )
 
       # These are the resources that should be provided by the end of this
-      required_resources = available_resources & set( numeric_resources )
+      required_resources = available_resources_by_queue[queue] & set( numeric_resources )
 
       resources_satisfied = {}
       node_pool_visited = {}
@@ -450,6 +502,9 @@ class PBSHost( HPCHost ):
         nodeset_name  = None
 
         for homogeneous_nodes, node_resources in self._resources.items():
+          # Skip nodes not in our queue
+          if queue not in node_resources["queues"]:
+            continue
           # Skip nodes that already provided resources and thus cannot provide more
           if homogeneous_nodes in node_pool_visited:
             continue
@@ -520,7 +575,7 @@ class PBSHost( HPCHost ):
           # else
           # do not error out as this may be provided by another homogeneous select
 
-        amounts["nodes"] = nodes
+        amounts["nodes"] = nodes if self._resources[nodeset_name]["exclusive"] else 0
         requisition[nodeset_name] = { "amounts" : amounts, "select_amounts" : select_amounts, "nodes" : nodes }
 
         # This is a duplication of the logic above, but just a whole check
@@ -554,6 +609,7 @@ class PBSHost( HPCHost ):
 
   def requisition_to_submit_args( self, requisition ):
     host_arguments = []
+    queues = [[None]]   # Default to [None] if no requisition exists
     for nodeset, req in requisition.items():
       submit_args = []
       if len( host_arguments ) == 0:
@@ -572,7 +628,12 @@ class PBSHost( HPCHost ):
       else:
         host_arguments[0][1].extend( submit_args )
 
-    return host_arguments
+      queues.append( self._resources[nodeset]["queues"] )
+
+    # Find the common queue
+    queue = list( reduce( set.intersection, map( set, queues ) ) )[0]
+
+    return host_arguments, queue
 
   def remove_hpc_kw( self, resource_dict ):
     res_dict = resource_dict.copy()

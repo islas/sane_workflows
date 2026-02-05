@@ -60,18 +60,22 @@ class HPCHostTests( unittest.TestCase ):
     dummy = sane.Action( "dummy" )
     self.test_pbs_host_from_options()
     _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256 }, dummy )
-    result = self.host._format_arguments( self.host.requisition_to_submit_args( submit_selection ) )
+    submit_args, submit_queue = self.host.requisition_to_submit_args( submit_selection )
+    result = self.host._format_arguments( submit_args )
     print( submit_selection )
     print( "Result: " + result )
     self.assertEqual( result, "-l select=4:ncpus=64" )
+    self.assertEqual( submit_queue, None )
 
 
     _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256, "select" : "select=1:ncpus=8:ngpus=1" }, dummy )
-    result = self.host._format_arguments( self.host.requisition_to_submit_args( submit_selection ) )
+    submit_args, submit_queue = self.host.requisition_to_submit_args( submit_selection )
+    result = self.host._format_arguments( submit_args )
     print( submit_selection )
     print( "Result: " + result )
     # Note that the ngpus:a100 must be fixed somehow down the line
     self.assertEqual( result, "-l select=1:ncpus=8:ngpus:a100=1" )
+    self.assertEqual( submit_queue, None )
 
 
   def test_pbs_host_resource_gen_wrapper( self ):
@@ -96,6 +100,7 @@ class HPCHostTests( unittest.TestCase ):
     orch.add_action( action )
     orch.dry_run = True
 
+    # Test that a queue and account must be provided in some manner
     with self.assertRaises( KeyError ):
       orch.run_actions( ["my_action"], as_host="test" )
     action.add_resource_requirements( { "test" : { "queue" : "queue_foo", "account" : "account_foo" } } )
