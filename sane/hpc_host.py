@@ -320,16 +320,18 @@ class PBSHost( HPCHost ):
       else:
         nodes = int( hardware_info["nodes"] )
         exclusive = hardware_info.get( "exclusive", False )
+        queues = hardware_info.get( "queues", [None] )
         node_resource_dict = hardware_info["resources"]
-        self.add_resources( node_type, node_resource_dict, nodes, exclusive )
+        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues )
 
-  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False ):
+  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None] ):
     if node_type in self._resources:
       self.log( f"Node type '{node_type}' already exists" )
     else:
       self.log( f"Adding homogeneous node resources for '{node_type}'" )
       self._resources[node_type] = {
                                       "exclusive" : exclusive,
+                                      "queues"    : queues,
                                       "node" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" ),
                                       "total" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" )
                                     }
