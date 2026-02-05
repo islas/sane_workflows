@@ -522,7 +522,7 @@ class PBSHost( HPCHost ):
           # else
           # do not error out as this may be provided by another homogeneous select
 
-        amounts["nodes"] = nodes
+        amounts["nodes"] = nodes if self._resources[nodeset_name]["exclusive"] else 0
         requisition[nodeset_name] = { "amounts" : amounts, "select_amounts" : select_amounts, "nodes" : nodes }
 
         # This is a duplication of the logic above, but just a whole check
