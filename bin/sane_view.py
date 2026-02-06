@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from collections.abc import Iterable
 
 import json
 import math
@@ -130,7 +131,9 @@ def plot_usage( workflow_save, arrow_deltas, stem_timeline ):
     fig = plt.figure()
     fig.suptitle( times[view_time], fontsize="x-large" )
     subfigs = fig.subfigures( nx, ny )
-    if not isinstance( subfigs, list ):
+
+    if not isinstance( subfigs, Iterable ):
+      print( "Adjusting subfigures into a list..." )
       subfigs = [subfigs]
 
     for i, resource in enumerate( plots ):
