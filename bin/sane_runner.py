@@ -118,6 +118,12 @@ def get_parser():
                       default=None,
                       help="Start a new workflow run and clear previous cache"
                       )
+  parser.add_argument(
+                      "--patch",
+                      type=str,
+                      default="",
+                      help="Apply a command-line patch at the very end of workflow loading, assume lowest priority"
+                      )
   virtual_group = parser.add_argument_group(
                                             "Virtual Launch (in situ aggregation)",
                                             "Creates temporary action to facilitate adaptive running of workflow"
@@ -185,6 +191,10 @@ def main():
   orchestrator.add_search_paths( options.path )
   orchestrator.add_search_patterns( options.search_pattern )
   orchestrator.load_paths()
+
+  # Apply command-line patch last
+  if options.patch:
+    orchestrator.process_patch_dict( "cli", json.loads( options.patch ) )
 
   action_list = options.actions.copy()
 

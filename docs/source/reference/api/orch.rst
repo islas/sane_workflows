@@ -63,6 +63,7 @@ Orchestrator
 
       .. automethod:: process_registered
       .. automethod:: process_patches
+      .. automethod:: process_patch_dict
       .. automethod:: find_host
       .. automethod:: construct_dag
       .. automethod:: traversal_list
