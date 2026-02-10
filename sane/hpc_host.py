@@ -609,7 +609,7 @@ class PBSHost( HPCHost ):
 
   def requisition_to_submit_args( self, requisition ):
     host_arguments = []
-    queues = [[None]]   # Default to [None] if no requisition exists
+    queues = []
     for nodeset, req in requisition.items():
       submit_args = []
       if len( host_arguments ) == 0:
@@ -630,8 +630,11 @@ class PBSHost( HPCHost ):
 
       queues.append( self._resources[nodeset]["queues"] )
 
-    # Find the common queue
-    queue = list( reduce( set.intersection, map( set, queues ) ) )[0]
+    if queues:
+      # Find the common queue
+      queue = list( reduce( set.intersection, map( set, queues ) ) )[0]
+    else:
+      queue = None
 
     return host_arguments, queue
 
