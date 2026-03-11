@@ -344,7 +344,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.default_log_level = slogger.ACT_INFO
     # Create our own logger instance
     self.logger = slogger.logging.getLogger( __name__ ).getChild( self.id )
-    file_handler = slogger.logging.FileHandler( self.logfile, mode="w" )
+    file_handler = slogger.logging.FileHandler( self.logfile, delay=True, mode="w" )
     file_handler.setFormatter( slogger.log_formatter )
     self.logger.addHandler( file_handler )
     self.logger.setLevel( slogger.STDOUT )
