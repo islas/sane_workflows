@@ -128,8 +128,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
   * Actions will always execute under separate processes from the :py:class:`sane.Orchestrator`
   """
   CONFIG_TYPE = "Action"
-  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:\w+(?:\[\d+\])?\.)*\w+(?:\[\d+\])?)[ ]*}})" )
-  IDX_RE = re.compile( r"(?P<attr>\w+)(?:\[(?P<idx>\d+)\])?" )
+  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:(?:\w|-)+(?:\[\d+\])?\.)*(?:\w|-)+(?:\[\d+\])?)[ ]*}})" )
+  IDX_RE = re.compile( r"(?P<attr>(?:\w|-)+)(?:\[(?P<idx>\d+)\])?" )
 
   def __init__( self, id ):
     """Create an Action with unique ID"""
