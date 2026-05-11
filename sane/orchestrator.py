@@ -678,9 +678,30 @@ class Orchestrator( opts.OptionLoader ):
       self.__wake__.wait()
       self.__wake__.clear()
       for node in processed_nodes.copy():
-        if node in results and results[node].done():
+        # To prevent race conditions, first grab the action state
+        # If somehow we get into (not done at state check but then done at result check)
+        # the host "preemptively" calls post_launch() and release_resources() on the action
+        # The action will remain in the processed_nodes until another __wake__ call.
+        # As __wake__ is logically tied to action state reporting (only called
+        # AFTER state set) this should not deadlock, and is independent of the subprocess completing
+        state = self.actions[node].state
+        run_state = sane.action.ActionState.valid_run_state( state )
+        if ( state == sane.action.ActionState.FINISHED
+          or ( continue_on_err and not run_state ) ):
+          msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
+          msg  = msg.format( state=state.value.upper(), status=self.actions[node].status.value )
+          self.log( msg )
+          self._dag.node_complete( node, traversal_list )
+          processed_nodes.remove( node )
+        elif not run_state:
+          # If we get here, we DO want to error
+          msg = f"Action '{node}' did not return finished state : {state.value}"
+          self.log( msg, level=50 )
+          raise Exception( msg )
+
+        if node in results and node not in processed_nodes:
           try:
-            retval, content = results[node].result()
+            retval, content = results[node].result(10)
             host.post_launch( self.actions[node], retval, content )
             # Regardless, return resources
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
@@ -692,22 +713,8 @@ class Orchestrator( opts.OptionLoader ):
             executor.shutdown( wait=True )
             raise e
 
-        run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
-        if ( self.actions[node].state == sane.action.ActionState.FINISHED
-           or ( continue_on_err and not run_state ) ):
-          msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
-          msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
-          self.log( msg )
-          self._dag.node_complete( node, traversal_list )
-          processed_nodes.remove( node )
-        elif not run_state:
-          # If we get here, we DO want to error
-          msg = f"Action '{node}' did not return finished state : {self.actions[node].state.value}"
-          self.log( msg, level=50 )
-          raise Exception( msg )
-
-        # We are in a good spot to save
-        self.save( action_set )
+      # We are in a good spot to save
+      self.save( action_set )
 
     # Shutdown workflow
     host.kill_watchdog = True
