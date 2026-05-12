@@ -118,6 +118,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
         self.log( msg, level=40 )
         raise Exception( msg )
       self._job_ids[action.id] = self.extract_job_id( content )
+      self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'" )
     super().post_launch( action, retval, content )
 
   def post_run_actions( self, actions ):
@@ -178,7 +179,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
             dep_jobs[action.dependencies[id]["dep_type"]] = []
           # Construct dependency type -> job id
           if dep_action.id not in self._job_ids:
-            raise KeyError( f"Missing job id for '{dep_action.id}'" )
+            raise KeyError( f"Gathering dependencies for '{action.id}' - missing job id for '{dep_action.id}'" )
           else:
             dep_jobs[action.dependencies[id]["dep_type"]].append( self._job_ids[dep_action.id] )
         # else:
