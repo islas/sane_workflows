@@ -738,7 +738,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
 
       self._acquire()
+      self.push_logscope( "pre_launch" )
       ok = self.pre_launch()
+      self.pop_logscope()
       self._release()
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
@@ -800,7 +802,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
           self._status = ActionStatus.SUBMITTED
 
       self._acquire()
+      self.push_logscope( "post_launch" )
       ok = self.post_launch( retval, content )
+      self.pop_logscope()
       self._release()
       if ok is not None and not ok:
         raise AssertionError( "post_launch() returned False" )
@@ -1014,7 +1018,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
              The default returns the return value of :py:meth:`execute_subprocess`
              from running ``config["command"]``
     """
-    self.push_logscope( "run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -1032,7 +1035,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
-    self.pop_logscope()
     return retval
 
   def __str__( self ):

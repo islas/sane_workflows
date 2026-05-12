@@ -580,7 +580,9 @@ class Orchestrator( opts.OptionLoader ):
       self.log( f"Launching Host '{self.current_host}' watchdog function" )
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
 
+    host.push_logscope( "pre_run_actions" )
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
+    host.pop_logscope()
 
     self.log( "Running actions..." )
     start = datetime.datetime.now()
@@ -629,7 +631,9 @@ class Orchestrator( opts.OptionLoader ):
 
                 self.log( f"Running '{node}' on '{self.current_host}'" )
                 with self.__run_lock__:
+                  host.push_logscope( "pre_launch" )
                   host.pre_launch( self.actions[node] )
+                  host.pop_logscope()
                 self.log_flush()
                 results[node] = executor.submit(
                                                 self.actions[node].launch,
@@ -702,7 +706,10 @@ class Orchestrator( opts.OptionLoader ):
         if node in results and node not in processed_nodes:
           try:
             retval, content = results[node].result(10)
+            host.push_logscope( "post_launch" )
             host.post_launch( self.actions[node], retval, content )
+            host.pop_logscope()
+
             # Regardless, return resources
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
             del results[node]
@@ -720,7 +727,9 @@ class Orchestrator( opts.OptionLoader ):
     host.kill_watchdog = True
     executor.shutdown( wait=True )
 
+    host.push_logscope( "post_run_actions" )
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
+    host.pop_logscope()
 
     self.log( "Finished running queued actions" )
     # Report final statuses

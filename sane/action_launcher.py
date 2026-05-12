@@ -42,14 +42,22 @@ if __name__ == "__main__":
   if action.wrap_stdout:
     action.push_exec_raw( False )
 
+  action.push_logscope( "pre_run" )
   action.pre_run()
+  action.pop_logscope()
+
+  action.push_logscope( "run" )
   retval = action.run()
+  action.pop_logscope()
+
+  action.push_logscope( "post_run" )
   action.post_run( retval )
+  action.pop_logscope()
 
   if retval is None:
     retval = -1
     action.log( f"No return value provided by Action {action.id}", level=40 )
 
   action.log(  "*" * 15 + "{:^15}".format( "Finished action_launcher.py" ) + "*" * 15 )
-
+  action.pop_logscope()
   exit( retval )
