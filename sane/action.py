@@ -151,7 +151,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._dependencies     = {}
     self._resources        = {}
 
+    # Whether the output of subprocesses should print raw output or wrap it with
+    # logging as if coming from this action's logging
     self.__exec_raw__      = True
+    self.__tmp_exce_raw__  = True
 
     #: The start time of the :py:meth:`Action.launch()` in ISO format
     self.__timestamp__     = None
@@ -207,6 +210,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
         self._run_lock.release()
       else:
         self.log( "Run lock already released", level=30 )
+
+  def push_exec_raw( self, exec_raw : bool ) -> None:
+    """Push a new value of :py:attr:`Action.__exec_raw__`"""
+    self.__tmp_exce_raw__ = self.__exec_raw__
+    self.__exec_raw__ = exec_raw
+
+  def pop_exec_raw( self ) -> None:
+    """Restore previous value of :py:attr:`Action.__exec_raw__`"""
+    self.__exec_raw__ = self.__tmp_exce_raw__
 
   @property
   def id( self ) -> str:
