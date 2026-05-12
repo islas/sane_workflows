@@ -10,6 +10,8 @@ import math
 
 def squarest_divisors( n ):
   x = round( math.sqrt( n ) )
+  if x == 0:
+    return 0, 0
   while n % x > 0:
     x -= 1
   return x, n // x
@@ -127,7 +129,12 @@ def plot_usage( workflow_save, options ):
       plots = set( [ p for p, pdict in workflow_run[host].items() for q, qdict in pdict.items() if qdict["acquire"] ] )
     else:
       plots = [ p for p, pdict in workflow_run[host].items() if pdict["acquire"] ]
+
     nx, ny = squarest_divisors( len( plots ) )
+    if nx == 0 and ny == 0:
+      print( f"Skipping host {host} : no resources to plot" )
+      continue
+
     fig = plt.figure()
     fig.suptitle( times[view_time], fontsize="x-large" )
     subfigs = fig.subfigures( nx, ny )
