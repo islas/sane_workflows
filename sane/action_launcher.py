@@ -40,7 +40,7 @@ if __name__ == "__main__":
   environment.setup()
 
   if action.wrap_stdout:
-    action.__exec_raw__ = False
+    action.push_exec_raw( False )
 
   action.pre_run()
   retval = action.run()
