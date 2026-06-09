@@ -128,8 +128,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
   * Actions will always execute under separate processes from the :py:class:`sane.Orchestrator`
   """
   CONFIG_TYPE = "Action"
-  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:(?:\w|-)+(?:\[\d+\])?\.)*(?:\w|-)+(?:\[\d+\])?)[ ]*}})" )
-  IDX_RE = re.compile( r"(?P<attr>(?:\w|-)+)(?:\[(?P<idx>\d+)\])?" )
+  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:(?:\w|-)+(?:\[[ ]*\d+[ ]*\])?\.?)+)[ ]*}})" )
+  IDX_RE = re.compile( r"(?P<attr>(?:\w|-)+)(?:\[[ ]*(?P<idx>\d+)[ ]*\])?" )
 
   def __init__( self, id ):
     """Create an Action with unique ID"""
@@ -835,11 +835,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """Dereference an input string using GitHub Actions style syntax scoped to the current object
     
     Continuously dereferences strings within the current object until no more 
-    substitutions can be made. All attributes and properties can be referenced,
-    but dereferencing will work best with attributes that are ``dict``, ``list``,
-    ``str``, or ``int`` values.
+    substitutions can be made. This means that dereference strings can be nested.
+    All attributes and properties can be referenced, but dereferencing will work
+    best with attributes that are ``dict``, ``list``, ``str``, or ``int`` values.
     
-    | Nested referencing can be achieved with ``.`` operator (key as next field)
+    | Dict referencing can be achieved with ``.`` operator (key as next field)
     | Index referencing can be achieved with ``[]`` operator (positive integer)
 
     Valid syntax examples:
@@ -872,6 +872,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
         # A complex dereference
         "${{ config.moo.loo[0].hoo[1] }}" => "7"
 
+        # A nested dereference
+        "${{ config.moo.loo[0].hoo[ ${{ config.moo.loo[ ${{ config.foo }} ] }} ] }} => "6"
+        #                                               ^^^^^^^^^^^^^^^^^ => "1"
+        #                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ => "0"
+
     .. attention:: During the substitution, if indexing to the next attribute yields ``None`` an
                    ``Exception`` will be thrown. Thus, at the time of dereferencing, the string
                    input **MUST** be valid.
@@ -880,28 +885,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
     :param noexcept: disable exceptions and instead allow failed dereference
     :return: string fully dereferenced
     """
-    curr_matches = list( Action.REF_RE.finditer( input_str ) )
-    prev_matches = None
     output_str = input_str
-
-    def matches_equal( lhs, rhs ):
-      if lhs is None and rhs is not None or rhs is None and lhs is not None:
-        return False
-      if len( lhs ) != len( rhs ):
-        return False
-      for i in range( len( lhs ) ):
-        if lhs[i].span() != rhs[i].span():
-          return False
-        if lhs[i].groupdict() != rhs[i].groupdict():
-          return False
-      return True
+    history    = []
 
     # Fully dereference as much as possible
-    while not matches_equal( prev_matches, curr_matches ):
-      prev_matches = curr_matches
-      for match in curr_matches:
+    while len(history) == 0 or output_str not in history:
+      history.append( output_str )
+      matches = list( Action.REF_RE.finditer( output_str ) )
+
+      for match in matches:
         substr = match.group( "substr" )
         attrs  = match.group( "attrs" )
+
+        # Correct for malformed attributes the regex can catch. This could be
+        # avoided with a lengthier regex but to keep it simple we "fix it in post"
+        if attrs[-1] == ".":
+          self.log( f"Attribute reference '{output_str}' contains dangling '.' : '{attrs}'", level=30 )
+          attrs = attrs[:-1]
 
         curr = self
         for attr in attrs.split( "." ):
@@ -933,17 +933,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
               msg = f"Dereferencing yielded None for '{attr_groups['attr']}' in '{substr}'"
               self.log( msg, level=40 )
               raise Exception( msg )
-          
 
           if attr_groups["idx"] is not None:
             curr = curr[ int(attr_groups["idx"]) ]
         output_str = output_str.replace( substr, str( curr ) )
 
-      curr_matches = list( Action.REF_RE.finditer( output_str ) )
+    if output_str != history[-1]:
+      self.log( f"Detected cyclical dereference at [{history.index(output_str)}].", level=30 )
+      self.log(  "  History:", level=30 )
+      for i, s in enumerate( history ):
+        self.log( f"             [{i}] '{s}'", level=30 )
+      self.log( f"  output =>  [{len(history)}] '{output_str}'", level=30 )
 
-    if output_str != input_str and log:
-      self.log( f"Dereferenced '{input_str}'" )
-      self.log( f"     into => '{output_str}'" )
+    elif output_str != input_str and log:
+      self.log( f"Dereferenced [0] '{input_str}'" )
+      for i, s in enumerate( history[1:-1], 1 ):
+        self.log( f"             [{i}] '{s}'" )
+      self.log( f"     into => [{len(history) - 1}] '{output_str}'" )
     return output_str
 
   def dereference( self, obj, log=True, noexcept=False ):
