@@ -5,8 +5,12 @@ import sys
 
 
 DEFAULT_LABEL_LENGTH = 22
+#: The log level any stdout captured in :py:class:`Action` or :py:class:`Environment` is output at
 STDOUT   = 18
+#: The default log level of :py:meth:`Action.log`,
+#: i.e. the log level most :py:class:`Action` activity is output at
 ACT_INFO = 19
+#: The default log level needed to output to the main logfile/console
 MAIN_LOG = 20
 
 logger = logging.getLogger( __name__ )
