@@ -115,7 +115,7 @@ Action
       Internal API
       ------------
       The following documentation is provided for advanced use in the creation of
-      :ref:`custom Actions <adv_use_actions>`.
+      :ref:`custom Actions <advanced.custom_actions>`.
 
       .. autoattribute:: __timestamp__
       .. autoattribute:: __time__
@@ -140,6 +140,8 @@ Action
       .. automethod:: set_state_error
 
       .. automethod:: __orch_wake__
+      .. automethod:: push_exec_raw
+      .. automethod:: pop_exec_raw
 
 
 

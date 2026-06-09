@@ -10,7 +10,7 @@ API with type hints if your development environment supports it.
 
 Starting within the python interface opens up a world of possibilities
 in complex workflow design, but we shall keep it simple for now
-until the later :doc:`advanced`.
+until the later :ref:`advanced` topics.
 
 .. attention:: Before we begin, it is **important** to understand that to get the
                :py:class:`Orchestrator` to interact with our python code, we should
@@ -646,7 +646,7 @@ Again, reviewing the highlighted regions:
     some workflows!
 
     If you're looking to add more control to your workflows or for an extra challenge,
-    check out the :doc:`advanced`.
+    check out the :ref:`advanced`.
 
 .. We will create the ``.sane/mango/actions/harvest.py`` file and mock up our function:
 

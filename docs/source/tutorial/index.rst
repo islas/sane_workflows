@@ -80,4 +80,3 @@ adding example files.
 
     python.rst
     json.rst
-    advanced.rst

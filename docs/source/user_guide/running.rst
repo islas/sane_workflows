@@ -2,6 +2,7 @@
 Running Workflows
 *****************
 .. py:module:: sane
+    :no-index:
 
 As the primary goal is to spend more time running workflows than writing them,
 this section is listed first. An example workflow is provided in the `source repo`_
@@ -239,7 +240,7 @@ The ``-vr``/``--virtual_relaunch`` option is a powerful option when paired with 
 a set of runtime resources at the command line, the user-requested action set is bundled and *"relaunched"* to the runner
 under a single in situ action that has the resource requirements specified with this option.
 
-A more concrete example of this usage would be an HPCHost that takes actions and submits each of them as a job to the host's
+A more concrete example of this usage would be an :py:class:`HPCHost` that takes actions and submits each of them as a job to the host's
 scheduler. Rather than have each action submitted as individual jobs, potentially leading to waiting in the scheduler queue
 between action dependencies, we can launch the workflow itself as the job, forcing the actions to work within the new
 resource constraints we supplied.
