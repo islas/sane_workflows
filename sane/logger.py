@@ -91,7 +91,11 @@ class Logger:
     self._level             = 0
     self._label             = ""
     self._logscope_stack    = []
+
+    #: Pad length to use for generating message prefix (logname and scope)
     self.label_length       = DEFAULT_LABEL_LENGTH
+
+    #: The default log level to use when no explicit level is provided to :py:meth:`log`
     self.default_log_level  = logging.INFO
     self.logger             = None
     self.pop_logscope()
@@ -100,6 +104,7 @@ class Logger:
 
   @property
   def logname( self ):
+    """The current base logname of this object"""
     return self._logname
 
   @logname.setter
@@ -108,22 +113,43 @@ class Logger:
     self._set_label( self.current_logname )
 
   def push_logscope( self, scope ):
+    """Push a scope context string onto the stack
+
+    Adding scope context causes subsequent log messages to be suffixed with the
+    current scope as <:py:attr:`logname`>::<current scope>
+    """
     self._logscope_stack.append( scope )
     self._set_label( self.current_logname )
 
   def pop_logscope( self ):
+    """Pop a scope context string from the stack
+
+    Removing scope context causes subsequent messages to resume with the previous
+    scope if present, or return to the original :py:attr:`logname` only.
+    """
     if len( self._logscope_stack ) > 0:
       self._logscope_stack.pop()
     self._set_label( self.current_logname )
 
   @property
   def current_logname( self ):
+    """Give the current logname as would appear in messages, including scope context"""
     return self._logname if len( self._logscope_stack ) == 0 else f"{self._logname}::{self._logscope_stack[-1]}"
 
   def _set_label( self, name ):
+    """Internal string used to construct log messages, only changes on scope or logname change"""
     self._label             = "{0:<{1}}".format( "[{0}] ".format( name ), self.label_length + 3 )
 
-  def log( self, *args, level=None, **kwargs ) :
+  def log( self, *args, level : int = None , **kwargs ) :
+    """Wrapper function around :external:py:meth:`logging.Logger.log`
+
+    The ``args`` and ``kwargs`` parameters gets passed to :external:py:func:`print()`
+    redirected into a string. The string is prefixed with [<:py:attr:`current_logname`>]
+    and is then logged out using the current internal :external:py:class:`logging.Logger`
+    and any format that logger applies.
+
+    :param level: the `logging level`_ the message should be output as, default is :py:attr:`default_log_level`
+    """
     if level is None:
       level = self.default_log_level
     if self.logger is None:
@@ -140,11 +166,14 @@ class Logger:
     return self._label + self._level_indentation * self._level + contents
 
   def log_push( self, levels=1 ):
+    """Add a level of indentation to subsequent messages"""
     self._level += levels
 
   def log_pop( self, levels=1 ):
+    """Remove a level of indentation to subsequent messages"""
     self._level -= levels
 
   def log_flush( self ):
-    for handler in logger.handlers:
+    """Force flush all handlers associated with the internal :external:py:class:`logging.Logger`"""
+    for handler in self.logger.handlers:
       handler.flush()

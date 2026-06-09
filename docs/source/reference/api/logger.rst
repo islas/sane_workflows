@@ -40,7 +40,10 @@ Logger
       The following documentation is provided for advanced use in the creation of
       :ref:`custom classes <advanced.custom_actions>`.
 
+      .. autoattribute:: default_log_level
+      .. autoattribute:: label_length
       .. autoproperty:: logname
+      .. autoproperty:: current_logname
       .. autoattribute:: logger
       .. automethod:: log_flush
 
