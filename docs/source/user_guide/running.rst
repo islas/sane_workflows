@@ -225,11 +225,13 @@ Verbose
 The ``-v``/``--verbose`` option forces actions' output to be echoed to the terminal in addition to the already
 captured output in the actions' logfile.
 
+.. _running.debug:
+
 Debug
 -----
 The ``-g``/``--debug_level`` option directly sets the Python `logging level`_. As such, the default is ``20``, corresponding
 to normal ``INFO`` levels. Partial debug levels (between 10 and 20) are used within the code and thus can be used to increase
-granularity.
+granularity. See :py:mod:`sane.logger` for internal log levels with special purpose.
 
 Virtual Relaunch
 ----------------

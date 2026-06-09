@@ -11,5 +11,6 @@ API
    api/env.rst
    api/resources.rst
    api/opts.rst
+   api/logger.rst
    api/helpers.rst
 
