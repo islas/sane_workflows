@@ -33,6 +33,7 @@ Action
       .. automethod:: __init__
       .. automethod:: add_dependencies
       .. automethod:: add_resource_requirements
+      .. automethod:: load_options
 
       User Attributes & Properties
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -111,10 +112,15 @@ Action
       .. automethod:: file_exists_in_path
       .. automethod:: dereference_str
       .. automethod:: dereference
+      .. automethod:: execute_subprocess
+      .. automethod:: push_exec_raw
+      .. automethod:: pop_exec_raw
+
+      .. _action.internal:
 
       Internal API
       ------------
-      The following documentation is provided for advanced use in the creation of
+      The following documentation is provided for advanced use beyond the creation of
       :ref:`custom Actions <advanced.custom_actions>`.
 
       .. autoattribute:: __timestamp__
@@ -128,10 +134,11 @@ Action
       .. autoproperty:: state
       .. autoproperty:: results
 
-      .. automethod:: load_options
       .. automethod:: load_core_options
-      .. automethod:: execute_subprocess
       .. automethod:: launch
+
+      .. automethod:: save_outputs
+      .. automethod:: load_outputs
 
       .. automethod:: set_status_success
       .. automethod:: set_status_failure
@@ -140,8 +147,6 @@ Action
       .. automethod:: set_state_error
 
       .. automethod:: __orch_wake__
-      .. automethod:: push_exec_raw
-      .. automethod:: pop_exec_raw
 
 
 
