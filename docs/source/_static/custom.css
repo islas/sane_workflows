@@ -20,6 +20,14 @@ div.document p.small-font {
   font-style: italic;
 }
 
+.green-text {
+  color: mediumseagreen;
+  /* color: #34b269; */
+  font-size: 0.8em;
+  font-family: monospace;
+
+}
+
 /* Make sphinx toolbox collapse look like it can be clicked */
 div.document details summary {
   cursor: pointer;

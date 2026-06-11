@@ -15,6 +15,17 @@ class MyAction( sane.Action ):
     return 0
 
 
+class MyActionWithOutputs( sane.Action ):
+  def __init__( self, id, test_str, **kwargs ):
+    self.test_str = test_str
+    super().__init__( id, **kwargs )
+
+  def run( self ):
+    print( self.test_str )
+    self.outputs["ok"] = True
+    return 0
+
+
 class ActionTests( unittest.TestCase ):
   def setUp( self ):
     self.action = sane.Action( "test" )
@@ -278,3 +289,28 @@ class ActionTests( unittest.TestCase ):
     exp_str = "1"
     out_str = self.action.dereference_str( ref_str )
     self.assertEqual( exp_str, out_str )
+
+  def test_action_persistent_outputs( self ):
+    """Test the ability to stream back outputs produced in Action run"""
+
+    sane.logger.internal_logger.setLevel( 10 )
+    test_str = "MyActionWithOutputs will send back ok"
+
+    self.action = MyActionWithOutputs( "test_output", test_str )
+    self.action.verbose = True
+
+    host = sane.Host( "basic" )
+    host.add_environment( sane.Environment( "also_basic" ) )
+    host.default_env = "also_basic"
+    host.save()
+
+    self.action.__host_info__["file"] = host.save_file
+    self.action.import_paths = [ os.path.dirname( __file__ ) ]
+    retval, content = self.action.launch( os.getcwd() )
+    self.assertEqual( retval, 0 )
+    self.assertIn( test_str, content )
+    self.assertIn( "ok", self.action.outputs )
+    self.assertTrue( self.action.outputs["ok"] )
+
+    self.remove_save_files( host )
+    sane.logger.internal_logger.setLevel( sane.logging.INFO )

@@ -20,6 +20,9 @@ It provides:
   * a priority-based python registration decorator
   * a priority-based JSON patching feature
 
+The latest documentation can be found at: \
+<https://sane-workflows.readthedocs.io/en/latest/>
+
 ## Overview
 Below is a high level overview of how running a workflow works. Many of the complex
 nuances, such as type finding, HPC submission, resource management, etc., are left out.
@@ -148,6 +151,49 @@ and are accessed via GitHub Actions style dereferencing (`${{}}`):
     }
   }
 // ... rest of config
+```
+
+### GitHub Actions Usage
+A simple composite reusable GitHub action is provided at: \
+<https://github.com/islas/sane-workflows-action/>
+
+This may be used in GitHub workflows to ease running and setup:
+
+```yaml
+jobs:
+  buildtests:
+    name : Test ${{ matrix.workflow.name }} on ${{ matrix.workflow.host }}
+    runs-on: ${{ matrix.workflow.host }}
+    strategy:
+      max-parallel: 4
+      fail-fast: false # Make sure all tests try to run
+      matrix:
+        workflow  :
+          - host : ghrunner
+            name : "GNU Make Compilation Tests"
+            id   : make-gnu-tests
+            args : -vg
+            actions_filter : "build_make_gnu_.*"
+          - host : ghrunner
+            name : "Intel oneAPI Make Compilation Tests"
+            id   : make-intel-tests
+            args : -vg
+            actions_filter : "build_make_intel_.*"
+          - host : ghrunner
+            name : "NVFortran Make Compilation Tests"
+            id   : make-nvfortran-tests
+            args : -vg
+            actions_filter : "build_make_nvfortran_.*"
+    steps:
+      - uses: islas/sane-workflows-action@v1.0.1
+        name: ${{ inputs.name }}
+        with:
+          # Info comes from the workflow matrix
+          id       : ${{ matrix.workflow.id }}
+          host     : ${{ matrix.workflow.host }}
+          args     : ${{ matrix.workflow.args }}
+          paths    : [ ".sane/" ]
+          actions_filter : ${{ toJson( matrix.workflow.actions_filter ) }}
 ```
 
 ### Creating a workflow
