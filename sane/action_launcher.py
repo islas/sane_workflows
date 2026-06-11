@@ -54,6 +54,8 @@ if __name__ == "__main__":
   action.post_run( retval )
   action.pop_logscope()
 
+  action.save_outputs()
+
   if retval is None:
     retval = -1
     action.log( f"No return value provided by Action {action.id}", level=40 )

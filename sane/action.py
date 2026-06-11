@@ -6,6 +6,7 @@ import subprocess
 import threading
 import datetime
 import time
+import json
 from typing import Dict, List, Tuple, Union
 from enum import Enum, EnumMeta
 
@@ -184,6 +185,20 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._run_lock = tmp_run_lock
     self.__wake__  = tmp_wake
     self.logger    = tmp_logger
+
+  def save_outputs( self ) -> None:
+    """Serialize :py:attr:`Action.outputs` to JSON file in :py:attr:`Action.save_location`"""
+    with open( f"{self.save_location}/{self.id}_outputs.json", "w" ) as f:
+      self.log( f"Writing to : {self.save_location}/{self.id}_outputs.json : " )
+      output = self.dereference( self.outputs, noexcept=False )
+      self.log( output )
+      json.dump( output, f, indent=2 )
+
+  def load_outputs( self ) -> None:
+    """Read from JSON file in :py:attr:`Action.save_location` and merge with :py:attr:`Action.outputs`"""
+    with open( f"{self.save_location}/{self.id}_outputs.json", "r" ) as f:
+      loaded = json.load( f )
+      self.outputs = recursive_update( self.outputs, loaded )
 
   def __orch_wake__( self ) -> None:
     """Wake up the :py:class:`Orchestrator` from another thread.
@@ -800,6 +815,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
         else:
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
+
+      self.load_outputs()
 
       self._acquire()
       self.push_logscope( "post_launch" )

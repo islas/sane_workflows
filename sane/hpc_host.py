@@ -107,6 +107,9 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
           else:
             actions[action_name].set_status_failure()
 
+          # Try to read outputs again
+          actions[action_name].load_outputs()
+
           self.on_job_complete( job_id, actions[action_name] )
           # Wake the orch
           self.__orch_wake__()
