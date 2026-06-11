@@ -6,8 +6,6 @@ Attribute Dereferencing
 .. py:module:: sane
     :no-index:
 
-Summary
--------
 
 SANE supports GitHub-Actions-style attribute dereferencing of strings within any
 instance of :py:class:`Action` (including derived), usable within the JSON and
