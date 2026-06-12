@@ -45,7 +45,9 @@ import json
 json.dump( env, open( "$save_env", "w" ), indent=2 )
 EOF
 
-. $script
+# Ensure that any rogue stdout from script does not pollute ingestion of
+# generated python commands. Perhaps later we can wrap and output this as stdout/log
+. $script &> /dev/null
 
 output=$( env )
 python3 << EOF
