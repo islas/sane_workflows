@@ -17,6 +17,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     super().__init__( name=name, aliases=aliases )
     # Maybe find a better way to do this
     self._base = HPCHost
+    self._delay_sec = HPCHost.HPC_DELAY_PERIOD_SECONDS
 
     # Defaults
     self.queue   = None
@@ -28,6 +29,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     self._completed = {}
 
     # These must be filled out by derived classes
+
+    # state and status commands should accept 1 format argument as job id
     self._state_cmd = None
     self._status_cmd = None
     self._submit_cmd = None
@@ -93,7 +96,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def capture_job_complete( self, actions, only_watchdog=True ):
     while not self.kill_watchdog and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
-      time.sleep( HPCHost.HPC_DELAY_PERIOD_SECONDS )
+      time.sleep( self._delay_sec )
       for action_name, job_id in self._job_ids.items():
         if action_name not in self._completed and ( self.dry_run or self.job_complete( job_id ) ):
           self._completed[action_name] = job_id
@@ -143,7 +146,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def job_complete( self, job_id ):
     proc = subprocess.Popen(
-                            ( self._state_cmd + f" {job_id}" ).split( " " ),
+                            self._state_cmd.format( job_id ).split( " " ),
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE
@@ -155,7 +158,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def job_status( self, job_id ):
     proc = subprocess.Popen(
-                            ( self._status_cmd + f" {job_id}" ).split( " " ),
+                            self._status_cmd.format( job_id ).split( " " ),
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE
@@ -287,7 +290,7 @@ class PBSHost( HPCHost ):
     # Keep job info around after query
     self._job_info = {}
 
-    self._state_cmd = "qstat -f -x"
+    self._state_cmd = "qstat -f -x {0}"
     self._status_cmd = self._state_cmd  # same thing
     self._submit_cmd = "qsub"
     self._resources_delim = ":"
