@@ -42,6 +42,8 @@ if __name__ == "__main__":
   if action.wrap_stdout:
     action.push_exec_raw( False )
 
+  action.reload_dependencies_outputs()
+
   action.push_logscope( "pre_run" )
   action.pre_run()
   action.pop_logscope()

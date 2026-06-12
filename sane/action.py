@@ -191,17 +191,24 @@ class Action( state.SaveState, res.ResourceRequestor ):
     filename = f"{self.save_location}/{self.id}_outputs.json"
     with open( filename, "w" ) as f:
       self.log( f"Saving outputs to : {filename}" )
-      json.dump( self.dereference( self.outputs, noexcept=False ), f, indent=2 )
+      json.dump( self.dereference( self.outputs, noexcept=False, log=False ), f, indent=2 )
 
-  def load_outputs( self ) -> None:
+  def load_outputs( self, id=None, merge=None ) -> None:
     """Read from JSON file in :py:attr:`Action.save_location` and merge with :py:attr:`Action.outputs`"""
-    filename = f"{self.save_location}/{self.id}_outputs.json"
+    if id is None and merge is None:
+      id = self.id
+      merge = self.outputs
+
+    filename = f"{self.save_location}/{id}_outputs.json"
     if os.path.isfile( filename ):
       with open( filename, "r" ) as f:
         loaded = json.load( f )
-        self.outputs = recursive_update( self.outputs, loaded )
-    elif not self.dry_run:
-      self.log( "Action outputs could not be loaded", level=30 )
+        merge = recursive_update( merge, loaded )
+
+  def reload_dependencies_outputs( self ):
+    """Reload dependency output info in case it has changed"""
+    for dep, info in self.dependencies.items():
+      self.load_outputs( dep, info["outputs"] )
 
   def __orch_wake__( self ) -> None:
     """Wake up the :py:class:`Orchestrator` from another thread.
