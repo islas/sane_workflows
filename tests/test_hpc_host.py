@@ -14,7 +14,7 @@ class MockHPC( sane.HPCHost ):
     self.account = "foobar"
     self.runner_dir = os.path.dirname( __file__ ) + "/mock_hpc"
     self.runner = None
-    self._state_cmd  = f"cat {self.runner_dir}/complete/{0}"
+    self._state_cmd  = f"cat {self.runner_dir}/complete/{{0}}"
     self._status_cmd = self._state_cmd
     self._submit_cmd = f"{self.runner_dir}/submit.sh"
     self._delay_sec = 0.1
