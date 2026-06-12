@@ -44,6 +44,17 @@ class ActionTests( unittest.TestCase ):
     if os.path.isfile( state.pickle_file ):
       os.remove( state.pickle_file )
 
+    if isinstance( state, sane.Action ):
+      f = f"{state.save_location}/{state.id}_outputs.json"
+      if os.path.isfile( f ):
+        os.remove( f )
+      f = state.runlog
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
+      f = state.logfile
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
+
   def test_action_standalone( self ):
     """Ensure that an action can be created standalone"""
     pass

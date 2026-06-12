@@ -75,6 +75,31 @@ class HPCHostTests( unittest.TestCase ):
   def setUp( self ):
     self.host = sane.PBSHost( "test" )
 
+    # Redirect logging to buffer
+    # https://stackoverflow.com/a/7483862
+    sane.logger.console_handler.stream = sys.stdout
+
+  def tearDown( self ):
+    self.remove_save_files( self.host )
+
+  def remove_save_files( self, state ):
+    if os.path.isfile( state.save_file ):
+      os.remove( state.save_file )
+
+    if os.path.isfile( state.pickle_file ):
+      os.remove( state.pickle_file )
+
+    if isinstance( state, sane.Action ):
+      f = f"{state.save_location}/{state.id}_outputs.json"
+      if os.path.isfile( f ):
+        os.remove( f )
+      f = state.runlog
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
+      f = state.logfile
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
+
   def test_pbs_host_standalone( self ):
     """Ensure that a pbs host can be created standalone"""
     pass
@@ -173,3 +198,45 @@ class HPCHostTests( unittest.TestCase ):
       orch.run_actions( ["my_action"], as_host="test" )
     action.add_resource_requirements( { "test" : { "queue" : "queue_foo", "account" : "account_foo" } } )
     orch.run_actions( ["my_action"], as_host="test" )
+
+    self.remove_save_files( action )
+    os.remove( orch.save_file )
+    os.remove( orch.results_file )
+
+  def test_hpc_host_mock( self ):
+    self.host = MockHPC( "mock_hpc" )
+    orch = sane.Orchestrator()
+    self.host.add_environment( sane.Environment( "generic" ) )
+
+    orch.add_host( self.host )
+
+    actionA = sane.Action( "my_actionA" )
+    actionA.import_paths = [ os.path.dirname( __file__ ) ]
+    actionA.config["command"] = "echo"
+    actionA.config["arguments"] = ["foo bar zoo zar"]
+    actionA.environment = "generic"
+
+    actionB = sane.Action( "my_actionB" )
+    actionB.import_paths = [ os.path.dirname( __file__ ) ]
+    actionB.config["command"] = "echo"
+    actionB.config["arguments"] = ["foo bar zoo zar"]
+    actionB.environment = "generic"
+    actionB.add_dependencies( actionA.id )
+
+    orch.add_action( actionA )
+    orch.add_action( actionB )
+    orch.dry_run = False
+
+    # Test that the action can be submitted
+    orch.run_actions( ["my_actionB"], as_host="mock_hpc" )
+
+    self.assertEqual( actionA.status, sane.ActionStatus.SUCCESS )
+    self.assertEqual( actionA.state, sane.ActionState.FINISHED )
+
+    self.assertEqual( actionB.status, sane.ActionStatus.SUCCESS )
+    self.assertEqual( actionB.state, sane.ActionState.FINISHED )
+
+    self.remove_save_files( actionA )
+    self.remove_save_files( actionB )
+    os.remove( orch.save_file )
+    os.remove( orch.results_file )
