@@ -1,0 +1,10 @@
+{
+  "actions" :
+  {
+    "test_depmodes_a" : { "config" : {"command" : "echo", "arguments" : "${{ id }} ok"} },
+    "test_depmodes_b" : { "config" : {"command" : "echo", "arguments" : "${{ id }} ok"}, "dependencies" : { "test_depmodes_a" : "afterok" } },
+    "test_depmodes_c" : { "config" : {"command" : "echo", "arguments" : "${{ id }} ok"}, "dependencies" : { "test_depmodes_a" : "afternotok" } },
+    "test_depmodes_d" : { "config" : {"command" : "echo", "arguments" : "${{ id }} ok"}, "dependencies" : { "test_depmodes_b" : "afterok" } },
+    "test_depmodes_e" : { "config" : {"command" : "echo", "arguments" : "${{ id }} ok"}, "dependencies" : { "test_depmodes_c" : "afternotok" } }
+  }
+}

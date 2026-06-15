@@ -9,6 +9,7 @@ from subprocess import PIPE, Popen
 
 import sane.match as match
 import sane.options as opts
+import sane.logger as slogger
 from sane.helpers import copydoc
 
 def env_from_script( script, *arguments, **kwargs ):
@@ -99,7 +100,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
       with contextlib.redirect_stderr( output ) as fe:
         self._lmod.module( cmd, *args, **kwargs )
     for line in output.getvalue().splitlines():
-      self.log( line, level=25 )
+      self.log( line, level=slogger.STDOUT )
 
   def env_var_prepend( self, var, val ):
     """Prepend ``val`` to environment variable ``var``"""
@@ -126,7 +127,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
       with contextlib.redirect_stderr( output ) as fe:
         env_from_script( script )
     for line in output.getvalue().splitlines():
-      self.log( line, level=25 )
+      self.log( line, level=slogger.STDOUT )
 
   def reset_env_setup( self ):
     self._setup_lmod_cmds.clear()

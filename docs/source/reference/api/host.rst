@@ -17,6 +17,7 @@ Host
       .. automethod:: __init__
       .. automethod:: add_environment
       .. automethod:: add_resources
+      .. automethod:: load_options
 
       User Attributes & Properties
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -66,13 +67,12 @@ Host
 
       Internal API
       ------------
-      The following documentation is provided for advanced use in the creation of
+      The following documentation is provided for advanced use beyond the creation of
       :ref:`custom Hosts <adv_use_hosts>`.
 
       .. autoproperty:: info
       .. automethod:: valid_host
 
-      .. automethod:: load_options
       .. automethod:: load_core_options
       .. automethod:: search_type
 

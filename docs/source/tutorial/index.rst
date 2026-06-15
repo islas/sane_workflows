@@ -17,6 +17,8 @@ build up our understanding of SANE workflows.
           * ``-v``  :ref:`running.verbose` option to get full output in one location rather than split amongst multiple files
 
 
+.. _tutorial.structure:
+
 Structure
 =========
 To begin, we will discuss how we will layout our plan for file structure.
@@ -80,4 +82,3 @@ adding example files.
 
     python.rst
     json.rst
-    advanced.rst
