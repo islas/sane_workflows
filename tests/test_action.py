@@ -15,6 +15,17 @@ class MyAction( sane.Action ):
     return 0
 
 
+class MyActionWithOutputs( sane.Action ):
+  def __init__( self, id, test_str, **kwargs ):
+    self.test_str = test_str
+    super().__init__( id, **kwargs )
+
+  def run( self ):
+    print( self.test_str )
+    self.outputs["ok"] = True
+    return 0
+
+
 class ActionTests( unittest.TestCase ):
   def setUp( self ):
     self.action = sane.Action( "test" )
@@ -32,6 +43,17 @@ class ActionTests( unittest.TestCase ):
 
     if os.path.isfile( state.pickle_file ):
       os.remove( state.pickle_file )
+
+    if isinstance( state, sane.Action ):
+      f = f"{state.save_location}/{state.id}_outputs.json"
+      if os.path.isfile( f ):
+        os.remove( f )
+      f = state.runlog
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
+      f = state.logfile
+      if f is not None and os.path.isfile( f ):
+        os.remove( f )
 
   def test_action_standalone( self ):
     """Ensure that an action can be created standalone"""
@@ -128,7 +150,14 @@ class ActionTests( unittest.TestCase ):
     options = {
                 "environment" : "foobar",
                 "local"       : True,
-                "config"      : { "one" : 1, "two" : [2], "three" : { "foo" : 3 } },
+                "config"      :
+                { 
+                  "one" : 1,
+                  "two" : [2],
+                  "three" : { "foo" : 3 },
+                  "foobar" : "foo",
+                  "arr" : [ 3, 2, 1, 0 ]
+                },
                 "dependencies" :
                 {
                   "dep_action0" : "afterok",
@@ -180,9 +209,11 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "${{ local }}",
                   "foobar" : "${noop}",
+                  "noop" : "${{ }}",
                   "moo" : [ "${{ working_directory}}", "${{ config.one }}", "${{ resources.gpus}}" ]
                 },
-                "boo" : "${{ config.two[0] }}"
+                "boo" : "${{ config.two[0] }}",
+                "moo" : "${{ config.two[ ${{ config.arr[ ${{ config.three.${{ config.foobar }} }} ] }} ] }}"
               }
     exp_dict = {
                 "foo" : "test",
@@ -191,9 +222,11 @@ class ActionTests( unittest.TestCase ):
                 {
                   "foo" : "True",
                   "foobar" : "${noop}",
+                  "noop" : "${{ }}",
                   "moo" : [ "./", "1", "999" ]
                 },
-                "boo" : "2"
+                "boo" : "2",
+                "moo" : "2"
               }
     out_dict = self.action.dereference( ref_dict )
     self.assertEqual( exp_dict, out_dict )
@@ -205,3 +238,90 @@ class ActionTests( unittest.TestCase ):
     exp_str = "1"
     out_str = self.action.dereference_str( ref_str )
     self.assertEqual( exp_str, out_str )
+
+  def test_action_dereference_detect_cycle( self ):
+    """Test the action's ability to detect cycles in attribute dereferencing"""
+    # Start with a sufficiently complex config
+    self.test_action_from_options()
+
+    # Modify action to self reference
+    self.action.config["single_cycle"] = {
+                                          "a" : "${{ config.single_cycle.b }}",
+                                          "b" : "${{ config.single_cycle.a }}"
+                                          }
+
+    ref_str = "${{ config.single_cycle.a }}"
+    exp_str = ref_str
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+    self.action.config["quad_cycle"] = {
+                                          "a" : "${{ config.quad_cycle.b }}",
+                                          "b" : "${{ config.quad_cycle.c }}",
+                                          "c" : "${{ config.quad_cycle.d }}",
+                                          "d" : "${{ config.quad_cycle.a }}"
+                                          }
+
+    ref_str = "${{ config.quad_cycle.a }}"
+    exp_str = ref_str
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+    self.action.config["enter_cycle"] = {
+                                          "a" : "${{ config.enter_cycle.b }}",
+                                          "b" : "${{ config.enter_cycle.c }}",
+                                          "c" : "${{ config.enter_cycle.d }}",
+                                          "d" : "${{ config.quad_cycle.b }}"
+                                        }
+    # Enter cycle at b, so expect b out
+    ref_str = "${{ config.enter_cycle.a }}"
+    exp_str = self.action.config["enter_cycle"]["d"]
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+    # Cycle starts but does one loop to regularize the string so first err will
+    # be at next node
+    ref_str = "${{   config.single_cycle.a   }}"
+    exp_str = self.action.config["single_cycle"]["a"] #goes to next node
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+  def test_action_dereference_warn_simplified_re( self ):
+    """Test the action's ability to detect malformed reference due to simplified regex"""
+    # Start with a sufficiently complex config
+    self.test_action_from_options()
+
+    # The simplification of the regex to be a repeating pattern with an optional
+    # '.' (key subscript) at the end allows a ref string to end with a '.'
+    self.action.config["foo"] = 1
+
+    # Detect if this is caught
+    ref_str = "${{config.foo.}}"
+    exp_str = "1"
+    out_str = self.action.dereference_str( ref_str )
+    self.assertEqual( exp_str, out_str )
+
+  def test_action_persistent_outputs( self ):
+    """Test the ability to stream back outputs produced in Action run"""
+
+    sane.logger.internal_logger.setLevel( 10 )
+    test_str = "MyActionWithOutputs will send back ok"
+
+    self.action = MyActionWithOutputs( "test_output", test_str )
+    self.action.verbose = True
+
+    host = sane.Host( "basic" )
+    host.add_environment( sane.Environment( "also_basic" ) )
+    host.default_env = "also_basic"
+    host.save()
+
+    self.action.__host_info__["file"] = host.save_file
+    self.action.import_paths = [ os.path.dirname( __file__ ) ]
+    retval, content = self.action.launch( os.getcwd() )
+    self.assertEqual( retval, 0 )
+    self.assertIn( test_str, content )
+    self.assertIn( "ok", self.action.outputs )
+    self.assertTrue( self.action.outputs["ok"] )
+
+    self.remove_save_files( host )
+    sane.logger.internal_logger.setLevel( sane.logging.INFO )

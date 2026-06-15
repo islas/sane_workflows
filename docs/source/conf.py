@@ -9,6 +9,8 @@ import sys
 import subprocess
 
 from sphinx_pyproject import SphinxConfig
+from sphinx.highlighting import lexers
+from pygments.lexers.web import JavascriptLexer
 
 
 filepath = os.path.dirname( os.path.abspath( __file__ ) )
@@ -26,6 +28,9 @@ author = "islas"
 release = version
 
 nitpicky = False
+
+# Map 'jsonc' to use JavaScript highlighting for better comment support
+lexers['jsonc'] = JavascriptLexer()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

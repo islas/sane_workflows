@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from collections.abc import Iterable
 
 import json
 import math
@@ -9,6 +10,8 @@ import math
 
 def squarest_divisors( n ):
   x = round( math.sqrt( n ) )
+  if x == 0:
+    return 0, 0
   while n % x > 0:
     x -= 1
   return x, n // x
@@ -98,7 +101,7 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
 
   ax.set_xticks( time_xtick, labels=[ t.split(".")[0] for t in  time_label], rotation=30 )
 
-def plot_usage( workflow_save, arrow_deltas, stem_timeline ):
+def plot_usage( workflow_save, options ):
   import matplotlib.pyplot as plt
 
   resource_logs = json.load( open( workflow_save, "r" ) )["resource_usage"]
@@ -126,11 +129,18 @@ def plot_usage( workflow_save, arrow_deltas, stem_timeline ):
       plots = set( [ p for p, pdict in workflow_run[host].items() for q, qdict in pdict.items() if qdict["acquire"] ] )
     else:
       plots = [ p for p, pdict in workflow_run[host].items() if pdict["acquire"] ]
+
     nx, ny = squarest_divisors( len( plots ) )
+    if nx == 0 and ny == 0:
+      print( f"Skipping host {host} : no resources to plot" )
+      continue
+
     fig = plt.figure()
     fig.suptitle( times[view_time], fontsize="x-large" )
     subfigs = fig.subfigures( nx, ny )
-    if not isinstance( subfigs, list ):
+
+    if not isinstance( subfigs, Iterable ):
+      print( "Adjusting subfigures into a list..." )
       subfigs = [subfigs]
 
     for i, resource in enumerate( plots ):
@@ -139,32 +149,46 @@ def plot_usage( workflow_save, arrow_deltas, stem_timeline ):
       subfigs[i].suptitle( resource, y=.94 )
       if simple:
         ax = subfigs[i].subplots()
-        plot_resource_usage( times[view_time], ax, resource, rdict, arrow_deltas, stem_timeline )
+        plot_resource_usage( times[view_time], ax, resource, rdict, options.arrows, options.stems )
       else:
         # nested provider
         subfigs[i].subplots_adjust( hspace=0.0 )
         subax = subfigs[i].subplots( len( rdict.keys() ), sharex=True, squeeze=False )
         for j, pool_resource in enumerate( rdict.items() ):
-          plot_resource_usage( times[view_time], subax[j][0], pool_resource[0], pool_resource[1], arrow_deltas, stem_timeline )
+          plot_resource_usage( times[view_time], subax[j][0], pool_resource[0], pool_resource[1], options.arrows, options.stems )
 
   plt.show()
 
 
-def show_status( workflow_save ):
+def show_status( workflow_save, options ):
   import sane
   actions = json.load( open( workflow_save, "r" ) )["actions"]
   longest_action = len( max( actions.keys(), key=len ) )
   statuses = [ f"{node:<{longest_action}}: " + actions[node]["status"] for node in actions.keys() ]
-  sane.orchestrator.print_actions( statuses, max_line=150 )
+  sane.orchestrator.print_actions( statuses, max_line=options.line_length )
 
 
-def show_state( workflow_save ):
+def show_state( workflow_save, options ):
   import sane
   actions = json.load( open( workflow_save, "r" ) )["actions"]
   longest_action = len( max( actions.keys(), key=len ) )
   statuses = [ f"{node:<{longest_action}}: " + actions[node]["state"] for node in actions.keys() ]
-  sane.orchestrator.print_actions( statuses, max_line=150 )
+  sane.orchestrator.print_actions( statuses, max_line=options.line_length )
 
+
+def show_logs( workflow_save, options ):
+  import sane
+  actions = json.load( open( workflow_save, "r" ) )["actions"]
+  longest_action = len( max( actions.keys(), key=len ) )
+  for action, info in actions.items():
+    if options.errors and info["status"] == "success":
+      continue
+
+    log = info["runlog"] if options.runlog else info["logfile"]
+
+    if options.relative_path:
+      log = os.path.relpath( log, os.getcwd() )
+    print( f"  {action:<{longest_action}}: {log}" )
 
 def get_parser():
   base = argparse.ArgumentParser( add_help=False )
@@ -185,7 +209,8 @@ def get_parser():
   subparsers = parser.add_subparsers( required=True, dest="cmd" )
   usage   = subparsers.add_parser( "usage",  help="View resource usage", parents=[base] )
   status  = subparsers.add_parser( "status", help="View action status", parents=[base] )
-  status  = subparsers.add_parser( "state",  help="View action state", parents=[base] )
+  state   = subparsers.add_parser( "state",  help="View action state", parents=[base] )
+  logs    = subparsers.add_parser( "logs",   help="View action logs", parents=[base] )
   usage.add_argument(
                       "-a", "--arrows",
                       action="store_true",
@@ -196,6 +221,33 @@ def get_parser():
                       action="store_true",
                       help="Plot stem events at the bottom of the usage"
                       )
+  status.add_argument(
+                      "-l", "--line_length",
+                      default=150,
+                      help="Max line length to use in reporting",
+                      type=int
+                      )
+  state.add_argument(
+                      "-l", "--line_length",
+                      default=150,
+                      help="Max line length to use in reporting",
+                      type=int
+                      )
+  logs.add_argument(
+                    "-e", "--errors",
+                    action="store_true",
+                    help="Only show logs for failed actions"
+                    )
+  logs.add_argument(
+                    "-r", "--runlog",
+                    action="store_true",
+                    help="Show runlog (inside action launch only) instead of full log"
+                    )
+  logs.add_argument(
+                    "-rp", "--relative_path",
+                    action="store_true",
+                    help="Show path as relative to current working directory"
+                    )
   return parser
 
 def main():
@@ -210,11 +262,13 @@ def main():
   options = parser.parse_args()
   filename = os.path.join( options.workflow_save, options.filename )
   if options.cmd == "usage":
-    plot_usage( filename, options.arrows, options.stems )
+    plot_usage( filename, options )
   elif options.cmd == "status":
-    show_status( filename )
+    show_status( filename, options )
   elif options.cmd == "state":
-    show_state( filename )
+    show_state( filename, options )
+  elif options.cmd == "logs":
+    show_logs( filename, options )
 
 if __name__ == "__main__":
   main()

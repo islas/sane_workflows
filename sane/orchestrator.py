@@ -10,6 +10,7 @@ import threading
 import re
 import datetime
 from concurrent.futures import ThreadPoolExecutor
+from collections import OrderedDict
 import xml.etree.ElementTree as xmltree
 import xml.dom.minidom
 
@@ -337,10 +338,29 @@ class Orchestrator( opts.OptionLoader ):
   def process_patches( self ) -> None:
     """Process JSON patches in priority order
 
-    All patches are processed in descending priority order (highest priority first),
-    with equal priority left in an undefined order. Following the processing order
-    of :py:meth:`load_core_options()`, any patch for :py:class:`sane.Host` is processed
-    first, then :py:class:`sane.Action`.
+    Process the stored JSON patches read in from :py:meth:`load_config_files` after
+    both JSON and python workflow files have been processed. First, they are sorted
+    in priority order, highest value first. Then for each patch `dict`
+    :py:meth:`process_patch_dict` is called using the path of the JSON file this
+    patch came from as the `origin`
+    """
+    # Higher number equals higher priority
+    # this makes default registered generally go last
+    keys = sorted( self._patch_options.keys(), reverse=True )
+    for key in keys:
+      for origin, patch in self._patch_options[key].items():
+        self.process_patch_dict( origin, patch )
+
+  def process_patch_dict( self, origin : str, patch : dict ) -> None:
+    """Process an individual patch dict without priority
+
+    Find the corresponding object(s) that already exist within the :py:class:`Orchestrator`
+    and call the respective :py:meth:`load_options` of an object with the sub-`dict`
+    as the value. The `patch` input argument should closely resemble the `options`
+    argument in :py:meth:`load_core_options`, with some minor caveats.
+    
+    Following the processing order of :py:meth:`load_core_options()`, any patch
+    for :py:class:`sane.Host` is processed first, then :py:class:`sane.Action`.
 
     Patches are applied, for a respective attribute (:py:attr:`hosts` or :py:attr:`actions`),
     either by finding a matching key in the attribute or if a patch filter for all matching keys.
@@ -370,46 +390,46 @@ class Orchestrator( opts.OptionLoader ):
     ``[action_00[0-5]]`` is a patch filter with ``action_00[0-5]`` as the match regex.
 
     Regardless of the patch applied or not, the effects are logged.
+
+    :param origin: Where this patch originates from, file or source code.
+    :param patch:  A `dict` similiar to :py:meth:`load_core_options`, containing
+                   a collection of `dicts` corresponding to a patched object's
+                   :py:meth:`load_options`
     """
-    # Higher number equals higher priority
-    # this makes default registered generally go last
     self.push_logscope( "patch" )
-    keys = sorted( self._patch_options.keys(), reverse=True )
-    for key in keys:
-      for origin, patch in self._patch_options[key].items():
-        self.log( f"Processing patches from {origin}" )
-        self.log_push()
-        # go through patches in priority order then apply hosts then actions, respectively
-        for pop_key, gentype, source in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
-          patch_dicts = patch.pop( pop_key, {} )
-          for id, options in patch_dicts.items():
-            if id in source:
-              self.log( f"Applying patch to {gentype} '{id}'" )
-              source[id].log_push( 2 )
-              source[id].push_logscope( "patch" )
-              source[id].load_options( options.copy(), origin )
-              source[id].pop_logscope()
-              source[id].log_pop( 2 )
-            elif id.startswith( "[" ) and id.endswith( "]" ):
-              filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
-              if len( filter_ids ) > 0:
-                self.log( f"Applying patch filter '{id[1:-1]}' to [{len(filter_ids)}] {gentype}s" )
-                for filter_id in filter_ids:
-                  self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
-                  source[filter_id].log_push( 2 )
-                  source[filter_id].push_logscope( "patch" )
-                  source[filter_id].load_options( options.copy(), origin )
-                  source[filter_id].pop_logscope()
-                  source[filter_id].log_pop( 2 )
-              else:
-                self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
-            else:
-              self.log( f"{gentype} '{id}' does not exist, cannot patch", level=30 )
+    self.log( f"Processing patches from {origin}" )
+    self.log_push()
+    # go through patches in priority order then apply hosts then actions, respectively
+    for pop_key, gentype, source in ( ( "hosts", "Host", self.hosts ), ( "actions", "Action", self.actions ) ):
+      patch_dicts = patch.pop( pop_key, {} )
+      for id, options in patch_dicts.items():
+        if id in source:
+          self.log( f"Applying patch to {gentype} '{id}'" )
+          source[id].log_push( 2 )
+          source[id].push_logscope( "patch" )
+          source[id].load_options( options.copy(), origin )
+          source[id].pop_logscope()
+          source[id].log_pop( 2 )
+        elif id.startswith( "[" ) and id.endswith( "]" ):
+          filter_ids = list( filter( lambda source_id: re.search( id[1:-1], source_id ), source.keys() ) )
+          if len( filter_ids ) > 0:
+            self.log( f"Applying patch filter '{id[1:-1]}' to [{len(filter_ids)}] {gentype}s" )
+            for filter_id in filter_ids:
+              self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
+              source[filter_id].log_push( 2 )
+              source[filter_id].push_logscope( "patch" )
+              source[filter_id].load_options( options.copy(), origin )
+              source[filter_id].pop_logscope()
+              source[filter_id].log_pop( 2 )
+          else:
+            self.log( f"No {gentype} matches patch filter '{id[1:-1]}', cannot apply patch", level=30 )
+        else:
+          self.log( f"{gentype} '{id}' does not exist, cannot patch", level=30 )
 
-        if len( patch ) > 0:
-          self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
-        self.log_pop()
+    if len( patch ) > 0:
+      self.log( f"Unused keys in patch : {list(patch.keys())}", level=30 )
 
+    self.log_pop()
     self.pop_logscope()
 
   def find_host( self, as_host : str ):
@@ -560,7 +580,9 @@ class Orchestrator( opts.OptionLoader ):
       self.log( f"Launching Host '{self.current_host}' watchdog function" )
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
 
+    host.push_logscope( "pre_run_actions" )
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
+    host.pop_logscope()
 
     self.log( "Running actions..." )
     start = datetime.datetime.now()
@@ -609,7 +631,9 @@ class Orchestrator( opts.OptionLoader ):
 
                 self.log( f"Running '{node}' on '{self.current_host}'" )
                 with self.__run_lock__:
+                  host.push_logscope( "pre_launch" )
                   host.pre_launch( self.actions[node] )
+                  host.pop_logscope()
                 self.log_flush()
                 results[node] = executor.submit(
                                                 self.actions[node].launch,
@@ -658,10 +682,34 @@ class Orchestrator( opts.OptionLoader ):
       self.__wake__.wait()
       self.__wake__.clear()
       for node in processed_nodes.copy():
-        if node in results and results[node].done():
+        # To prevent race conditions, first grab the action state
+        # If somehow we get into (not done at state check but then done at result check)
+        # the host "preemptively" calls post_launch() and release_resources() on the action
+        # The action will remain in the processed_nodes until another __wake__ call.
+        # As __wake__ is logically tied to action state reporting (only called
+        # AFTER state set) this should not deadlock, and is independent of the subprocess completing
+        state = self.actions[node].state
+        run_state = sane.action.ActionState.valid_run_state( state )
+        if ( state == sane.action.ActionState.FINISHED
+          or ( continue_on_err and not run_state ) ):
+          msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
+          msg  = msg.format( state=state.value.upper(), status=self.actions[node].status.value )
+          self.log( msg )
+          self._dag.node_complete( node, traversal_list )
+          processed_nodes.remove( node )
+        elif not run_state:
+          # If we get here, we DO want to error
+          msg = f"Action '{node}' did not return finished state : {state.value}"
+          self.log( msg, level=50 )
+          raise Exception( msg )
+
+        if node in results and node not in processed_nodes:
           try:
-            retval, content = results[node].result()
+            retval, content = results[node].result(10)
+            host.push_logscope( "post_launch" )
             host.post_launch( self.actions[node], retval, content )
+            host.pop_logscope()
+
             # Regardless, return resources
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
             del results[node]
@@ -672,28 +720,16 @@ class Orchestrator( opts.OptionLoader ):
             executor.shutdown( wait=True )
             raise e
 
-        run_state = sane.action.ActionState.valid_run_state( self.actions[node].state )
-        if ( self.actions[node].state == sane.action.ActionState.FINISHED
-           or ( continue_on_err and not run_state ) ):
-          msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
-          msg  = msg.format( state=self.actions[node].state.value.upper(), status=self.actions[node].status.value )
-          self.log( msg )
-          self._dag.node_complete( node, traversal_list )
-          processed_nodes.remove( node )
-        elif not run_state:
-          # If we get here, we DO want to error
-          msg = f"Action '{node}' did not return finished state : {self.actions[node].state.value}"
-          self.log( msg, level=50 )
-          raise Exception( msg )
-
-        # We are in a good spot to save
-        self.save( action_set )
+      # We are in a good spot to save
+      self.save( action_set )
 
     # Shutdown workflow
     host.kill_watchdog = True
     executor.shutdown( wait=True )
 
+    host.push_logscope( "post_run_actions" )
     host.post_run_actions( { node : self.actions[node] for node in action_set } )
+    host.pop_logscope()
 
     self.log( "Finished running queued actions" )
     # Report final statuses
@@ -812,7 +848,7 @@ class Orchestrator( opts.OptionLoader ):
         continue
 
       with open( file, "r" ) as fp:
-        options = json.load( fp, cls=JSONCDecoder )
+        options = json.load( fp, cls=JSONCDecoder, object_pairs_hook=OrderedDict )
         self.log_push()
         self.load_options( options, file )
         self.log_pop()
@@ -871,7 +907,8 @@ class Orchestrator( opts.OptionLoader ):
     be created via JSON config file.
 
     .. hint::
-        See :py:meth:`process_patches()` for advanced usage of patching objects, including using patch filters.
+        See :py:meth:`process_patches()` or :py:meth:`process_patch_dict` for advanced
+        usage of patching objects, including using patch filters.
 
     .. note::
         ``"type"`` is not a valid field in any of the ``"patches"`` sub-dicts as the *options*
@@ -924,7 +961,7 @@ class Orchestrator( opts.OptionLoader ):
 
     try:
       with open( self.save_file, "r" ) as f:
-        save_dict = json.load( f, cls=JSONCDecoder )
+        save_dict = json.load( f, cls=JSONCDecoder, object_pairs_hook=OrderedDict )
     except Exception as e:
       self.log( f"Could not open {self.save_file}", level=50 )
       raise e

@@ -138,7 +138,7 @@ Within the ``"hosts"`` and ``"actions"`` dictionaries, the unique keys are used
 as the ``name`` or ``id`` for the underlying objects they will create. The valid
 fields inside the corresponding *options* ``{ <value> }`` of the  unique key name/id
 are left without much specification because the ``"type"`` key may change how that
-*options* subsection is loaded, as we will see later in the :ref:`advanced.custom_classes`
+*options* subsection is loaded, as we will see later in the :ref:`advanced.custom_actions`
 section.
 
 For now, we will assume we are using the default classes. We then can simply use
@@ -746,7 +746,7 @@ Again, reviewing the highlighted regions:
     some workflows!
 
     If you're looking to add more control to your workflows or for an extra challenge,
-    check out the :doc:`advanced`.
+    check out the :ref:`advanced`.
 
 .. TODO move this to advanced section
 .. Patching

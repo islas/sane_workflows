@@ -6,6 +6,7 @@ import subprocess
 import threading
 import datetime
 import time
+import json
 from typing import Dict, List, Tuple, Union
 from enum import Enum, EnumMeta
 
@@ -128,8 +129,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
   * Actions will always execute under separate processes from the :py:class:`sane.Orchestrator`
   """
   CONFIG_TYPE = "Action"
-  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:\w+(?:\[\d+\])?\.)*\w+(?:\[\d+\])?)[ ]*}})" )
-  IDX_RE = re.compile( r"(?P<attr>\w+)(?:\[(?P<idx>\d+)\])?" )
+  REF_RE = re.compile( r"(?P<substr>[$]{{[ ]*(?P<attrs>(?:(?:\w|-)+(?:\[[ ]*\d+[ ]*\])?\.?)+)[ ]*}})" )
+  IDX_RE = re.compile( r"(?P<attr>(?:\w|-)+)(?:\[[ ]*(?P<idx>\d+)[ ]*\])?" )
 
   def __init__( self, id ):
     """Create an Action with unique ID"""
@@ -151,7 +152,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self._dependencies     = {}
     self._resources        = {}
 
+    # Whether the output of subprocesses should print raw output or wrap it with
+    # logging as if coming from this action's logging
     self.__exec_raw__      = True
+    self.__tmp_exce_raw__  = True
 
     #: The start time of the :py:meth:`Action.launch()` in ISO format
     self.__timestamp__     = None
@@ -182,6 +186,30 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.__wake__  = tmp_wake
     self.logger    = tmp_logger
 
+  def save_outputs( self ) -> None:
+    """Serialize :py:attr:`Action.outputs` to JSON file in :py:attr:`Action.save_location`"""
+    filename = f"{self.save_location}/{self.id}_outputs.json"
+    with open( filename, "w" ) as f:
+      self.log( f"Saving outputs to : {filename}" )
+      json.dump( self.dereference( self.outputs, noexcept=False, log=False ), f, indent=2 )
+
+  def load_outputs( self, id=None, merge=None ) -> None:
+    """Read from JSON file in :py:attr:`Action.save_location` and merge with :py:attr:`Action.outputs`"""
+    if id is None and merge is None:
+      id = self.id
+      merge = self.outputs
+
+    filename = f"{self.save_location}/{id}_outputs.json"
+    if os.path.isfile( filename ):
+      with open( filename, "r" ) as f:
+        loaded = json.load( f )
+        merge = recursive_update( merge, loaded )
+
+  def reload_dependencies_outputs( self ):
+    """Reload dependency output info in case it has changed"""
+    for dep, info in self.dependencies.items():
+      self.load_outputs( dep, info["outputs"] )
+
   def __orch_wake__( self ) -> None:
     """Wake up the :py:class:`Orchestrator` from another thread.
 
@@ -207,6 +235,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
         self._run_lock.release()
       else:
         self.log( "Run lock already released", level=30 )
+
+  def push_exec_raw( self, exec_raw : bool ) -> None:
+    """Push a new value of :py:attr:`Action.__exec_raw__`"""
+    self.__tmp_exce_raw__ = self.__exec_raw__
+    self.__exec_raw__ = exec_raw
+
+  def pop_exec_raw( self ) -> None:
+    """Restore previous value of :py:attr:`Action.__exec_raw__`"""
+    self.__exec_raw__ = self.__tmp_exce_raw__
 
   @property
   def id( self ) -> str:
@@ -344,7 +381,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     self.default_log_level = slogger.ACT_INFO
     # Create our own logger instance
     self.logger = slogger.logging.getLogger( __name__ ).getChild( self.id )
-    file_handler = slogger.logging.FileHandler( self.logfile, mode="w" )
+    file_handler = slogger.logging.FileHandler( self.logfile, delay=True, mode="w" )
     file_handler.setFormatter( slogger.log_formatter )
     self.logger.addHandler( file_handler )
     self.logger.setLevel( slogger.STDOUT )
@@ -726,7 +763,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
 
       self._acquire()
+      self.push_logscope( "pre_launch" )
       ok = self.pre_launch()
+      self.pop_logscope()
       self._release()
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
@@ -787,8 +826,12 @@ class Action( state.SaveState, res.ResourceRequestor ):
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
 
+      self.load_outputs()
+
       self._acquire()
+      self.push_logscope( "post_launch" )
       ok = self.post_launch( retval, content )
+      self.pop_logscope()
       self._release()
       if ok is not None and not ok:
         raise AssertionError( "post_launch() returned False" )
@@ -819,11 +862,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """Dereference an input string using GitHub Actions style syntax scoped to the current object
     
     Continuously dereferences strings within the current object until no more 
-    substitutions can be made. All attributes and properties can be referenced,
-    but dereferencing will work best with attributes that are ``dict``, ``list``,
-    ``str``, or ``int`` values.
+    substitutions can be made. This means that dereference strings can be nested.
+    All attributes and properties can be referenced, but dereferencing will work
+    best with attributes that are ``dict``, ``list``, ``str``, or ``int`` values.
     
-    | Nested referencing can be achieved with ``.`` operator (key as next field)
+    | Dict referencing can be achieved with ``.`` operator (key as next field)
     | Index referencing can be achieved with ``[]`` operator (positive integer)
 
     Valid syntax examples:
@@ -856,6 +899,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
         # A complex dereference
         "${{ config.moo.loo[0].hoo[1] }}" => "7"
 
+        # A nested dereference
+        "${{ config.moo.loo[0].hoo[ ${{ config.moo.loo[ ${{ config.foo }} ] }} ] }} => "6"
+        #                                               ^^^^^^^^^^^^^^^^^ => "1"
+        #                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ => "0"
+
     .. attention:: During the substitution, if indexing to the next attribute yields ``None`` an
                    ``Exception`` will be thrown. Thus, at the time of dereferencing, the string
                    input **MUST** be valid.
@@ -864,28 +912,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
     :param noexcept: disable exceptions and instead allow failed dereference
     :return: string fully dereferenced
     """
-    curr_matches = list( Action.REF_RE.finditer( input_str ) )
-    prev_matches = None
     output_str = input_str
-
-    def matches_equal( lhs, rhs ):
-      if lhs is None and rhs is not None or rhs is None and lhs is not None:
-        return False
-      if len( lhs ) != len( rhs ):
-        return False
-      for i in range( len( lhs ) ):
-        if lhs[i].span() != rhs[i].span():
-          return False
-        if lhs[i].groupdict() != rhs[i].groupdict():
-          return False
-      return True
+    history    = []
 
     # Fully dereference as much as possible
-    while not matches_equal( prev_matches, curr_matches ):
-      prev_matches = curr_matches
-      for match in curr_matches:
+    while len(history) == 0 or output_str not in history:
+      history.append( output_str )
+      matches = list( Action.REF_RE.finditer( output_str ) )
+
+      for match in matches:
         substr = match.group( "substr" )
         attrs  = match.group( "attrs" )
+
+        # Correct for malformed attributes the regex can catch. This could be
+        # avoided with a lengthier regex but to keep it simple we "fix it in post"
+        if attrs[-1] == ".":
+          self.log( f"Attribute reference '{output_str}' contains dangling '.' : '{attrs}'", level=30 )
+          attrs = attrs[:-1]
 
         curr = self
         for attr in attrs.split( "." ):
@@ -917,17 +960,23 @@ class Action( state.SaveState, res.ResourceRequestor ):
               msg = f"Dereferencing yielded None for '{attr_groups['attr']}' in '{substr}'"
               self.log( msg, level=40 )
               raise Exception( msg )
-          
 
           if attr_groups["idx"] is not None:
             curr = curr[ int(attr_groups["idx"]) ]
         output_str = output_str.replace( substr, str( curr ) )
 
-      curr_matches = list( Action.REF_RE.finditer( output_str ) )
+    if output_str != history[-1]:
+      self.log( f"Detected cyclical dereference at [{history.index(output_str)}].", level=30 )
+      self.log(  "  History:", level=30 )
+      for i, s in enumerate( history ):
+        self.log( f"             [{i}] '{s}'", level=30 )
+      self.log( f"  output =>  [{len(history)}] '{output_str}'", level=30 )
 
-    if output_str != input_str and log:
-      self.log( f"Dereferenced '{input_str}'" )
-      self.log( f"     into => '{output_str}'" )
+    elif output_str != input_str and log:
+      self.log( f"Dereferenced [0] '{input_str}'" )
+      for i, s in enumerate( history[1:-1], 1 ):
+        self.log( f"             [{i}] '{s}'" )
+      self.log( f"     into => [{len(history) - 1}] '{output_str}'" )
     return output_str
 
   def dereference( self, obj, log=True, noexcept=False ):
@@ -1002,7 +1051,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
              The default returns the return value of :py:meth:`execute_subprocess`
              from running ``config["command"]``
     """
-    self.push_logscope( "run" )
     # Users may overwrite run() in a derived class, but a default will be provided for config-file based testing (TBD)
     # The default will simply launch an underlying command using a subprocess
     self.dereference( self.config )
@@ -1020,7 +1068,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
       arguments = self.config["arguments"]
 
     retval, content = self.execute_subprocess( command, arguments, verbose=True, capture=False )
-    self.pop_logscope()
     return retval
 
   def __str__( self ):
