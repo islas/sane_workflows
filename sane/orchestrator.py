@@ -50,7 +50,7 @@ def callable_decorator( f ):
 
 def print_actions( action_list, max_line=100, print=print ):
   longest_action = len( max( action_list, key=len ) )
-  n_per_line = int( max_line / longest_action )
+  n_per_line = max( int( max_line / longest_action ), 1 )
 
   for i in range( 0, int( len( action_list ) / n_per_line ) + 1 ):
     line = "  "
