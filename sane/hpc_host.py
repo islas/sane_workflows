@@ -200,7 +200,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
     submit_args, submit_queue = self.submit_args( specific_resources, action.logname )
 
-    if queue is not None and submit_queue is not None:
+    # The queue we thought we would submit to and the requisition queue differ
+    if queue is not None and submit_queue is not None and queue != submit_queue:
       self.log( f"Host or Action provided queue '{queue}' does not match resource queue '{submit_queue}'", level=40 )
       raise RuntimeError( "Mismatched queue" )
 
@@ -430,7 +431,7 @@ class PBSHost( HPCHost ):
         resource_dicts.append( select_dict )
 
     requisition = {}
-    queue       = resource_dict.get( "queue", None )
+    queue       = resource_dict.get( "queue", self.queue )
     resolved = True
 
     # These are the resources we *can* provide by queue
@@ -474,11 +475,11 @@ class PBSHost( HPCHost ):
       numeric_resources_per_dict.append( numeric_resources )
 
     # Find which queue and which nodesets to use
-    if queue is None:
-      all_resources = set()
-      for nr in numeric_resources_per_dict:
-        all_resources = all_resources | set( nr )
+    all_resources = set()
+    for nr in numeric_resources_per_dict:
+      all_resources = all_resources | set( nr )
 
+    if queue is None:
       for q, available_resources in available_resources_by_queue.items():
         if all_resources <= available_resources:
           queue = q
