@@ -110,6 +110,7 @@ class Orchestrator( opts.OptionLoader ):
     self.__wake__     = threading.Event()
 
     self.__timestamp__ = None
+    self.__runtimes__  = []
 
     super().__init__( logname="orchestrator" )
 
@@ -740,7 +741,9 @@ class Orchestrator( opts.OptionLoader ):
       self.log( "All actions finished with success" )
     else:
       self.log( "Not all actions finished with success" )
-    self.log( f"Finished in {datetime.datetime.now() - start}" )
+
+    self.__runtimes__.append( (datetime.datetime.now() - start).total_seconds() )
+    self.log( f"Finished in {datetime.timedelta(seconds=self.__runtimes__[-1])}" )
     self.log( f"Logfiles at {self.log_location}")
     self.log( f"Save file at {self.save_file}" )
     self.save( action_set )
@@ -983,7 +986,8 @@ class Orchestrator( opts.OptionLoader ):
                         "save_location" : self.save_location,
                         "log_location" : self.log_location,
                         "working_directory" : self.working_directory,
-                        "resource_usage" : { self.__timestamp__ : { self.current_host : self.hosts[self.current_host].resource_log } }
+                        "resource_usage" : { self.__timestamp__ : { self.current_host : self.hosts[self.current_host].resource_log } },
+                        "runtimes" : self.__runtimes__
                       }
     save_dict = recursive_update( save_dict, save_dict_update )
     with open( self.save_file, "w" ) as f:
@@ -1002,6 +1006,7 @@ class Orchestrator( opts.OptionLoader ):
     self.save_location = save_dict["save_location"]
     self.log_location = save_dict["log_location"]
     self.working_directory = save_dict["working_directory"]
+    self.__runtimes__       = save_dict["runtimes"]
 
     for action, action_dict in save_dict["actions"].items():
       if action == "virtual_relaunch":
