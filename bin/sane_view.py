@@ -190,6 +190,33 @@ def show_logs( workflow_save, options ):
       log = os.path.relpath( log, os.getcwd() )
     print( f"  {action:<{longest_action}}: {log}" )
 
+
+def show_summary( workflow_save, options ):
+  from datetime import timedelta
+  import sane
+  workflow = json.load( open( workflow_save, "r" ) )
+
+  errs = 0
+  acts = 0
+  for action, info in workflow["actions"].items():
+    acts += 1
+    if info["status"] == "failure":
+      errs += 1
+
+  runtimes = workflow["runtimes"]
+  total    = sum(runtimes)
+  success  = "SUCCESS" if errs == 0 else "FAILURE"
+
+  print( f"SANE Workflow [{workflow_save}]")
+  print( f"  Status  : {success}" )
+  print( f"  Actions : {acts}" )
+  print( f"  Errors  : {errs}" )
+  print( f"  Last Run: {timedelta(seconds=runtimes[-1])}")
+  print( f"  Total   : {timedelta(seconds=total)}")
+  if errs > 0:
+    exit(1)
+
+
 def get_parser():
   base = argparse.ArgumentParser( add_help=False )
   base.add_argument(
@@ -211,6 +238,7 @@ def get_parser():
   status  = subparsers.add_parser( "status", help="View action status", parents=[base] )
   state   = subparsers.add_parser( "state",  help="View action state", parents=[base] )
   logs    = subparsers.add_parser( "logs",   help="View action logs", parents=[base] )
+  logs    = subparsers.add_parser( "summary",help="View workflow summary", parents=[base] )
   usage.add_argument(
                       "-a", "--arrows",
                       action="store_true",
@@ -269,6 +297,8 @@ def main():
     show_state( filename, options )
   elif options.cmd == "logs":
     show_logs( filename, options )
+  elif options.cmd == "summary":
+    show_summary( filename, options )
 
 if __name__ == "__main__":
   main()
