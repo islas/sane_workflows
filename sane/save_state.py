@@ -27,6 +27,7 @@ class SaveState:
     self._save_location = os.path.abspath( path )
     self._base          = base
     self.import_paths   = uspace.user_paths
+    self.unpicklable    = []
     super().__init__( **kwargs )
 
   @property
@@ -50,9 +51,14 @@ class SaveState:
     self._save_location = os.path.abspath( path )
 
   def save( self ):
+    stash = { attr : getattr( self, attr ) for attr in self.unpicklable }
+    for attr in self.unpicklable: setattr( self, attr, None )
+
     with open( self.pickle_file, "wb" ) as f:
       pickle.dump( self, f )
 
     state = { "pickle_file" : self.pickle_file, "module" : self.__module__, "import_paths" : self.import_paths }
     with open( self.save_file, "w" ) as f:
       json.dump( state, f, indent=2 )
+
+    for attr in self.unpicklable: setattr( self, attr, stash[attr] )
