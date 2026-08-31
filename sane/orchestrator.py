@@ -580,6 +580,8 @@ class Orchestrator( opts.OptionLoader ):
     host_wd_results = None
     if host_watchdog is not None:
       self.log( f"Launching Host '{self.current_host}' watchdog function" )
+      # Ensure watchdog is setup to run before kicking off
+      host.kill_watchdog = False
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
 
       def wd_capture( future, wake ):
