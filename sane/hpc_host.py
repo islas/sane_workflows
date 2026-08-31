@@ -115,7 +115,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
           self.on_job_complete( job_id, actions[action_name] )
           # Wake the orch
-          self.__orch_wake__()
+          self.__orch_wake__.set()
 
   def post_launch( self, action, retval, content ):
     if not self.launch_local( action ):

@@ -1,5 +1,6 @@
 import socket
 from typing import Dict
+import threading
 
 import sane.match as match
 import sane.options as opts
@@ -27,7 +28,18 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
     self.config          = {}
     #: Control when to kill the :py:attr:`watchdog_func`
     self.kill_watchdog   = False
-    self.__wake__        = None
+
+    # These two are provided by the orchestrator upon begin setup
+    # Use the run lock for mutually exclusive run logic (eg. clean logging)
+    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
+    self._run_lock     = None #threading.Lock()
+    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to induce re-evaluation of completed
+    #: :py:class:`Actions <Action>` in the current workflow run. See :py:attr:`Orchestrator.__wake__` for more info.
+    self.__orch_wake__ = None #threading.Event()
+
+    self.unpicklable.append( "_run_lock" )
+    self.unpicklable.append( "__orch_wake__" )
+    self.unpicklable.append( "logger" )
 
   def match( self, requested_host ):
     return self.partial_match( requested_host )
@@ -265,26 +277,6 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
     info["name"] = self.name
     info["config"] = self.config
     return info
-
-  def save( self ):
-    tmp_wake     = self.__wake__
-    tmp_logger   = self.logger
-    self.__wake__  = None
-    self.logger    = None
-    super().save()
-    # Now restore
-    self.__wake__  = tmp_wake
-    self.logger    = tmp_logger
-
-  def __orch_wake__( self ):
-    """Wake up the :py:class:`Orchestrator` from another thread.
-
-    This should be used as an event trigger to induce re-evaluation of completed
-    :py:class:`Actions <Action>` in the current workflow run.
-    See :py:attr:`Orchestrator.__wake__` for more info.
-    """
-    if self.__wake__ is not None:
-      self.__wake__.set()
 
   @property
   def watchdog_func( self ):

@@ -134,6 +134,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def __init__( self, id ):
     """Create an Action with unique ID"""
+    super().__init__( filename=f"action_{id}", logname=id, base=Action )
+
     self._id = id
     self.config  = {}
     self.outputs = {}
@@ -167,24 +169,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     # These two are provided by the orchestrator upon begin setup
     # Use the run lock for mutually exclusive run logic (eg. clean logging)
-    self._run_lock = None
-    self.__wake__    = None
+    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
+    self._run_lock     = None #threading.Lock()
+    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to induce re-evaluation of completed
+    #: :py:class:`Actions <Action>` in the current workflow run. See :py:attr:`Orchestrator.__wake__` for more info.
+    self.__orch_wake__ = None #threading.Event()
 
-    super().__init__( filename=f"action_{id}", logname=id, base=Action )
-
-  def save( self ) -> None:
-    # Quickly remove sync objects then restore
-    tmp_run_lock = self._run_lock
-    tmp_wake     = self.__wake__
-    tmp_logger   = self.logger
-    self._run_lock = None
-    self.__wake__  = None
-    self.logger    = None
-    super().save()
-    # Now restore
-    self._run_lock = tmp_run_lock
-    self.__wake__  = tmp_wake
-    self.logger    = tmp_logger
+    self.unpicklable.append( "_run_lock" )
+    self.unpicklable.append( "__orch_wake__" )
+    self.unpicklable.append( "logger" )
 
   def save_outputs( self ) -> None:
     """Serialize :py:attr:`Action.outputs` to JSON file in :py:attr:`Action.save_location`"""
@@ -210,31 +203,31 @@ class Action( state.SaveState, res.ResourceRequestor ):
     for dep, info in self.dependencies.items():
       self.load_outputs( dep, info["outputs"] )
 
-  def __orch_wake__( self ) -> None:
-    """Wake up the :py:class:`Orchestrator` from another thread.
+  # def __orch_wake__( self ) -> None:
+  #   """Wake up the :py:class:`Orchestrator` from another thread.
 
-    This should be used as an event trigger to induce re-evaluation of completed
-    :py:class:`Actions <Action>` in the current workflow run.
-    See :py:attr:`Orchestrator.__wake__` for more info.
-    """
-    if self.__wake__ is not None:
-      self.__wake__.set()
+  #   This should be used as an event trigger to induce re-evaluation of completed
+  #   :py:class:`Actions <Action>` in the current workflow run.
+  #   See :py:attr:`Orchestrator.__wake__` for more info.
+  #   """
+  #   if self.__wake__ is not None:
+  #     self.__wake__.set()
 
-  def _acquire( self ) -> None:
-    """Acquire the shared :py:class:`Action` mutex.
+  # def _acquire( self ) -> None:
+  #   """Acquire the shared :py:class:`Action` mutex.
 
-    All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
-    """
-    if self._run_lock is not None:
-      self._run_lock.acquire()
+  #   All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
+  #   """
+  #   if self._run_lock is not None:
+  #     self._run_lock.acquire()
 
-  def _release( self ) -> None:
-    """Release the shared :py:class:`Action` mutex."""
-    if self._run_lock is not None:
-      if self._run_lock.locked():
-        self._run_lock.release()
-      else:
-        self.log( "Run lock already released", level=30 )
+  # def _release( self ) -> None:
+  #   """Release the shared :py:class:`Action` mutex."""
+  #   if self._run_lock is not None:
+  #     if self._run_lock.locked():
+  #       self._run_lock.release()
+  #     else:
+  #       self.log( "Run lock already released", level=30 )
 
   def push_exec_raw( self, exec_raw : bool ) -> None:
     """Push a new value of :py:attr:`Action.__exec_raw__`"""
@@ -613,10 +606,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
     args = [ str( arg ) for arg in args ]
 
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
-    self._acquire()
     self.log( "Running command:", level=log_level )
     self.log( "  {0}".format( command ), level=log_level )
-    self._release()
 
     retval  = -1
     content = None
@@ -762,11 +753,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.push_logscope( "launch" )
       self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
 
-      self._acquire()
+      self._run_lock.acquire()
       self.push_logscope( "pre_launch" )
       ok = self.pre_launch()
       self.pop_logscope()
-      self._release()
+      self._run_lock.release()
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
 
@@ -781,6 +772,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.save()
       self.label_length = self.max_label_length
       self.logname = logname
+      self.log( "  Save complete" )
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
       action_dir = self.resolve_path( self.working_directory, working_directory )
@@ -803,9 +795,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       retval = -1
       content = ""
       if self.logfile is None:
-        self._acquire()
+        self._run_lock.acquire()
         self.log( "Action will not be saved to logfile", level=30 )
-        self._release()
+        self._run_lock.release()
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,
@@ -828,11 +820,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
       self.load_outputs()
 
-      self._acquire()
+      self._run_lock.acquire()
       self.push_logscope( "post_launch" )
       ok = self.post_launch( retval, content )
       self.pop_logscope()
-      self._release()
+      self._run_lock.release()
       if ok is not None and not ok:
         raise AssertionError( "post_launch() returned False" )
 
@@ -840,20 +832,22 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if thread_name is not None:
         self.logname = self.id
       self.pop_logscope()
-      self.__orch_wake__()
-      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       return retval, content
+
     except Exception as e:
-      # We failed :( still notify the orchestrator
+      # We failed :(
       self.set_state_error()
-      self._release()
+      if self._run_lock.locked() : self._run_lock.release()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.logname = self.id
       self.label_length = slogger.DEFAULT_LABEL_LENGTH
       self.pop_logscope()
-      self.__orch_wake__()
-      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
       raise e
+
+    finally:
+      # Always notify the orchestrator
+      self.__orch_wake__.set()
+      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
 
   def ref_string( self, input_str ):
     return len( list( Action.REF_RE.finditer( input_str ) ) ) > 0

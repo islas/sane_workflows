@@ -508,8 +508,8 @@ class Orchestrator( opts.OptionLoader ):
     os.makedirs( self.save_location, exist_ok=True )
     os.makedirs( self.log_location, exist_ok=True )
     for name, action in self.actions.items():
-      action._run_lock = self.__run_lock__
-      action.__wake__  = self.__wake__
+      action._run_lock      = self.__run_lock__
+      action.__orch_wake__  = self.__wake__
 
   def check_action_id_list( self, action_id_list ):
     for action in action_id_list:
@@ -574,7 +574,8 @@ class Orchestrator( opts.OptionLoader ):
     already_logged = []
     self.log( f"Using working directory : '{self.working_directory}'" )
 
-    host.__wake__ = self.__wake__
+    host.__orch_wake__ = self.__wake__
+    host._run_lock     = self.__run_lock__
     host_watchdog   = host.watchdog_func
     host_wd_results = None
     if host_watchdog is not None:
