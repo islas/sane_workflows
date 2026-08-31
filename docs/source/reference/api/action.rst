@@ -146,7 +146,8 @@ Action
       .. automethod:: set_state_skipped
       .. automethod:: set_state_error
 
-      .. automethod:: __orch_wake__
+      .. autoattribute:: __orch_wake__
+      .. autoattribute:: _run_lock
 
 
 

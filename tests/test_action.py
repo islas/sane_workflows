@@ -1,6 +1,7 @@
 import unittest
 import os
 import sys
+import threading
 
 import sane
 
@@ -30,6 +31,8 @@ class ActionTests( unittest.TestCase ):
   def setUp( self ):
     self.action = sane.Action( "test" )
     self.action.verbose = True
+    self.action._run_lock     = threading.Lock()
+    self.action.__orch_wake__ = threading.Event()
     # Redirect logging to buffer
     # https://stackoverflow.com/a/7483862
     sane.logger.console_handler.stream = sys.stdout
@@ -131,6 +134,8 @@ class ActionTests( unittest.TestCase ):
 
     self.action = MyAction( "test", test_str )
     self.action.verbose = True
+    self.action._run_lock     = threading.Lock()
+    self.action.__orch_wake__ = threading.Event()
 
     host = sane.Host( "basic" )
     host.add_environment( sane.Environment( "also_basic" ) )
@@ -309,6 +314,8 @@ class ActionTests( unittest.TestCase ):
 
     self.action = MyActionWithOutputs( "test_output", test_str )
     self.action.verbose = True
+    self.action._run_lock     = threading.Lock()
+    self.action.__orch_wake__ = threading.Event()
 
     host = sane.Host( "basic" )
     host.add_environment( sane.Environment( "also_basic" ) )
