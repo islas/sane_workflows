@@ -580,7 +580,14 @@ class Orchestrator( opts.OptionLoader ):
     host_wd_results = None
     if host_watchdog is not None:
       self.log( f"Launching Host '{self.current_host}' watchdog function" )
+      # Ensure watchdog is setup to run before kicking off
+      host.kill_watchdog = False
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
+
+      def wd_capture( future, wake ):
+        if future.exception():
+          wake.set()
+      host_wd_results.add_done_callback( lambda future : wd_capture( future, wake=self.__wake__ ) )
 
     host.push_logscope( "pre_run_actions" )
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
@@ -683,6 +690,14 @@ class Orchestrator( opts.OptionLoader ):
       # We submitted everything we could so now wait for at least one action to wake us
       self.__wake__.wait()
       self.__wake__.clear()
+
+      # Capture watchdog errs
+      if host_wd_results is not None and host_wd_results.done():# and not host.kill_watchdog:
+        if self.__run_lock__.locked():
+          self.__run_lock__.release()
+        self.log( "Watchdog function unexpectedly died", level=50 )
+        raise host_wd_results.exception()
+
       for node in processed_nodes.copy():
         # To prevent race conditions, first grab the action state
         # If somehow we get into (not done at state check but then done at result check)
@@ -708,9 +723,10 @@ class Orchestrator( opts.OptionLoader ):
         if node in results and node not in processed_nodes:
           try:
             retval, content = results[node].result(10)
-            host.push_logscope( "post_launch" )
-            host.post_launch( self.actions[node], retval, content )
-            host.pop_logscope()
+            with self.__run_lock__:
+              host.push_logscope( "post_launch" )
+              host.post_launch( self.actions[node], retval, content )
+              host.pop_logscope()
 
             # Regardless, return resources
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
