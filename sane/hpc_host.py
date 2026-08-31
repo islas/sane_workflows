@@ -95,7 +95,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     return self.capture_job_complete
 
   def capture_job_complete( self, actions, only_watchdog=True ):
-    while not self.kill_watchdog and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
+    while ( not self.kill_watchdog ) and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
       time.sleep( self._delay_sec )
       for action_name, job_id in self._job_ids.items():
         if action_name not in self._completed and ( self.dry_run or self.job_complete( job_id ) ):

@@ -582,6 +582,11 @@ class Orchestrator( opts.OptionLoader ):
       self.log( f"Launching Host '{self.current_host}' watchdog function" )
       host_wd_results = executor.submit( host_watchdog, { node : self.actions[node] for node in action_set } )
 
+      def wd_capture( future, wake ):
+        if future.exception():
+          wake.set()
+      host_wd_results.add_done_callback( lambda future : wd_capture( future, wake=self.__wake__ ) )
+
     host.push_logscope( "pre_run_actions" )
     host.pre_run_actions( { node : self.actions[node] for node in action_set } )
     host.pop_logscope()
