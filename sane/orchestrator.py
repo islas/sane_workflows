@@ -688,6 +688,14 @@ class Orchestrator( opts.OptionLoader ):
       # We submitted everything we could so now wait for at least one action to wake us
       self.__wake__.wait()
       self.__wake__.clear()
+
+      # Capture watchdog errs
+      if host_wd_results is not None and host_wd_results.done():# and not host.kill_watchdog:
+        if self.__run_lock__.locked():
+          self.__run_lock__.release()
+        self.log( "Watchdog function unexpectedly died", level=50 )
+        raise host_wd_results.exception()
+
       for node in processed_nodes.copy():
         # To prevent race conditions, first grab the action state
         # If somehow we get into (not done at state check but then done at result check)
