@@ -721,9 +721,10 @@ class Orchestrator( opts.OptionLoader ):
         if node in results and node not in processed_nodes:
           try:
             retval, content = results[node].result(10)
-            host.push_logscope( "post_launch" )
-            host.post_launch( self.actions[node], retval, content )
-            host.pop_logscope()
+            with self.__run_lock__:
+              host.push_logscope( "post_launch" )
+              host.post_launch( self.actions[node], retval, content )
+              host.pop_logscope()
 
             # Regardless, return resources
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
