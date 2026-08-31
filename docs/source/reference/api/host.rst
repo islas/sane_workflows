@@ -80,7 +80,8 @@ Host
       .. automethod:: acquire_resources
       .. automethod:: release_resources
 
-      .. automethod:: __orch_wake__
+      .. autoattribute:: __orch_wake__
+      .. autoattribute:: _run_lock
       .. autoattribute:: kill_watchdog
 
 .. toctree::
