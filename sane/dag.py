@@ -54,10 +54,21 @@ class DAG:
       print( not_visited )
       return not_visited, False
 
-  def traversal_to( self, nodes ):
-    traversal  = []
-    current    = []
-    next_nodes = nodes.copy()
+  def traversal_to( self, end_nodes, start_nodes=None ):
+    """Find traversal path from start nodes to end nodes in the DAG.
+
+    If start_nodes is None, finds all ancestors of end_nodes (backward traversal).
+
+    If start_nodes is specified, finds the subgraph containing all nodes on paths
+    from start_nodes to end_nodes. If a node in end_nodes is not reachable it is not
+    listed in the traversal
+
+    :return: List of lists representing layers from start to end nodes
+    """
+    # Backward traversal: find all ancestors of end_nodes
+    traversal_backward = []
+    current = []
+    next_nodes = end_nodes.copy()
 
     while len( next_nodes ) > 0:
       current = next_nodes.copy()
@@ -70,18 +81,43 @@ class DAG:
 
         visited.append( key )
 
-      traversal.append( list( set( visited ) ) )
+      traversal_backward.append( list( set( visited ) ) )
 
-    # Clean it up
-    for i in reversed( range( 0, len( traversal ) ) ):
-      # For all previous appearing keys
-      for key in traversal[i]:
-        # Check prior listings and remove them since they are already listed
+    # Clean up duplicates
+    for i in reversed( range( 0, len( traversal_backward ) ) ):
+      for key in traversal_backward[i]:
         for j in range( 0, i ):
-          if key in traversal[j]:
-            traversal[j].remove( key )
+          if key in traversal_backward[j]:
+            traversal_backward[j].remove( key )
 
-    return list( reversed( traversal ) )
+    if start_nodes is None:
+      # Original behavior: return full ancestry
+      return list( reversed( traversal_backward ) )
+
+    # Filter to subgraph: intersection of ancestors and descendants
+    ancestors_set = set( node for level in traversal_backward for node in level )
+
+    # Forward traversal: find all descendants of start_nodes
+    descendants_set = set( start_nodes )
+    to_visit = list( start_nodes )
+    while len( to_visit ) > 0:
+      node = to_visit.pop( 0 )
+      for child in self._nodes[node]:
+        if child not in descendants_set:
+          descendants_set.add( child )
+          to_visit.append( child )
+
+    # Valid nodes: both ancestors of end AND descendants of start
+    valid_nodes = ancestors_set & descendants_set
+
+    # Rebuild traversal with only valid nodes
+    result = []
+    for level in traversal_backward:
+      valid_in_level = [ n for n in level if n in valid_nodes ]
+      if valid_in_level:
+        result.append( valid_in_level )
+
+    return list( reversed( result ) )
 
   def traversal_list( self, nodes ):
     traversal_directed = self.traversal_to( nodes )
