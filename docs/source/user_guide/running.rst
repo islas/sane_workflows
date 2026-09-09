@@ -99,20 +99,21 @@ Selecting Actions
 Once paths have been supplied to the runner, users can select which actions to run or simply run the whole workflow. The
 default is to find and run every action found, and thus the whole workflow.
 
-The two options to control which actions to use are ``-a``/``--actions`` and ``-f``/``--filter``. These are mutually exclusive
-and only one of these options may be used at a time.
+The two options to control which actions to use are ``-a``/``--actions`` and ``-f``/``--filter``. These options can be
+used in conjunction with one another to create the desired set of actions to operate on.
 
 The ``--actions`` option allows explicitly listing a series of actions, space-delimited, to be executed.
 .. code::
 
    sane_runner -p demo -a action_000 action_001 ... action_099
 
-The ``--filter`` option allows a single Python :py:mod:`re` regular expression (regex) filter to be used to select which actions
+The ``--filter`` option allows a Python :py:mod:`re` regular expression (regex) filter to be used to select which actions
 to be executed. There are no extra flags added to this regex (i.e. no case insensitive ``re.I``) and actions are included
-if ``re.match( filter, action.id )`` is not ``None``.
+if ``re.match( filter, action.id )`` is not ``None``. The option may be listed multiple times to apply each filter separately,
+i.e. actions need only match **one** of the filters to be included (not all need to be matched).
 .. code::
 
-   sane_runner -p demo -f "^action_0[0-9]5"
+   sane_runner -p demo -f "^action_0[0-9]5" -f "action_0[0-4]1"
 
 The default is ``--filter ".*"``
 
@@ -124,10 +125,9 @@ There are three main commands provided by the runner:
 2. ``-d``/``--dry-run``
 3. ``-l``/``--list``
 
-Like the ``--actions`` and ``--filter`` options for selection actions, the options for selecting commands are mutually
-exclusive and only one may be used at a time. Each of these commands **always** operates on the set of selected actions.
-This means that if you specify a small set of actions, such as ``-a action_000 action_001``, then use ``--list`` you will
-only see these actions listed.
+The options for operational commands are mutually exclusive and only one may be used at a time. Each of these commands
+**always** operates on the set of selected actions. This means that if you specify a small set of actions, such as
+``-a action_000 action_001``, then use ``--list`` you will only see these actions listed.
 
 The ``--run`` command will fully run the selected actions and any dependencies of those actions as necessary. 
 

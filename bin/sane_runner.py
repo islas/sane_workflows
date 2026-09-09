@@ -33,20 +33,20 @@ def get_parser():
                       default=[],
                       help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
                       )
-  act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
-  act_list = act_group.add_mutually_exclusive_group()
-  act_list.add_argument(
+  act_group = parser.add_argument_group( "Action Selection", "Select actions to operate on, default is '.*' filter when no selection is provided" )
+  act_group.add_argument(
                         "-a", "--actions",
                         nargs="+",
                         type=str,
                         default=[],
                         help="Actions in the workflow to run"
                         )
-  act_list.add_argument(
+  act_group.add_argument(
                         "-f", "--filter",
+                        action="append",
                         type=str,
-                        default=".*",
-                        help="Select actions matching pattern, default '.*'"
+                        default=[],
+                        help="Actions matching pattern. Use multiple times for many filters, each applied separately"
                         )
   cmd_group = parser.add_argument_group( "Commands (choose only one)", "Set of commands operate on select actions" )
   cmd = cmd_group.add_mutually_exclusive_group()
@@ -204,12 +204,17 @@ def main():
 
   action_list = options.actions.copy()
 
-  if len( action_list ) == 0:
-    # Use filter
-    action_filter = re.compile( options.filter )
-    for action in orchestrator.actions:
-      if action_filter.match( action ):
-        action_list.append( action )
+  # Use default filter
+  if len( action_list ) == 0 and len( options.filter ) == 0:
+    options.filter.append( ".*" )
+
+  for filter in options.filter:
+    logger.log( f"Using action filter '{filter}'" )
+    action_filter = re.compile( filter )
+    found = [ action for action in orchestrator.actions if action_filter.match( action ) ]
+    if len( found ) > 0:
+      logger.log( f"  Found [{len(found)}] Actions" )
+    action_list.extend( found )
 
   # Still nothing
   if len( action_list ) == 0:
@@ -217,6 +222,11 @@ def main():
     parser.print_help()
     exit( 1 )
   else:
+    prev_length = len( action_list )
+    action_list = sorted( list( set( action_list ) ) )
+    diff_len = prev_length - len( action_list )
+    if diff_len > 0:
+      logger.log( f"Duplicate requests [{diff_len}] for Actions", level=30 )
     orchestrator.check_action_id_list( action_list )
 
   if options.virtual_host is not None or options.virtual_relaunch is not None:
