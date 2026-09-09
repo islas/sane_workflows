@@ -203,32 +203,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     for dep, info in self.dependencies.items():
       self.load_outputs( dep, info["outputs"] )
 
-  # def __orch_wake__( self ) -> None:
-  #   """Wake up the :py:class:`Orchestrator` from another thread.
-
-  #   This should be used as an event trigger to induce re-evaluation of completed
-  #   :py:class:`Actions <Action>` in the current workflow run.
-  #   See :py:attr:`Orchestrator.__wake__` for more info.
-  #   """
-  #   if self.__wake__ is not None:
-  #     self.__wake__.set()
-
-  # def _acquire( self ) -> None:
-  #   """Acquire the shared :py:class:`Action` mutex.
-
-  #   All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
-  #   """
-  #   if self._run_lock is not None:
-  #     self._run_lock.acquire()
-
-  # def _release( self ) -> None:
-  #   """Release the shared :py:class:`Action` mutex."""
-  #   if self._run_lock is not None:
-  #     if self._run_lock.locked():
-  #       self._run_lock.release()
-  #     else:
-  #       self.log( "Run lock already released", level=30 )
-
   def push_exec_raw( self, exec_raw : bool ) -> None:
     """Push a new value of :py:attr:`Action.__exec_raw__`"""
     self.__tmp_exce_raw__ = self.__exec_raw__
@@ -661,9 +635,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
         if verbose:
           # Use a raw logger to ensure this also gets captured by the logging handlers
           log( c.decode( 'utf-8', 'replace' ).rstrip( "\n" ) )
-          # print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
-          # sys.stdout.buffer.write(c)
-          # sys.stdout.flush()
 
       # We don't mind doing this as the process should block us until we are ready to continue
       dump, err    = proc.communicate()
@@ -680,16 +651,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       retval = 0
       output = "12345"
 
-    # self.log( "\n" )
-    # print( "\n", flush=True, end="" )
-
     if not dry_run:
       if capture:
-        if False:  # TODO Not sure which conditional is supposed to lead here
-          output.seek(0)
-          content = output.read()
-        else:
-          content = output.getvalue().decode( 'utf-8' )
+        content = output.getvalue().decode( 'utf-8' )
         output.close()
     else:
       content = output
