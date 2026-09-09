@@ -518,13 +518,14 @@ class Orchestrator( opts.OptionLoader ):
         self.log( msg, level=50 )
         raise KeyError( msg )
 
-  def run_actions( self, action_id_list : List[str], as_host : str = None, continue_on_err : bool = True, visualize : bool = False ):
+  def run_actions( self, action_id_list : List[str], as_host : str = None, continue_on_err : bool = True, visualize : bool = False, mode : int = 0 ):
     """Run the workflow for the provided action id list and any dependencies
 
     :param action_id_list:  A list of specifically requested ids from :py:attr:`actions` to run.
     :param as_host:         The preferred host name or alias to run as, if provided.
     :param continue_on_err: Continue workflow evaluation as best as possible even if an :py:class:`Action` encounters an error.
     :param visualize:       Print out a CLI-friendly rendition of the dependency graph of actions to be run.
+    :param mode:            0 - requested actions (RA) use workflow state | 1 - RA always run | 2 - (1) & invalidate downstream actions
     """
     # Setup does not take that long so make sure it is always run
     self.setup()
@@ -565,6 +566,24 @@ class Orchestrator( opts.OptionLoader ):
       self.actions[node].max_label_length = longest_action + len( "thread_00] [::post_launch" )
       if self.actions[node].state == sane.action.ActionState.INACTIVE:
         self.actions[node].set_state_pending()
+
+    if mode > 0:
+      self.log( "Setting state of all requested actions to pending" )
+      for node in action_id_list:
+        if self.actions[node].state != sane.action.ActionState.PENDING:
+          self.log( f"  Forcing Action '{node}' to be rerun" )
+          self.actions[node].set_state_pending()
+
+      if mode > 1:
+        # Immediately flatten subgraph
+        subgraph_nodes = [ n for level in self._dag.traversal_to( action_id_list, action_id_list ) for n in level ]
+        if len( subgraph_nodes ) > len( action_id_list ):
+          self.log( "Setting state of all downstream actions to pending" )
+
+        for sn in subgraph_nodes:
+          if sn not in action_id_list and self.actions[sn].state != sane.action.ActionState.PENDING:
+            self.log( f"  Forcing Action '{sn}' to be rerun" )
+            self.actions[sn].set_state_pending()
 
     self.save( action_set )
     next_nodes = []

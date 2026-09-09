@@ -377,6 +377,30 @@ class DagTests( unittest.TestCase ):
     self.assertNotIn( "g", all_nodes )
     self.assertEqual( len( all_nodes ), 6 )
 
+  def test_dag_same_start_end_extract_subgraphs( self ):
+    """Test that when provided the same start and end nodes the subgraphs are extracted"""
+    self.test_dag_traversal_multiple_starts()
+    self.dag.add_edge( "g", "h" )
+    self.dag.add_edge( "g", "i" )
+
+    nodes = [ "b", "l", "f", "i" ]
+    traversal = self.dag.traversal_to( nodes, nodes )
+    all_nodes = [ node for level in traversal for node in level ]
+
+    # All requested nodes in nodes traversal
+    for n in nodes:
+      self.assertIn( n, all_nodes )
+
+    # Subgraph node b->d->l
+    self.assertIn( "d", all_nodes )
+    # Subgraph node f->g->i
+    self.assertIn( "g", all_nodes )
+
+    # divergent nodes to our requested subgraphs
+    self.assertNotIn( "c", all_nodes )
+    self.assertNotIn( "e", all_nodes )
+    self.assertNotIn( "h", all_nodes )
+
   def test_dag_traversal_partial_start_nodes( self ):
     """Test subgraph traversal with only partial start nodes specified
 
