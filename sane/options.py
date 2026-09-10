@@ -1,7 +1,6 @@
 import inspect
 import sys
 import pydoc
-import collections
 
 import sane.logger as logger
 import sane.user_space as uspace
@@ -109,7 +108,7 @@ class OptionLoader( logger.Logger ):
         # Using search method (2) if foo was loaded into the user modules by the workflow
         # since "foo" is a substring of "user_mod.nested.foo"
         self.search_type( "foo.CustomType" )
-    
+
     :return: :external:py:class:`type` corresponding to the ``type_str``
     """
     tinfo = pydoc.locate( type_str )

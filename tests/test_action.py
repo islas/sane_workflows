@@ -113,7 +113,7 @@ class ActionTests( unittest.TestCase ):
 
     self.remove_save_files( host )
 
-  def test_action_launch_success_default_env( self ):
+  def test_action_launch_failure_default_env( self ):
     """Test that without a command the default action, host and environment will fail"""
     host = sane.Host( "basic" )
     host.add_environment( sane.Environment( "also_basic" ) )
@@ -156,7 +156,7 @@ class ActionTests( unittest.TestCase ):
                 "environment" : "foobar",
                 "local"       : True,
                 "config"      :
-                { 
+                {
                   "one" : 1,
                   "two" : [2],
                   "three" : { "foo" : 3 },
@@ -287,7 +287,7 @@ class ActionTests( unittest.TestCase ):
     # Cycle starts but does one loop to regularize the string so first err will
     # be at next node
     ref_str = "${{   config.single_cycle.a   }}"
-    exp_str = self.action.config["single_cycle"]["a"] #goes to next node
+    exp_str = self.action.config["single_cycle"]["a"]  # goes to next node
     out_str = self.action.dereference_str( ref_str )
     self.assertEqual( exp_str, out_str )
 

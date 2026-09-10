@@ -6,7 +6,6 @@ import operator
 import copy
 from typing import Dict, List
 
-import sane.logger as logger
 import sane.options as opts
 import sane.match as match
 from sane.helpers import copydoc, recursive_update
@@ -93,7 +92,7 @@ class Resource:
   """
   def __init__( self, resource : str, amount=0, unit="" ):
     """Create a :py:class:`Resource` with type ``resource``
-    
+
     :param resource: Set the type of the resource. Resources of different types cannot interoperate.
     :param amount:   Set the :py:attr:`amount` that this resource is. See class summary for valid syntax.
     :param unit:     If set, overrides the detected unit (if any) passed in via ``amount``
@@ -369,28 +368,6 @@ def res_size_reduce( res_dict ) :
   return reduced_dict
 
 
-def timelimit_to_timedelta( timelimit ) :
-  time_match = _timelimit_regex.match( timelimit )
-  if time_match is not None :
-    groups = time_match.groupdict()
-    return timedelta(
-                      hours=int( groups["hh"] ),
-                      minutes=int( groups["mm"] ),
-                      seconds=int( groups["ss"] )
-                    )
-  else :
-    return None
-
-
-def timedelta_to_timelimit( timedelta ) :
-  totalSeconds = timelimit.total_seconds()
-  return '{:02}:{:02}:{:02}'.format(
-                                    int( totalSeconds // 3600 ),
-                                    int( totalSeconds % 3600 // 60 ),
-                                    int( totalSeconds % 60 )
-                                    )
-
-
 class ResourceMatch( match.NameMatch ):
   def __init__( self, **kwargs ):
     super().__init__( **kwargs )
@@ -424,7 +401,7 @@ class ResourceMapper(  ):
 
 class ResourceRequestor( opts.OptionLoader ):
   """Aggregates any arbitrary resource requests to be made to a :py:class:`ResourceProvider`
-  
+
   .. note:: Resources listed here are stored verbatim and thus can be anything.
             The onus of allocation of resources is left to the :py:class:`ResourceProvider`
             implementation. The default classes only support resources that would
@@ -470,7 +447,7 @@ class ResourceRequestor( opts.OptionLoader ):
     Add an arbitrary dict of key-value pairs to this requestor. The key-value pairs
     in this dict will eventually be requested from a :py:class:`~sane.resources.ResourceRequestor`
     for:
-      
+
       * :py:meth:`~sane.resources.ResourceProvider.acquire_resources()`
       * :py:meth:`~sane.resources.ResourceProvider.release_resources()`
       * :py:meth:`~sane.resources.ResourceProvider.resources_available()`
@@ -503,8 +480,8 @@ class ResourceRequestor( opts.OptionLoader ):
 
     .. note:: While the ``resource_dict`` can be arbitrary values, it is on the
               :py:class:`~sane.resources.ResourceProvider` (i.e. :py:class:`sane.Host`) to be able to
-              provide these resources. 
-              
+              provide these resources.
+
               Notably, any resources that do not follow the :py:class:`~sane.resources.Resource`
               syntax are left strictly to the provider class implementation. The
               default classes do not support values outside of :py:class:`~sane.resources.Resource`
@@ -593,8 +570,8 @@ class ResourceProvider( opts.OptionLoader ):
         }
 
     The above ``resource_dict`` would provide 12 counts of ``"cpus"``, 1024 :sup:`3`
-    ``b`` units of ``"mem"``, and 2 counts of ``"slots"``. 
-    
+    ``b`` units of ``"mem"``, and 2 counts of ``"slots"``.
+
     .. important:: The :py:class:`~sane.resources.ResourceProvider` has no inherent understanding
                    of the units, amounts, or names of resources. Internally, resources
                    will be tracked but at acquisition these resources will not
@@ -650,14 +627,17 @@ class ResourceProvider( opts.OptionLoader ):
 
       acquirable = res.total <= self._resources[resource].current
       if not acquirable and log:
-        self.log( f"Resource '{resource}' : {res.total_str} not acquirable right now ({self._resources[resource]})...", level=10 )
+        self.log(
+                  f"Resource '{resource}' : {res.total_str} not acquirable right now ({self._resources[resource]})...",
+                  level=10
+                  )
       can_aquire = can_aquire and acquirable
 
     if log:
       if can_aquire:
         self.log( f"All resources{origin_msg} available", level=10 )
       else:
-        self.log( f"Not all resources available", level=10 )
+        self.log( "Not all resources available", level=10 )
       self.log_pop()
     return can_aquire
 
@@ -680,7 +660,13 @@ class ResourceProvider( opts.OptionLoader ):
         self.log( f"Acquiring resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] -= res
         now = datetime.datetime.now().isoformat()
-        self._resource_log[resource]["acquire"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
+        self._resource_log[resource]["acquire"].append(
+                                                        [
+                                                          requestor.logname,
+                                                          res.total, now,
+                                                          self._resources[resource].used
+                                                        ]
+                                                      )
     else:
       self.log( f"Could not acquire resources{origin_msg}", level=10 )
       self.log_pop()
@@ -716,7 +702,14 @@ class ResourceProvider( opts.OptionLoader ):
         self.log( f"Releasing resource '{resource}' : {res.total_str}", level=10 )
         self._resources[resource] += res
         now = datetime.datetime.now().isoformat()
-        self._resource_log[resource]["release"].append( [ requestor.logname, res.total, now, self._resources[resource].used ] )
+        self._resource_log[resource]["release"].append(
+                                                        [
+                                                          requestor.logname,
+                                                          res.total,
+                                                          now,
+                                                          self._resources[resource].used
+                                                        ]
+                                                      )
     self.log_pop()
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="sane.options" )
@@ -744,7 +737,7 @@ class ResourceProvider( opts.OptionLoader ):
           "cpus" : 123,
           "mem"  : "64mb",
         }
-        "mapping" : 
+        "mapping" :
         {
           "ncpus" : [ "cpus", "cpu", "procs", "proc", "processors" ]
         }
@@ -778,7 +771,7 @@ class ResourceProvider( opts.OptionLoader ):
 
   def map_resource( self, resource : str ) -> str:
     """Map the input ``resource`` to an internal name, if available
-    
+
     If the resource has no internal mapping, the original ``resource`` is returned.
 
     :return: the ``resource`` name using the map key
@@ -791,7 +784,7 @@ class ResourceProvider( opts.OptionLoader ):
 
   def map_resource_dict( self, resource_dict : dict, log=False ) -> dict:
     """Map entire dict to internal names
-    
+
     For each resource entry in the ``resource_dict`` attempt to :py:meth:`map_resource`,
     and return a copy of the dict using any updated mapped keys instead. If no
     resources have mappings, then a verbatim copy is returned.
@@ -823,12 +816,12 @@ class ResourceProvider( opts.OptionLoader ):
 
 class NonLocalProvider( ResourceProvider ):
   """An abstract base class specialization of :py:class:`~sane.resources.ResourceProvider`
-  
+
   This class introduces the concept of a "local" pool of resources separate from
   the rest of the :py:attr:`resources` this provider offers. This nomenclature
   suggests that all :py:attr:`resources` directly in this class (not in the
   :py:attr:`local_resources`) are thus nonlocal.
-  
+
   The internal local pool is itself a :py:class:`~sane.resources.ResourceProvider`.
   The local pool and this instance share a common :py:class:`~sane.resources.ResourceMapper`.
   """
@@ -850,7 +843,7 @@ class NonLocalProvider( ResourceProvider ):
   @copydoc( ResourceProvider.load_core_options )
   def load_core_options( self, options, origin ):
     """Load local resources into :py:attr:`local_resources` and control flags
-    
+
     The following key is loaded verbatim into :py:attr:`local_resources` via
     :py:meth:`~sane.resources.ResourceProvider.add_resources`:
 

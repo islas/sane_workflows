@@ -1,4 +1,3 @@
-import functools
 import collections
 
 
@@ -15,7 +14,7 @@ def copydoc( *funcs, append=True, module=None ):
       orig.__doc__ = orig_prefix + orig.__orig_doc__
 
     full_doc = orig.__doc__
-    
+
     for f in funcs:
       if not hasattr( f, "__orig_doc__" ):
         f.__orig_doc__ = f.__doc__
@@ -31,7 +30,7 @@ def copydoc( *funcs, append=True, module=None ):
 
 def recursive_update( dest : dict, source : dict ) -> dict:
   """Update mapping ``dest`` with ``source``, recursively updating any nested mapping instance
-  
+
   This will update/override any value in ``dest`` with the value that is present in ``source``.
   If the value in ``source`` is a mapping (``dict``) then the key for which this is being
   updated within ``dest`` is updated recursively, defaulting to an empty ``dict`` if that

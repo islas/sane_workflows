@@ -6,7 +6,7 @@ def create_grow_action( orch ):
   orch.add_action( grow )
 
   grow.config["command"]   = ".sane/mango/scripts/grow.sh"
-  grow.config["arguments"] = [ 4 ] # this must be a list
+  grow.config["arguments"] = [ 4 ]  # this must be a list
 
   grow.environment = "valley"
   grow.add_resource_requirements( { "trees" : 4 } )

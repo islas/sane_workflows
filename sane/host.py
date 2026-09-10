@@ -1,18 +1,18 @@
 import socket
 from typing import Dict
-import threading
 
 import sane.match as match
 import sane.options as opts
-import sane.logger as logger
 import sane.save_state as state
 import sane.utdict as utdict
 import sane.environment
 import sane.resources
 from sane.helpers import copydoc, recursive_update
 
+
 class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
-  """Primary :py:class:`~resources.ResourceProvider` and container for :py:class:`Environment` available within a workflow."""
+  """Primary :py:class:`~resources.ResourceProvider` and container for
+  :py:class:`Environment` available within a workflow."""
   CONFIG_TYPE = "Host"
 
   def __init__( self, name, aliases=[] ):
@@ -31,11 +31,13 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
     # These two are provided by the orchestrator upon begin setup
     # Use the run lock for mutually exclusive run logic (eg. clean logging)
-    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
-    self._run_lock     = None #threading.Lock()
-    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to induce re-evaluation of completed
-    #: :py:class:`Actions <Action>` in the current workflow run. See :py:attr:`Orchestrator.__wake__` for more info.
-    self.__orch_wake__ = None #threading.Event()
+    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the
+    #: current workflow have access to this mutex.
+    self._run_lock     = None  # threading.Lock()
+    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to
+    #: induce re-evaluation of completed :py:class:`Actions <Action>` in the current workflow run.
+    #: See :py:attr:`Orchestrator.__wake__` for more info.
+    self.__orch_wake__ = None  # threading.Event()
 
     self.unpicklable.append( "_run_lock" )
     self.unpicklable.append( "__orch_wake__" )
@@ -46,7 +48,7 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
   def valid_host( self, override_host : str = None ) -> bool:
     """Check if this host should be used for this workflow.
-    
+
     The default check uses the FQDN of current machine as the full string to find
     a partial substring match to this :py:attr:`Host.name`.
 
@@ -59,7 +61,7 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
   def has_environment( self, requested_env ) -> sane.environment.Environment:
     """Check if this :py:class:`Host` has the ``requested_env``
-    
+
     If the ``requested_env`` is ``None``, return the :py:attr:`default_env`,
     otherwise try to find the matching :py:class:`Environment` using
     :py:meth:`Environment.match()`.
@@ -121,7 +123,7 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
   @copydoc( sane.resources.ResourceProvider.load_core_options, module="resources" )
   def load_core_options( self, options, origin ):
     """Load the :py:class:`Host` *options* into this instance.
-    
+
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 
     .. code-block:: python
@@ -165,9 +167,9 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
     .. hint::
         See :py:meth:`search_type` for more info on how the ``"type"`` field should be specified.
- 
+
     An example *options* :external:py:class:`dict`:
-    
+
     .. parsed-literal::
 
         {

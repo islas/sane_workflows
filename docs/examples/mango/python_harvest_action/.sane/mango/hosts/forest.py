@@ -15,5 +15,3 @@ def create_forest_host( orch ):
 
   forest.add_environment( valley )
   forest.add_environment( river )
-
-

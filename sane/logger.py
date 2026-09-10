@@ -50,25 +50,25 @@ class ParentLevelFilter( logging.Filter ):
 
 # Initialize logging setup for package
 log_formatter = DispatchingFormatter(
-    {
-      f"sane[.]logger" : logging.Formatter(
-                                                fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                                datefmt="%Y-%m-%d %H:%M:%S"
-                                                ),
-      f"sane[.]action" : logging.Formatter(
-                                                fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                                datefmt="%Y-%m-%d %H:%M:%S"
-                                                ),
-      f"sane[.]action[.].*[.]raw" : logging.Formatter()
-    },
-    logging.Formatter( "%(message)s" )
-  )
+      {
+        "sane[.]logger" : logging.Formatter(
+                                                  fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                                  datefmt="%Y-%m-%d %H:%M:%S"
+                                                  ),
+        "sane[.]action" : logging.Formatter(
+                                                  fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                                  datefmt="%Y-%m-%d %H:%M:%S"
+                                                  ),
+        "sane[.]action[.].*[.]raw" : logging.Formatter()
+      },
+      logging.Formatter( "%(message)s" )
+    )
 console_handler = logging.StreamHandler( sys.stdout )
 console_handler.setFormatter( log_formatter )
 internal_logger = logging.getLogger( "sane" )
 internal_logger.setLevel( MAIN_LOG )
 internal_logger.addHandler( console_handler )
-action_logger = internal_logger.getChild( f"action" )
+action_logger = internal_logger.getChild( "action" )
 action_logger.setLevel( STDOUT )
 
 # Filter any logging from lower loggers if they do not meet our threshold

@@ -450,7 +450,6 @@ class PBSHost( HPCHost ):
         available_resources_by_queue[q] = available_resources_by_queue[q] | set( node_resources["node"].resources.keys() )
         available_resources = available_resources | available_resources_by_queue[q]
 
-
     # Sanitize resource dict into specifics and find the numeric resources we will
     # concern ourselves with fulfilling
     specified_resource_dicts = []
@@ -471,7 +470,10 @@ class PBSHost( HPCHost ):
       numeric_resources = []
       for resource in specified_resource_dict.keys():
         if sane.resources.Resource.is_resource( specified_resource_dict[resource] ):
-          specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
+          specified_resource_dict[resource] = sane.resources.Resource(
+                                                                      resource,
+                                                                      specified_resource_dict[resource]
+                                                                      ).total
           numeric_resources.append( resource )
 
       specified_resource_dicts.append( specified_resource_dict )
