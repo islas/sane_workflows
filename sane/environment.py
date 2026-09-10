@@ -12,6 +12,7 @@ import sane.options as opts
 import sane.logger as slogger
 from sane.helpers import copydoc
 
+
 def env_from_script( script, *arguments, **kwargs ):
   """
   Execute a script, compare environment changes and then apply to
@@ -55,7 +56,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
 
   def __init__( self, name, aliases=[], lmod_path=None ):
     """Create a host with ``name`` and optional ``aliases`` and ``lmod_path``
-    
+
     If a :py:class:`Host` has a :py:attr:`Host.base_env`, by default the
     ``lmod_path`` of that base env will be copied over during :py:meth:`setup()`
     """
@@ -96,8 +97,8 @@ class Environment( match.NameMatch, opts.OptionLoader ):
     """
     self.find_lmod()
     output = io.StringIO()
-    with contextlib.redirect_stdout( output ) as fs:
-      with contextlib.redirect_stderr( output ) as fe:
+    with contextlib.redirect_stdout( output ) as fs:    # noqa
+      with contextlib.redirect_stderr( output ) as fe:  # noqa
         self._lmod.module( cmd, *args, **kwargs )
     for line in output.getvalue().splitlines():
       self.log( line, level=slogger.STDOUT )
@@ -123,8 +124,8 @@ class Environment( match.NameMatch, opts.OptionLoader ):
     the python commands to emulate the environment changes.
     """
     output = io.StringIO()
-    with contextlib.redirect_stdout( output ) as fs:
-      with contextlib.redirect_stderr( output ) as fe:
+    with contextlib.redirect_stdout( output ) as fs:    # noqa
+      with contextlib.redirect_stderr( output ) as fe:  # noqa
         env_from_script( script )
     for line in output.getvalue().splitlines():
       self.log( line, level=slogger.STDOUT )
@@ -232,7 +233,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
 
   def setup( self ):
     """Setup the environment
-    
+
     If a base env is present, call the :py:meth:`setup()` for that :py:class:`Environment`
     first. Then call :py:meth:`_copy_from_base` to ensure this instance has the
     relevant information.
@@ -288,13 +289,14 @@ class Environment( match.NameMatch, opts.OptionLoader ):
     self.post_setup()
 
   def match( self, requested_env ):
-    """Return true if :py:attr:`~Environment.name` or :py:attr:`~Environment.aliases` is an exact match to ``requested_env``"""
+    """Return true if :py:attr:`~Environment.name` or :py:attr:`~Environment.aliases`
+    is an exact match to ``requested_env``"""
     return self.exact_match( requested_env )
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   def load_core_options( self, options, origin ):
     """Load the *options* into this :py:class:`Environment`
-    
+
     The following keys are loaded to their respective attribute. If not present,
     the attributes are unmodified.
 

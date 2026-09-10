@@ -52,7 +52,8 @@ class SaveState:
 
   def save( self ):
     stash = { attr : getattr( self, attr ) for attr in self.unpicklable }
-    for attr in self.unpicklable: setattr( self, attr, None )
+    for attr in self.unpicklable:
+      setattr( self, attr, None )
 
     with open( self.pickle_file, "wb" ) as f:
       pickle.dump( self, f )
@@ -61,4 +62,5 @@ class SaveState:
     with open( self.save_file, "w" ) as f:
       json.dump( state, f, indent=2 )
 
-    for attr in self.unpicklable: setattr( self, attr, stash[attr] )
+    for attr in self.unpicklable:
+      setattr( self, attr, stash[attr] )

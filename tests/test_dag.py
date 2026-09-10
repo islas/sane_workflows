@@ -525,7 +525,8 @@ class DagTests( unittest.TestCase ):
        / \
       v   v
       d   e
-       \ /
+      |___|
+        |
         v
         f (intermediate end)
         |

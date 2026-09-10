@@ -31,9 +31,14 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
+                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py],"
+                           "Use multiple times for many patterns"
                       )
-  act_group = parser.add_argument_group( "Action Selection", "Select actions to operate on, default is '.*' filter when no selection is provided" )
+  act_group = parser.add_argument_group(
+                                        "Action Selection",
+                                        "Select actions to operate on,"
+                                        "default is '.*' filter when no selection is provided"
+                                        )
   act_group.add_argument(
                         "-a", "--actions",
                         nargs="+",
@@ -116,7 +121,9 @@ def get_parser():
                       "-m", "--mode",
                       type=int,
                       default=0,
-                      help="0 - requested actions (RA) use workflow state | 1 - RA always run | 2 - (1) & invalidate downstream actions"
+                      help="0 - requested actions (RA) use workflow state |"
+                           "1 - RA always run |"
+                           "2 - (1) & invalidate downstream actions"
                       )
   parser.add_argument(
                       "-n", "--new",
@@ -326,10 +333,13 @@ def main():
   success = True
   orchestrator.dry_run = options.dry_run
 
-  if options.run:
-    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph, mode=options.mode )
-  elif options.dry_run:
-    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph, mode=options.mode )
+  if options.run or options.dry_run:
+    success = orchestrator.run_actions(
+                                        action_list,
+                                        options.specific_host,
+                                        visualize=options.view_graph,
+                                        mode=options.mode
+                                        )
   elif options.list:
     logger.log( "Listing actions:" )
     orchestrator.construct_dag()

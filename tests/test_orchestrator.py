@@ -20,8 +20,6 @@ class OrchestratorTests( unittest.TestCase ):
 
   def test_orchestrator_external_register( self ):
     """Test the ability to register external functions"""
-    x = None
-
     @sane.register
     def external_function( orchestrator ):
       orchestrator.add_host( sane.Host( "dummy" ) )
@@ -65,11 +63,33 @@ class OrchestratorTests( unittest.TestCase ):
     """Test the ability to patch config files with other config"""
     self.test_orchestrator_load_config_file_host()
     self.test_orchestrator_load_config_file_action()
-    self.orch.load_options( { "patches" : { "priority" : 10, "hosts" : { "unique_host_config" : { "default_env" : "soup" } } } } )
+    self.orch.load_options(
+                            {
+                              "patches" :
+                              {
+                                "priority" : 10,
+                                "hosts" :
+                                {
+                                  "unique_host_config" : { "default_env" : "soup" }
+                                }
+                              }
+                            }
+                          )
     self.orch.process_patches()
     self.assertEqual( "soup", self.orch.hosts["unique_host_config"]._default_env )
 
-    self.orch.load_options( { "patches" : { "priority" : 10, "hosts" : { "unique_host_wrong" : { "aliases" : ["soup"] } } } } )
+    self.orch.load_options(
+                            {
+                              "patches" :
+                              {
+                                "priority" : 10,
+                                "hosts" :
+                                {
+                                  "unique_host_wrong" : { "aliases" : ["soup"] }
+                                }
+                              }
+                            }
+                          )
     self.orch.process_patches()
     self.assertNotIn( "unique_host_wrong", self.orch.hosts )
     self.assertNotEqual( ["soup"], self.orch.hosts["unique_host_config"].aliases )

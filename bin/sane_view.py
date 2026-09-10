@@ -52,9 +52,15 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
     use_plot_times.append( rel_plot_times[-1] )
     use_plot_vals.append( used )
 
-  res = sane.resources.res_size_reduce( { "numeric" : max( acq_amount_max, rel_amount_max ), "unit" : resource_log["unit"], "scale" : "" } )
+  res = sane.resources.res_size_reduce(
+                                        {
+                                          "numeric" : max( acq_amount_max, rel_amount_max ),
+                                          "unit" : resource_log["unit"],
+                                          "scale" : ""
+                                        }
+                                      )
   scale = sane.resources._multipliers[res["scale"]]
-  
+
   use_plot_vals = list( map( lambda val: val / scale, use_plot_vals ) )
   acq_plot_vals = list( map( lambda val: val / scale, acq_plot_vals ) )
   acq_plot_used = list( map( lambda val: val / scale, acq_plot_used ) )
@@ -77,17 +83,17 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
     ax.stem( acq_plot_times, acq_plot_vals, linefmt="C3-", markerfmt="^" )
     ax.stem( rel_plot_times, rel_plot_vals, linefmt="C1-", markerfmt="v" )
 
-  time_range = use_plot_times[-1] - use_plot_times[0]
+  # time_range = use_plot_times[-1] - use_plot_times[0]
   if arrow_deltas:
     acq_start = [ used - val for used, val in zip( acq_plot_used, acq_plot_vals ) ]
     rel_start = [ used - val for used, val in zip( rel_plot_used, rel_plot_vals ) ]
-    ax.quiver( 
+    ax.quiver(
               acq_plot_times, acq_start, [0] * len( acq_plot_used ), acq_plot_vals,
               scale_units="xy", scale=1, angles="xy", minlength=0.01,
               headwidth=4, headlength=4, headaxislength=3.5, width=0.001,
               color="red"
               )
-    ax.quiver( 
+    ax.quiver(
               rel_plot_times, rel_start, [0] * len( rel_plot_used ), rel_plot_vals,
               scale_units="xy", scale=1, angles="xy", minlength=0.01,
               headwidth=4, headlength=4, headaxislength=3.5, width=0.001,
@@ -96,10 +102,14 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
 
   ax.set_ylim( -rel_amount_max / scale * 1.1, acq_amount_max / scale * 1.1)
   ax.set_ylabel( res["scale"] + res["unit"] )
-  time_xtick = [ use_plot_times[0] + (use_plot_times[-1] - use_plot_times[0]) / ntimes * i for i in range( ntimes + 1 ) ]
+  time_xtick = [
+                use_plot_times[0] + (use_plot_times[-1] - use_plot_times[0]) / ntimes * i
+                for i in range( ntimes + 1 )
+              ]
   time_label = [ str(mdates.num2timedelta( t - use_plot_times[0] )) for t in time_xtick ]
 
-  ax.set_xticks( time_xtick, labels=[ t.split(".")[0] for t in  time_label], rotation=30 )
+  ax.set_xticks( time_xtick, labels=[ t.split(".")[0] for t in time_label], rotation=30 )
+
 
 def plot_usage( workflow_save, options ):
   import matplotlib.pyplot as plt
@@ -108,7 +118,7 @@ def plot_usage( workflow_save, options ):
   resource_logs.pop( "null", None )
 
   times = list( resource_logs.keys() )
-  print( f"index   time" )
+  print( "index   time" )
   for i, t in enumerate( times ):
     print( f"{i:<5}   {t}" )
 
@@ -155,7 +165,14 @@ def plot_usage( workflow_save, options ):
         subfigs[i].subplots_adjust( hspace=0.0 )
         subax = subfigs[i].subplots( len( rdict.keys() ), sharex=True, squeeze=False )
         for j, pool_resource in enumerate( rdict.items() ):
-          plot_resource_usage( times[view_time], subax[j][0], pool_resource[0], pool_resource[1], options.arrows, options.stems )
+          plot_resource_usage(
+                              times[view_time],
+                              subax[j][0],
+                              pool_resource[0],
+                              pool_resource[1],
+                              options.arrows,
+                              options.stems
+                            )
 
   plt.show()
 
@@ -234,11 +251,11 @@ def get_parser():
                     )
   parser = argparse.ArgumentParser()
   subparsers = parser.add_subparsers( required=True, dest="cmd" )
-  usage   = subparsers.add_parser( "usage",  help="View resource usage", parents=[base] )
-  status  = subparsers.add_parser( "status", help="View action status", parents=[base] )
-  state   = subparsers.add_parser( "state",  help="View action state", parents=[base] )
-  logs    = subparsers.add_parser( "logs",   help="View action logs", parents=[base] )
-  logs    = subparsers.add_parser( "summary",help="View workflow summary", parents=[base] )
+  usage   = subparsers.add_parser( "usage",   help="View resource usage", parents=[base] )
+  status  = subparsers.add_parser( "status",  help="View action status", parents=[base] )
+  state   = subparsers.add_parser( "state",   help="View action state", parents=[base] )
+  logs    = subparsers.add_parser( "logs",    help="View action logs", parents=[base] )
+  logs    = subparsers.add_parser( "summary", help="View workflow summary", parents=[base] )
   usage.add_argument(
                       "-a", "--arrows",
                       action="store_true",
@@ -278,6 +295,7 @@ def get_parser():
                     )
   return parser
 
+
 def main():
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
@@ -299,6 +317,7 @@ def main():
     show_logs( filename, options )
   elif options.cmd == "summary":
     show_summary( filename, options )
+
 
 if __name__ == "__main__":
   main()

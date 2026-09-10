@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Callable
+from typing import List, Dict, Callable
 import functools
 import importlib.util
 import json
@@ -175,7 +175,7 @@ class Orchestrator( opts.OptionLoader ):
   @property
   def current_host( self ) -> str:
     """Returns the current host name (key for :py:attr:`hosts`) for this current workflow run
-    
+
     This value is only valid after :py:meth:`find_host()` has been called. For normal users,
     this would be valid during :py:meth:`run_actions()`.
     """
@@ -234,7 +234,7 @@ class Orchestrator( opts.OptionLoader ):
 
   def add_search_paths( self, search_paths : List[str] ) -> None:
     """Add a series of paths to search for workflow files. Cannot be used after :py:meth:`load_paths()` has been called
-    
+
     :param list[str] search_paths: Paths to add to workflow search and later :py:attr:`sys.path`
     """
     if self.__searched__:
@@ -248,8 +248,9 @@ class Orchestrator( opts.OptionLoader ):
         self.search_paths.append( search_path )
 
   def add_search_patterns( self, search_patterns : List[str] ) -> None:
-    """Add a series of Python re strings as filters for finding workflow files. Cannot be used after :py:meth:`load_paths()` has been called
-    
+    """Add a series of Python re strings as filters for finding workflow files.
+    Cannot be used after :py:meth:`load_paths()` has been called
+
     :param list[str] search_pattern: regular expressions to filter filenames for
                                      when searching for workflow files
     """
@@ -273,12 +274,13 @@ class Orchestrator( opts.OptionLoader ):
     2. All valid files matching at least one search filter across all paths are gathered.
     3. Files are sorted based on file extension into ``.py`` and ``.json[c]``
     4. All ``.py`` files are loaded via :py:meth:`load_py_files()`
-    5. All registered calls (via :py:func:`@sane.register <sane.register>`) are invoked in priority order via :py:meth:`process_registered()`
+    5. All registered calls (via :py:func:`@sane.register <sane.register>`) are
+       invoked in priority order via :py:meth:`process_registered()`
     6. All ``.json[c]`` files are then loaded via :py:meth:`load_config_files()` (``.json`` first, then ``.jsonc``)
     7. All patches are processed in priority order via :py:meth:`process_patches()`
     """
     if self.__searched__:
-      self.log( f"Already searched and loaded", level=30 )
+      self.log( "Already searched and loaded", level=30 )
       return
 
     for search_path in self.search_paths:
@@ -322,7 +324,7 @@ class Orchestrator( opts.OptionLoader ):
 
   def process_registered( self ) -> None:
     """Process functions registered via :py:func:`@sane.register <sane.register>` in priority order
-    
+
     All registered functions are called in descending priority order (highest
     priority first), with equal priority resolved based on order of registration.
     The functions are called with this :py:class:`Orchestrator` instance as the single argument
@@ -359,7 +361,7 @@ class Orchestrator( opts.OptionLoader ):
     and call the respective :py:meth:`load_options` of an object with the sub-`dict`
     as the value. The `patch` input argument should closely resemble the `options`
     argument in :py:meth:`load_core_options`, with some minor caveats.
-    
+
     Following the processing order of :py:meth:`load_core_options()`, any patch
     for :py:class:`sane.Host` is processed first, then :py:class:`sane.Action`.
 
@@ -451,7 +453,7 @@ class Orchestrator( opts.OptionLoader ):
 
     if self.current_host is None:
       self.log( "No valid host configuration found", level=50 )
-      raise Exception( f"No valid host configuration found" )
+      raise Exception( "No valid host configuration found" )
     return self.current_host
 
   def check_host( self, traversal_list ):
@@ -461,9 +463,8 @@ class Orchestrator( opts.OptionLoader ):
     host.log_push()
 
     # Check action needs
-    check_list = traversal_list.copy()
     missing_env = []
-    self.log( f"Checking environments..." )
+    self.log( "Checking environments..." )
     for node in traversal_list:
       env = host.has_environment( self.actions[node].environment )
       if env is None:
@@ -482,10 +483,13 @@ class Orchestrator( opts.OptionLoader ):
 
     runnable = True
     missing_resources = []
-    self.log( f"Checking resource availability..." )
+    self.log( "Checking resource availability..." )
     host.log_push()
     for node in traversal_list:
-      can_run = host.resources_available( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
+      can_run = host.resources_available(
+                                          self.actions[node].resources( self.current_host ),
+                                          requestor=self.actions[node]
+                                        )
       runnable = runnable and can_run
       if not can_run:
         missing_resources.append( node )
@@ -518,14 +522,24 @@ class Orchestrator( opts.OptionLoader ):
         self.log( msg, level=50 )
         raise KeyError( msg )
 
-  def run_actions( self, action_id_list : List[str], as_host : str = None, continue_on_err : bool = True, visualize : bool = False, mode : int = 0 ):
+  def run_actions(
+                  self,
+                  action_id_list : List[str],
+                  as_host : str = None,
+                  continue_on_err : bool = True,
+                  visualize : bool = False,
+                  mode : int = 0
+                  ):
     """Run the workflow for the provided action id list and any dependencies
 
     :param action_id_list:  A list of specifically requested ids from :py:attr:`actions` to run.
     :param as_host:         The preferred host name or alias to run as, if provided.
-    :param continue_on_err: Continue workflow evaluation as best as possible even if an :py:class:`Action` encounters an error.
+    :param continue_on_err: Continue workflow evaluation as best as possible even if an
+                            :py:class:`Action` encounters an error.
     :param visualize:       Print out a CLI-friendly rendition of the dependency graph of actions to be run.
-    :param mode:            0 - requested actions (RA) use workflow state | 1 - RA always run | 2 - (1) & invalidate downstream actions
+    :param mode:            0 - requested actions (RA) use workflow state |
+                            1 - RA always run |
+                            2 - (1) & invalidate downstream actions
     """
     # Setup does not take that long so make sure it is always run
     self.setup()
@@ -621,7 +635,10 @@ class Orchestrator( opts.OptionLoader ):
         for node in next_nodes.copy():
           if self.actions[node].state == sane.action.ActionState.PENDING:
             # Gather all dependency nodes
-            dependencies = { action_id : self.actions[action_id] for action_id in self.actions[node].dependencies.keys() }
+            dependencies = {
+                            action_id : self.actions[action_id]
+                            for action_id in self.actions[node].dependencies.keys()
+                            }
             # Check requirements met
             requirements_met = sane.action.RequirementsState.UNMET
             with self.__run_lock__:  # protect logs
@@ -643,7 +660,10 @@ class Orchestrator( opts.OptionLoader ):
               if resources_available:
                 # Set info first
                 self.actions[node].__host_info__ = host.info
-                recursive_update( self.actions[node]._dependencies, { id : dep_action.info for id, dep_action in dependencies.items() } )
+                recursive_update(
+                                  self.actions[node]._dependencies,
+                                  { id : dep_action.info for id, dep_action in dependencies.items() }
+                                  )
                 # if these are not set then default to action settings
 
                 if self.force_local:
@@ -711,7 +731,7 @@ class Orchestrator( opts.OptionLoader ):
       self.__wake__.clear()
 
       # Capture watchdog errs
-      if host_wd_results is not None and host_wd_results.done():# and not host.kill_watchdog:
+      if host_wd_results is not None and host_wd_results.done():  # and not host.kill_watchdog:
         if self.__run_lock__.locked():
           self.__run_lock__.release()
         self.log( "Watchdog function unexpectedly died", level=50 )
@@ -727,7 +747,7 @@ class Orchestrator( opts.OptionLoader ):
         state = self.actions[node].state
         run_state = sane.action.ActionState.valid_run_state( state )
         if ( state == sane.action.ActionState.FINISHED
-          or ( continue_on_err and not run_state ) ):
+             or ( continue_on_err and not run_state ) ):
           msg  = "[{{state:<8}}] ** Action {0:<24} completed with '{{status}}'".format( f"'{node}'" )
           msg  = msg.format( state=state.value.upper(), status=self.actions[node].status.value )
           self.log( msg )
@@ -791,7 +811,7 @@ class Orchestrator( opts.OptionLoader ):
     """Load the provided list of python files as modules dynamically
 
     Files are evaluated relative to the first path that yields this file from the
-    set of search paths added via :py:meth:`add_search_paths()`. 
+    set of search paths added via :py:meth:`add_search_paths()`.
 
     An effective module name is generated from the relative path to the file from
     the respective path. This module name is then dynamically imported using
@@ -825,7 +845,7 @@ class Orchestrator( opts.OptionLoader ):
         .. code-block:: python
 
             import sane
-            import helpers.custom_action  #< Relative to .sane 
+            import helpers.custom_action  #< Relative to .sane
 
             @sane.register
             def workflow_a( orch ):
@@ -893,8 +913,9 @@ class Orchestrator( opts.OptionLoader ):
         self.log_pop()
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
-  def load_core_options( self, options : Dict[str,object], origin : str ):
-    """Load the provided *options* dict, creating any :py:class:`Host` or :py:class:`Action` as necessary and recording patches.
+  def load_core_options( self, options : Dict[str, object], origin : str ):
+    """Load the provided *options* dict, creating any :py:class:`Host` or
+    :py:class:`Action` as necessary and recording patches.
 
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 
@@ -1022,7 +1043,13 @@ class Orchestrator( opts.OptionLoader ):
                         "save_location" : self.save_location,
                         "log_location" : self.log_location,
                         "working_directory" : self.working_directory,
-                        "resource_usage" : { self.__timestamp__ : { self.current_host : self.hosts[self.current_host].resource_log } },
+                        "resource_usage" :
+                        {
+                          self.__timestamp__ :
+                          {
+                            self.current_host : self.hosts[self.current_host].resource_log
+                          }
+                        },
                         "runtimes" : self.__runtimes__
                       }
     save_dict = recursive_update( save_dict, save_dict_update )
@@ -1059,7 +1086,7 @@ class Orchestrator( opts.OptionLoader ):
 
       if (
           # We never finished so reset
-              ( self.actions[action].state == sane.action.ActionState.RUNNING )
+          ( self.actions[action].state == sane.action.ActionState.RUNNING )
           # We would like to re-attempt
           or ( clear_errors and self.actions[action].state == sane.action.ActionState.SKIPPED )
           or ( clear_errors and self.actions[action].state == sane.action.ActionState.ERROR )
@@ -1100,10 +1127,10 @@ class Orchestrator( opts.OptionLoader ):
         total_time += float( results["time"] )
 
       if state == sane.action.ActionState.ERROR:
-        err = xmltree.SubElement( node, "error" )
+        err = xmltree.SubElement( node, "error" )  # noqa
         errors += 1
       elif sane.action.ActionStatus( results["status"] ) == sane.action.ActionStatus.FAILURE:
-        fail = xmltree.SubElement( node, "failure" )
+        fail = xmltree.SubElement( node, "failure" )  # noqa
         failures += 1
       elif state == sane.action.ActionState.SKIPPED:
         skip = xmltree.SubElement( node, "skipped" )

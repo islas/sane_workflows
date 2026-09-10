@@ -5,7 +5,6 @@ import re
 import sys
 
 import sane
-from sane.helpers import recursive_update
 
 
 class MockHPC( sane.HPCHost ):
@@ -70,6 +69,7 @@ class MockHPC( sane.HPCHost ):
 
   def nonlocal_resources_available(self, resource_dict, requestor, log=True):
     return True
+
 
 class HPCHostTests( unittest.TestCase ):
   def setUp( self ):
@@ -145,9 +145,8 @@ class HPCHostTests( unittest.TestCase ):
     self.assertIn( "memory", self.host.resources["gpu"]["total"].resources )
 
     self.assertEqual( 82 * 64, self.host.resources["gpu"]["total"].resources["ncpus"].total )
-    self.assertEqual( 82 * 4,  self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
+    self.assertEqual( 82 * 4, self.host.resources["gpu"]["total"].resources["ngpus:a100"].total )
     self.assertEqual( 82 * 1024**3 * 512, self.host.resources["gpu"]["total"].resources["memory"].total )
-
 
   def test_pbs_host_resource_requisition( self ):
     dummy = sane.Action( "dummy" )
@@ -160,8 +159,9 @@ class HPCHostTests( unittest.TestCase ):
     self.assertEqual( result, "-l select=4:ncpus=64" )
     self.assertEqual( submit_queue, None )
 
-
-    _, submit_selection = self.host.pbs_resource_requisition( { "nodes" : 4, "cpus" : 256, "select" : "select=1:ncpus=8:ngpus=1" }, dummy )
+    _, submit_selection = self.host.pbs_resource_requisition(
+      { "nodes" : 4, "cpus" : 256, "select" : "select=1:ncpus=8:ngpus=1" }, dummy
+      )
     submit_args, submit_queue = self.host.requisition_to_submit_args( submit_selection )
     result = self.host._format_arguments( submit_args )
     print( submit_selection )
@@ -169,7 +169,6 @@ class HPCHostTests( unittest.TestCase ):
     # Note that the ngpus:a100 must be fixed somehow down the line
     self.assertEqual( result, "-l select=1:ncpus=8:ngpus:a100=1" )
     self.assertEqual( submit_queue, None )
-
 
   def test_pbs_host_resource_gen_wrapper( self ):
     self.test_pbs_host_from_options()
