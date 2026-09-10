@@ -1,0 +1,16 @@
+name: Run unittest
+
+on:
+  push:
+    branches: [ "main", "releases/**", "develop" ]
+  pull_request:
+    branches: [ "main", "releases/**", "develop" ]
+
+jobs:
+  lint:
+    uses: ./.github/workflows/unittest.yml
+    name: Linting
+  ci:
+    needs: lint
+    uses: ./.github/workflows/unittest.yml
+    name: CI/CD
