@@ -16,6 +16,8 @@ Logger
 
   .. autodata:: sane.logger.ACT_INFO
 
+  .. autodata:: sane.logger.RUN_INFO
+
   .. autodata:: sane.logger.MAIN_LOG
 
   .. autoclass:: sane.logger.Logger

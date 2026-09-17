@@ -8,6 +8,7 @@ from functools import reduce
 import sane.action
 import sane.resources
 import sane.host
+from sane.logger import RUN_INFO
 
 
 class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
@@ -127,7 +128,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
         self.log( msg, level=40 )
         raise Exception( msg )
       self._job_ids[action.id] = self.extract_job_id( content )
-      self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'" )
+      self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'", level=RUN_INFO )
     super().post_launch( action, retval, content )
 
   def post_run_actions( self, actions ):
