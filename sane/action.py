@@ -594,9 +594,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ##
       # https://stackoverflow.com/a/18422264
       if logfile is not None:
-        self.log( "Command output will be captured to logfile {0}".format( logfile ), level=log_level )
+        self.log( "Command output will be captured to logfile {0}".format( logfile ), level=15 )
       if verbose:
-        self.log( "Command output will be printed to this terminal" )
+        self.log( "Command output will be printed to this terminal", level=15 )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
@@ -717,7 +717,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.logname = logname
 
       self.push_logscope( "launch" )
-      self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
+      self.log( f"Action logfile captured at {self.logfile}", level=slogger.RUN_INFO )
 
       self._run_lock.acquire()
       self.push_logscope( "pre_launch" )
@@ -771,7 +771,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                                                 capture=True,
                                                 verbose=True,
                                                 dry_run=self.dry_run,
-                                                log_level=slogger.MAIN_LOG
+                                                log_level=slogger.RUN_INFO
                                                 )
 
       self._state = ActionState.FINISHED

@@ -93,8 +93,8 @@ def get_parser():
                       action="store_const",
                       dest="debug_level",
                       default=20,
-                      const=18,
-                      help="Verbose output to main log, shorthand for `-g 18`"
+                      const=17,
+                      help="Verbose output to main log, shorthand for `-g 17`"
                       )
   parser.add_argument(
                       "-g", "--debug_level",
