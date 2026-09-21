@@ -197,6 +197,14 @@ def show_logs( workflow_save, options ):
   import sane
   actions = json.load( open( workflow_save, "r" ) )["actions"]
   longest_action = len( max( actions.keys(), key=len ) )
+
+  md_div = "|" if options.markdown else ":"
+  md_end = "|" if options.markdown else ""
+
+  print( f"{md_end}{'Action':<{longest_action}}  {md_end}  Logfile{md_end}")
+  if options.markdown:
+    print( "|-|-|" )
+
   for action, info in actions.items():
     if options.errors and info["status"] == "success":
       continue
@@ -205,7 +213,7 @@ def show_logs( workflow_save, options ):
 
     if options.relative_path:
       log = os.path.relpath( log, os.getcwd() )
-    print( f"  {action:<{longest_action}}: {log}" )
+    print( f"  {md_end}{action:<{longest_action}}{md_div} {log}{md_end}" )
 
 
 def show_summary( workflow_save, options ):
@@ -224,12 +232,17 @@ def show_summary( workflow_save, options ):
   total    = sum(runtimes)
   success  = "SUCCESS" if errs == 0 else "FAILURE"
 
+  md_div = "|" if options.markdown else ":"
+  md_end = "|" if options.markdown else ""
+
   print( f"SANE Workflow [{workflow_save}]")
-  print( f"  Status  : {success}" )
-  print( f"  Actions : {acts}" )
-  print( f"  Errors  : {errs}" )
-  print( f"  Last Run: {timedelta(seconds=runtimes[-1])}")
-  print( f"  Total   : {timedelta(seconds=total)}")
+  print( f"{md_end}  Status  {md_div} {success}{md_end}" )
+  if options.markdown:
+      print( "|-|-|" )
+  print( f"{md_end}  Actions {md_div} {acts}{md_end}" )
+  print( f"{md_end}  Errors  {md_div} {errs}{md_end}" )
+  print( f"{md_end}  Last Run{md_div} {timedelta(seconds=runtimes[-1])}{md_end}" )
+  print( f"{md_end}  Total   {md_div} {timedelta(seconds=total)}{md_end}" )
   if errs > 0:
     exit(1)
 
@@ -293,6 +306,16 @@ def get_parser():
                     action="store_true",
                     help="Show path as relative to current working directory"
                     )
+  logs.add_argument(
+                    "-md", "--markdown",
+                    action="store_true",
+                    help="Output in markdown format"
+                    )
+  summary.add_argument(
+                        "-md", "--markdown",
+                        action="store_true",
+                        help="Output in markdown format"
+                        )
   return parser
 
 
