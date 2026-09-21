@@ -727,6 +727,8 @@ class Orchestrator( opts.OptionLoader ):
         raise e
 
       # We submitted everything we could so now wait for at least one action to wake us
+      if not self.__wake__.is_set():
+        self.log( "...IDLE... Listening for next wake event" )
       self.__wake__.wait()
       self.__wake__.clear()
 
