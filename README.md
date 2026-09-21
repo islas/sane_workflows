@@ -1,5 +1,7 @@
 # SANE Workflows
-[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![unittest](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml)
+[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![unittest](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml) [![PyPI Version](https://img.shields.io/pypi/v/sane-workflows)](https://pypi.org/project/sane-workflows/)
+
+
 
 Simple Action 'n Environment Workflow
 
