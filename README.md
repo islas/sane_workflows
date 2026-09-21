@@ -289,6 +289,7 @@ You will get output that looks like so:
 2026-09-17 10:03:44 INFO     [orchestrator]           Using working directory : '/home/aislas/sane_workflows'
 2026-09-17 10:03:44 INFO     [orchestrator]           Running actions...
 2026-09-17 10:03:44 INFO     [orchestrator]           Running 'action_000' on 'generic'
+2026-09-17 10:03:44 INFO     [orchestrator]           ...IDLE... Listening for next wake event
 2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]      Action logfile captured at /home/aislas/sane_workflows/log/action_000.log
 2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]      Running command:
 2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]        /home/aislas/sane_workflows/sane/action_launcher.py /home/aislas/sane_workflows /home/aislas/sane_workflows/tmp/action_action_000.json
