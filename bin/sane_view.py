@@ -255,7 +255,7 @@ def get_parser():
   status  = subparsers.add_parser( "status",  help="View action status", parents=[base] )
   state   = subparsers.add_parser( "state",   help="View action state", parents=[base] )
   logs    = subparsers.add_parser( "logs",    help="View action logs", parents=[base] )
-  logs    = subparsers.add_parser( "summary", help="View workflow summary", parents=[base] )
+  summary = subparsers.add_parser( "summary", help="View workflow summary", parents=[base] )
   usage.add_argument(
                       "-a", "--arrows",
                       action="store_true",
