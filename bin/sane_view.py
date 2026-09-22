@@ -206,7 +206,7 @@ def show_logs( workflow_save, options ):
     print( "|-|-|" )
 
   for action, info in actions.items():
-    if options.errors and info["status"] == "success":
+    if options.errors and info["status"] != "failure":
       continue
 
     log = info["runlog"] if options.runlog else info["logfile"]
