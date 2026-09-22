@@ -232,6 +232,9 @@ def show_summary( workflow_save, options ):
   total    = sum(runtimes)
   success  = "SUCCESS" if errs == 0 else "FAILURE"
 
+  runtime_str = timedelta(seconds=runtimes[-1]) if runtimes else "---"
+  total_str   = timedelta(seconds=total) if runtimes else "---"
+
   md_div = "|" if options.markdown else ":"
   md_end = "|" if options.markdown else ""
 
@@ -241,8 +244,8 @@ def show_summary( workflow_save, options ):
       print( "|-|-|" )
   print( f"{md_end}  Actions {md_div} {acts}{md_end}" )
   print( f"{md_end}  Errors  {md_div} {errs}{md_end}" )
-  print( f"{md_end}  Last Run{md_div} {timedelta(seconds=runtimes[-1])}{md_end}" )
-  print( f"{md_end}  Total   {md_div} {timedelta(seconds=total)}{md_end}" )
+  print( f"{md_end}  Last Run{md_div} {runtime_str}{md_end}" )
+  print( f"{md_end}  Total   {md_div} {total_str}{md_end}" )
   if errs > 0:
     exit(1)
 
