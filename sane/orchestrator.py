@@ -773,6 +773,7 @@ class Orchestrator( opts.OptionLoader ):
             host.release_resources( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
             del results[node]
           except Exception as e:
+            self.log( f"Caugh exception during results return for Action '{node}'", level=50 )
             host.kill_watchdog = True
             for k, v in results.items():
               v.cancel()
