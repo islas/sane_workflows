@@ -98,28 +98,29 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
   def capture_job_complete( self, actions, only_watchdog=True ):
     while ( not self.kill_watchdog ) and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
       time.sleep( self._delay_sec )
-      # Lock to ensure no other thread modifies the self._job_ids
-      self._run_lock.acquire()
-      for action_name, job_id in self._job_ids.items():
+      # copy to ensure no other thread modifies the job_ids we iterate on
+      for action_name, job_id in self._job_ids.copy().items():
         if action_name not in self._completed and ( self.dry_run or self.job_complete( job_id ) ):
+
+          # Try to read outputs again
+          actions[action_name].load_outputs()
+
           self._completed[action_name] = job_id
+
           status = self.dry_run or self.job_status( job_id )
           disclaimer = ""
           if self.dry_run:
             disclaimer = " (dry-run)"
+
           self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}{disclaimer}" )
           if status:
             actions[action_name].set_status_success()
           else:
             actions[action_name].set_status_failure()
 
-          # Try to read outputs again
-          actions[action_name].load_outputs()
-
           self.on_job_complete( job_id, actions[action_name] )
           # Wake the orch
           self.__orch_wake__.set()
-      self._run_lock.release()
 
   def post_launch( self, action, retval, content ):
     if not self.launch_local( action ):
@@ -692,6 +693,8 @@ class PBSHost( HPCHost ):
   def on_job_complete( self, job_id, action ):
     # Release the resources now
     requisition = self._requisitions[action.logname]
-    for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+    with self._run_lock:
+      for nodeset, req in requisition.items():
+        self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+
     del self._requisitions[action.logname]

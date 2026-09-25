@@ -679,8 +679,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
       #. resolve internal launch command (:ref:`action_launcher.py`) and ``launch_wrapper``
       #. :py:meth:`execute_subprocess()` of resolved command, capturing to :py:attr:`runlog`
          using :py:attr:`dry_run` if set
-      #. final :py:attr:`state` and :py:attr:`status` recorded
-      #. :py:meth:`post_launch()` called with output of (4) (shared :py:class:`Action` mutex locked around this call)
+      #. :py:attr:`status` recorded based on return value from ``action_launcher.py`` subprocess
+      #. :py:attr:`outputs` are reloaded into the main context via :py:meth:`load_outputs`
+      #. :py:meth:`post_launch()` called with output of (4) and can mark :py:attr:`status` as
+         :py:attr:`~ActionStatus.FAILURE` (shared :py:class:`Action` mutex locked around this call)
+      #. :py:attr:`state` is published as :py:attr:`~ActionState.FINISHED`
       #. :py:meth:`__orch_wake__` the :py:class:`Orchestrator`
       #. return output of (4)
 
@@ -688,9 +691,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
     call within :py:meth:`execute_subprocess()`, the following occurs:
 
       #. :py:meth:`set_state_error()` called
-      #. shared :py:class:`Action` mutex force unlocked
       #. :py:meth:`__orch_wake__` the :py:class:`Orchestrator`
       #. re-raise the same ``Exception``
+
+    .. note:: Usage of a ``launch_wrapper`` causes :py:attr:`status` to yield :py:attr:`~ActionStatus.SUBMITTED`.
+              It is on the host that provided the wrapper to determine the Action status.
 
     .. danger:: Avoid modifying or overriding this function in any derived :py:class:`Action`
 
@@ -719,11 +724,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.push_logscope( "launch" )
       self.log( f"Action logfile captured at {self.logfile}", level=slogger.RUN_INFO )
 
-      self._run_lock.acquire()
-      self.push_logscope( "pre_launch" )
-      ok = self.pre_launch()
-      self.pop_logscope()
-      self._run_lock.release()
+      with self._run_lock:
+        self.push_logscope( "pre_launch" )
+        ok = self.pre_launch()
+        self.pop_logscope()
+
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
 
@@ -761,9 +766,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       retval = -1
       content = ""
       if self.logfile is None:
-        self._run_lock.acquire()
         self.log( "Action will not be saved to logfile", level=30 )
-        self._run_lock.release()
+
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,
@@ -774,7 +778,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                                                 log_level=slogger.RUN_INFO
                                                 )
 
-      self._state = ActionState.FINISHED
+      # Report state of launch
       if retval != 0:
         self._status = ActionStatus.FAILURE
       else:
@@ -784,27 +788,31 @@ class Action( state.SaveState, res.ResourceRequestor ):
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
 
+      # Reload outputs back into main process context
       self.load_outputs()
 
-      self._run_lock.acquire()
-      self.push_logscope( "post_launch" )
-      ok = self.post_launch( retval, content )
-      self.pop_logscope()
-      self._run_lock.release()
+      with self._run_lock:
+        self.push_logscope( "post_launch" )
+        ok = self.post_launch( retval, content )
+        self.pop_logscope()
+
       if ok is not None and not ok:
-        raise AssertionError( "post_launch() returned False" )
+        self.log( "post_launch() marked Action as failure" )
+        self._status = ActionStatus.FAILURE
 
       # notify we have finished
       if thread_name is not None:
         self.logname = self.id
       self.pop_logscope()
+
+      # This is the very last thing we do
+      self._state = ActionState.FINISHED
+
       return retval, content
 
     except Exception as e:
       # We failed :(
       self.set_state_error()
-      if self._run_lock.locked():
-        self._run_lock.release()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
       self.logname = self.id
       self.label_length = slogger.DEFAULT_LABEL_LENGTH
@@ -980,7 +988,15 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """Called after execution of ``action_launcher.py`` with the output of :py:meth:`execute_subprocess()`.
     See :py:meth:`launch`
 
-    :return: If return is ``False``, :py:class:`Action` is assumed to have a :py:attr:`~ActionStatus.FAILURE`
+    Use this call to post-process any Action results or outputs within the main process context.
+    As this occurs within the main process, do not perform intensive work here if not necessary
+    (prefer :py:meth:`post_run`). The Action final :py:attr:`outputs` are valid at this point,
+    and initial status has been set. The Action state remains :py:attr:`~ActionState.RUNNING`
+    during this call.
+
+    .. danger:: Users should not manage :py:attr:`Action.state`
+
+    :return: If return is ``False``, :py:class:`Action` is marked as :py:attr:`~ActionStatus.FAILURE`
     """
     pass
 
