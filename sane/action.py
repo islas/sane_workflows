@@ -774,7 +774,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
                                                 log_level=slogger.RUN_INFO
                                                 )
 
-      self._state = ActionState.FINISHED
+      # Report state of launch
       if retval != 0:
         self._status = ActionStatus.FAILURE
       else:
@@ -798,6 +798,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if thread_name is not None:
         self.logname = self.id
       self.pop_logscope()
+
+      # This is the very last thing we do
+      self._state = ActionState.FINISHED
+
       return retval, content
 
     except Exception as e:
