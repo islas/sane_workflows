@@ -10,4 +10,4 @@ id=$( find $QUEUE_DIR/ $COMPLETE_DIR/ -type f | wc -l )
 
 echo "Launching job $id with args \"$ARGS\""
 echo "  $CMD"
-echo -e "$ARGS\n$CMD" > $QUEUE_DIR/$id
+printf '%s\n%s\n' "$ARGS" "$CMD" > "$QUEUE_DIR/$id"
