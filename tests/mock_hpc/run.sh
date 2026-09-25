@@ -33,7 +33,7 @@ while [ ! -f $CURRENT_SOURCE_DIR/kill ]; do
     fi
 
     cmd=$( tail -n 1 $QUEUE_DIR/$cmd_file )
-    eval "$cmd" &> /dev/null
+    eval "$cmd" > /dev/null 2>&1
     result=$?
     rm $QUEUE_DIR/$cmd_file
     echo $result > $COMPLETE_DIR/$cmd_file
