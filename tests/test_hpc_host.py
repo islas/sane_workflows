@@ -27,13 +27,13 @@ class MockHPC( sane.HPCHost ):
 
   def post_run_actions( self, actions ):
     # Complete post run processing
-    super().post_run_actions(actions)
-
-    # Kill the mock runner
-    with open( self.runner_dir + "/kill", "w" ):
-      pass
-
-    self.runner.wait()
+    try:
+      super().post_run_actions(actions)
+    finally:
+      # Kill the mock runner even if post run processing failed
+      with open( self.runner_dir + "/kill", "w" ):
+        pass
+      self.runner.wait()
 
   def check_job_complete( self, job_id, retval, status ):
     if retval != 0:
