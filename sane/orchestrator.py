@@ -916,7 +916,7 @@ class Orchestrator( opts.OptionLoader ):
         self.log_pop()
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
-  def load_core_options( self, options : Dict[str, object], origin : str ):
+  def load_core_options( self, options : Dict[str, object], origin : str, **kwargs ):
     """Load the provided *options* dict, creating any :py:class:`Host` or
     :py:class:`Action` as necessary and recording patches.
 
@@ -997,7 +997,7 @@ class Orchestrator( opts.OptionLoader ):
       self.add_host( host )
 
       host.log_push()
-      host.load_options( host_options, origin )
+      host.load_options( host_options, origin, **kwargs )
       host.log_pop()
 
     actions = options.pop( "actions", {} )
@@ -1010,7 +1010,7 @@ class Orchestrator( opts.OptionLoader ):
       self.add_action( action )
 
       action.log_push()
-      action.load_options( action_options, origin )
+      action.load_options( action_options, origin, **kwargs )
       action.log_pop()
 
     # Handle very similar to the register functions, including priority
@@ -1021,7 +1021,7 @@ class Orchestrator( opts.OptionLoader ):
         if priority not in self._patch_options:
           self._patch_options[priority] = {}
         self._patch_options[priority][origin] = patch
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
   def _load_save_dict( self ):
     save_dict = {}

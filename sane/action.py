@@ -1053,7 +1053,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   @copydoc( res.ResourceRequestor.load_core_options, module="resources" )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load :py:class:`Action` settings from the provided *options* dict, all keys are optional.
 
     The following keys are loaded verbatim into their respective attribute:
@@ -1098,4 +1098,4 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.add_dependencies( *options.pop( "dependencies", {} ).items() )
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )

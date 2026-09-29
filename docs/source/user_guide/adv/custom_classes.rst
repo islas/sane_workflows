@@ -80,13 +80,13 @@ if configuring from a :external:py:class:`dict` works best for your workflow.
         self.max_items = 20
         self.prefix    = "memo"
 
-      def load_extra_options( self, options, origin ):
+      def load_extra_options( self, options, origin, **kwargs ):
         # Pop from the dictionary using a default value if not found allows this
         # key to remain optional
         self.max_items = options.pop( "max_items", self.max_items )
         self.prefix    = options.pop( "prefix", self.prefix )
         # Continue to load any extra options - good practice for inheritance
-        super().load_extra_options(options, origin)
+        super().load_extra_options( options, origin, **kwargs )
 
     @sane.register
     def workflow( orch ):
@@ -159,6 +159,7 @@ to:
 * **Only** override :py:meth:`load_extra_options` (core options are reserved for internal classes)
 * **Always** remove each processed key from the ``options`` dictionary
 * **Always** call ``super.load_extra_options()`` at some point in your derived method to ensure proper inheritance setup
+* **Always** forward ``origin`` and any ``**kwargs`` you do not need to consume in your implementation
 
 Specific Classes
 ================

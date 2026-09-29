@@ -83,10 +83,10 @@ standard output multiple times.
         self.message = "Hello"
         self.count = 1
 
-      def load_extra_options( self, options, origin ):
+      def load_extra_options( self, options, origin, **kwargs ):
         self.message = options.pop( "message", self.message )
         self.count = options.pop( "count", self.count )
-        super().load_extra_options( options, origin )
+        super().load_extra_options( options, origin, **kwargs )
 
       def run( self ) -> int:
         for i in range( self.count ):
@@ -99,7 +99,7 @@ Key things to note in the above example:
 
 * ``RepeatMessageAction`` inherits from :py:class:`sane.Action`.
 * ``load_extra_options`` consumes custom keys from the ``options`` dictionary.
-* ``super().load_extra_options(options, origin)`` preserves the base class option loading behavior.
+* ``super().load_extra_options(options, origin, **kwargs)`` preserves the base class option loading behavior.
 * ``run`` is the actual place where the action does work.
 * ``self.outputs`` can be used to publish results for later dependencies.
 
@@ -293,9 +293,9 @@ subprocess is spawned:
         super().__init__( id )
         self.input_file = None
 
-      def load_extra_options( self, options, origin ):
+      def load_extra_options( self, options, origin, **kwargs ):
         self.input_file = options.pop( "input_file", self.input_file )
-        super().load_extra_options( options, origin )
+        super().load_extra_options( options, origin, **kwargs )
 
       def pre_launch( self ):
         """Validate input file exists before launching subprocess"""

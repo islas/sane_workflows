@@ -294,7 +294,7 @@ class Environment( match.NameMatch, opts.OptionLoader ):
     return self.exact_match( requested_env )
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load the *options* into this :py:class:`Environment`
 
     The following keys are loaded to their respective attribute. If not present,
@@ -358,4 +358,4 @@ class Environment( match.NameMatch, opts.OptionLoader ):
       cmd  = lmod_cmd.pop( "cmd" )
       args = lmod_cmd.pop( "args", [] )
       self.setup_lmod_cmds( cmd, *args, **lmod_cmd )
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
