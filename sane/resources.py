@@ -439,7 +439,7 @@ class ResourceRequestor( opts.OptionLoader ):
           break
     return resource_dict
 
-  def add_resource_requirements( self, resource_dict : dict ):
+  def add_resource_requirements( self, resource_dict : dict, overwrite=False ):
     """Add resource requirements to this requestor
 
     .. hint:: See :py:class:`~sane.resources.Resource` for syntax on default supported values
@@ -489,14 +489,14 @@ class ResourceRequestor( opts.OptionLoader ):
 
     """
     for resource, info in resource_dict.items():
-      if resource in self._resources:
+      if not overwrite and resource in self._resources:
         self.log( f"Resource '{resource}' already set, ignoring new resource setting", level=30 )
       else:
         if isinstance( info, dict ):
           if resource not in self._override_resources:
             self._override_resources[resource] = {}
           for override, override_info in info.items():
-            if override in self._override_resources[resource]:
+            if not overwrite and override in self._override_resources[resource]:
               self.log( f"Resource '{override}' already set in {resource}, ignoring new resource setting", level=30 )
             else:
               self._override_resources[resource][override] = override_info
@@ -550,7 +550,7 @@ class ResourceProvider( opts.OptionLoader ):
     """
     return copy.deepcopy( self._resources )
 
-  def add_resources( self, resource_dict : dict, override=False ):
+  def add_resources( self, resource_dict : dict, overwrite=False ):
     """Add resources to this provider that can be acquired
 
     .. hint:: See :py:class:`~sane.resources.Resource` for syntax on default supported values
@@ -585,7 +585,7 @@ class ResourceProvider( opts.OptionLoader ):
         self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
         continue
 
-      if not override and resource in self._resources and self._resources[resource].total > 0:
+      if not overwrite and resource in self._resources and self._resources[resource].total > 0:
         self.log( f"Resource ''{resource}'' already set, ignoring new resource setting", level=30 )
       else:
         self._resources[resource] = AcquirableResource( resource, info )

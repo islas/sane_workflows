@@ -247,9 +247,9 @@ def main():
     if isinstance( host, sane.resources.NonLocalProvider ):
       host.force_local = True
       host.local_resources.logname = f"{host.name}::local"
-      host.local_resources.add_resources( json.loads( virtual_resources ), override=True )
+      host.local_resources.add_resources( json.loads( virtual_resources ), overwrite=True )
     else:
-      host.add_resources( json.loads( virtual_resources ), override=True )
+      host.add_resources( json.loads( virtual_resources ), overwrite=True )
 
     logger.log( f"Adding virtual host {host.name} to orchestrator" )
     orchestrator.add_host( host )
