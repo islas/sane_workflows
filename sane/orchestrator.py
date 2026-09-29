@@ -936,11 +936,16 @@ class Orchestrator( opts.OptionLoader ):
             ...other action declarations...
           }
           "patches" :
-          {
-            "priority" : int,
-            "hosts"   : ...same as above *except* "type"...
-            "actions" : ...same as above *except* "type"...
-          }
+          [
+            {
+              "priority" : int,
+              "hosts"   : ...same as above *except* "type"...
+              "actions" : ...same as above *except* "type"...
+            },
+            {
+              ...other patches...
+            }
+          ]
         }
 
     The ``"hosts"`` key is processed first, iterating over each ``"<host-name>"``
@@ -958,8 +963,9 @@ class Orchestrator( opts.OptionLoader ):
     .. hint::
         See :py:meth:`search_type` for more info on how the ``"type"`` field should be specified.
 
-    Finally, the ``"patches"`` key is processed. A default priority of ``0`` is used
-    if no priority is specified. Everything in the ``"patches"`` dict (except the ``"priority"``)
+    Finally, the ``"patches"`` key is processed as a series of individual priority
+    changes to be staged once the workflow is fully loaded. A default priority of ``0`` is used
+    if no priority is specified. Everything in the ``"patches"`` sub-dicts (except the ``"priority"``)
     is saved for later use in :py:meth:`process_patches()` in an internal patch
     priority queue. The content of this can generally be the same as when declaring
     ``"hosts"`` or ``"actions"``, with limitations left the type's implementation of
@@ -1008,12 +1014,13 @@ class Orchestrator( opts.OptionLoader ):
       action.log_pop()
 
     # Handle very similar to the register functions, including priority
-    patches = options.pop( "patches", {} )
+    patches = options.pop( "patches", [] )
     if len( patches ) > 0:
-      priority = patches.pop( "priority", 0 )
-      if priority not in self._patch_options:
-        self._patch_options[priority] = {}
-      self._patch_options[priority][origin] = patches
+      for patch in patches:
+        priority = patch.pop( "priority", 0 )
+        if priority not in self._patch_options:
+          self._patch_options[priority] = {}
+        self._patch_options[priority][origin] = patch
     super().load_core_options( options, origin )
 
   def _load_save_dict( self ):

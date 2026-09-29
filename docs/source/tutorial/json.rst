@@ -130,8 +130,8 @@ keys within the root dictionary:
 * ``"actions"``
 * ``"patches"``
 
-The ``"patches"`` dictionary mirrors the layout of the parent JSON
-dictionary, except that ``"type"`` is no longer valid in any referenced
+The ``"patches"`` list is made of dictionaries that mirror the layout of the
+parent JSON dictionary, except that ``"type"`` is no longer valid in any referenced
 host or action (and you can't have more nested ``"patches"``).
 
 Within the ``"hosts"`` and ``"actions"`` dictionaries, the unique keys are used
