@@ -66,13 +66,15 @@ class OrchestratorTests( unittest.TestCase ):
     self.orch.load_options(
                             {
                               "patches" :
-                              {
-                                "priority" : 10,
-                                "hosts" :
+                              [
                                 {
-                                  "unique_host_config" : { "default_env" : "soup" }
+                                  "priority" : 10,
+                                  "hosts" :
+                                  {
+                                    "unique_host_config" : { "default_env" : "soup" }
+                                  }
                                 }
-                              }
+                              ]
                             }
                           )
     self.orch.process_patches()
@@ -81,19 +83,36 @@ class OrchestratorTests( unittest.TestCase ):
     self.orch.load_options(
                             {
                               "patches" :
-                              {
-                                "priority" : 10,
-                                "hosts" :
+                              [
                                 {
-                                  "unique_host_wrong" : { "aliases" : ["soup"] }
+                                  "priority" : 10,
+                                  "hosts" :
+                                  {
+                                    "unique_host_wrong" : { "aliases" : ["soup"] }
+                                  }
                                 }
-                              }
+                              ]
                             }
                           )
     self.orch.process_patches()
     self.assertNotIn( "unique_host_wrong", self.orch.hosts )
     self.assertNotEqual( ["soup"], self.orch.hosts["unique_host_config"].aliases )
 
-    self.orch.load_options( { "patches" : { "actions" : { "unique_action_config" : { "environment" : "soup" } } } } )
+    self.orch.load_options(
+                            {
+                              "patches" :
+                              [
+                                {
+                                  "actions" :
+                                  {
+                                    "unique_action_config" :
+                                    {
+                                      "environment" : "soup"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          )
     self.orch.process_patches()
     self.assertEqual( "soup", self.orch.actions["unique_action_config"].environment )
