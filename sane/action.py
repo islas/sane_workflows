@@ -722,7 +722,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.logname = logname
 
       self.push_logscope( "launch" )
-      self.log( f"Action logfile captured at {self.logfile}", level=slogger.RUN_INFO )
+      self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
 
       with self._run_lock:
         self.push_logscope( "pre_launch" )

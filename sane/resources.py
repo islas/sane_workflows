@@ -515,7 +515,7 @@ class ResourceRequestor( opts.OptionLoader ):
 
     * ``"local"`` => :py:attr:`local`
     """
-    self.add_resource_requirements( options.pop( "resources", {} ) )
+    self.add_resource_requirements( options.pop( "resources", {} ), kwargs.get( "overwrite" ) )
 
     local = options.pop( "local", None )
     if local is not None:
@@ -600,7 +600,9 @@ class ResourceProvider( opts.OptionLoader ):
       self.log( f"Checking if resources available{origin_msg}...", level=10 )
       self.log_push()
     can_aquire = True
+
     for resource, info in mapped_resource_dict.items():
+      self.log( f"Checking resource '{resource}'", level=10 )
       res = None
       if isinstance( info, Resource ):
         res = info
@@ -614,8 +616,9 @@ class ResourceProvider( opts.OptionLoader ):
           raise Exception( msg )
         else:
           res = Resource( resource, info, unit=self._resources[resource].unit )
+          self.log( f"  Requires {res}", level=10 )
       else:
-        self.log( f"Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
+        self.log( f"  X Skipping resource '{resource}', is non-numeric: '{info}'", level=10 )
         continue
 
       if res.total > self._resources[resource].total:
@@ -761,7 +764,7 @@ class ResourceProvider( opts.OptionLoader ):
     """
     resources = options.pop( "resources", {} )
     if len( resources ) > 0:
-      self.add_resources( resources )
+      self.add_resources( resources, kwargs.get( "overwrite" ) )
 
     mapping = options.pop( "mapping", {} )
     for resource, aliases in mapping.items():
@@ -871,7 +874,7 @@ class NonLocalProvider( ResourceProvider ):
     super().load_core_options( options, origin, **kwargs )
     resources = options.pop( "local_resources", {} )
     if len( resources ) > 0:
-      self.local_resources.add_resources( resources )
+      self.local_resources.add_resources( resources, kwargs.get( "overwrite" ) )
 
     default_local = options.pop( "default_local", None )
     if default_local is not None:
