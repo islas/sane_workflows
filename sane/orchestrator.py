@@ -410,7 +410,7 @@ class Orchestrator( opts.OptionLoader ):
           self.log( f"Applying patch to {gentype} '{id}'" )
           source[id].log_push( 2 )
           source[id].push_logscope( "patch" )
-          source[id].load_options( options.copy(), origin )
+          source[id].load_options( options.copy(), origin, overwrite=True )
           source[id].pop_logscope()
           source[id].log_pop( 2 )
         elif id.startswith( "[" ) and id.endswith( "]" ):
@@ -421,7 +421,7 @@ class Orchestrator( opts.OptionLoader ):
               self.log( f"Applying patch filter to {gentype} '{filter_id}'", level=15 )
               source[filter_id].log_push( 2 )
               source[filter_id].push_logscope( "patch" )
-              source[filter_id].load_options( options.copy(), origin )
+              source[filter_id].load_options( options.copy(), origin, overwrite=True )
               source[filter_id].pop_logscope()
               source[filter_id].log_pop( 2 )
           else:

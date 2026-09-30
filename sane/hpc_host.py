@@ -343,9 +343,9 @@ class PBSHost( HPCHost ):
         exclusive = hardware_info.get( "exclusive", False )
         queues = hardware_info.get( "queues", [None] )
         node_resource_dict = hardware_info["resources"]
-        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues )
+        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues, kwargs.get( "overwrite" ) )
 
-  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None] ):
+  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None], overwrite=False ):
     if node_type in self._resources:
       self.log( f"Node type '{node_type}' already exists" )
     else:
@@ -356,14 +356,15 @@ class PBSHost( HPCHost ):
                                       "node" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" ),
                                       "total" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" )
                                     }
-      self._resources[node_type]["node"].add_resources( node_resource_dict )
+      self._resources[node_type]["node"].add_resources( node_resource_dict, overwrite )
       self._resources[node_type]["total"].add_resources(
                                                         {
                                                           res_name : (res.acquirable * nodes).amount
                                                           for res_name, res in self._resources[node_type]["node"].resources.items()
-                                                        }
+                                                        },
+                                                        overwrite
                                                       )
-      self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
+      self._resources[node_type]["total"].add_resources( { "nodes" : nodes }, overwrite )
 
   @property
   def resource_log( self ):
