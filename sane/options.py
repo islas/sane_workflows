@@ -19,7 +19,7 @@ class OptionLoader( logger.Logger ):
     super().__init__( **kwargs )
     self.__origin__ = [ sys.modules[self.__module__].__file__, self.__origin_instantiation__ ]
 
-  def load_options( self, options : dict, origin : str = None ):
+  def load_options( self, options : dict, origin : str = None, **kwargs ):
     """Base class implementation for loading of dict-based attributes into instance
 
     Take a *options* dict of relevant attributes and load them via :py:meth:`load_core_options`
@@ -34,6 +34,9 @@ class OptionLoader( logger.Logger ):
     To keep track of every time this function is called and potentially modifying
     this instance an origin may be provided, noting where the change is coming from.
 
+    ``**kwargs`` is provided for any arguments that need to passed throughout option
+    loading calls that are not part of the ``options`` dict
+
     :param options: A dict of class-specific attributes.
 
       .. important::
@@ -45,8 +48,8 @@ class OptionLoader( logger.Logger ):
     """
     if origin is not None:
       self.__origin__.append( str( origin ) )
-    self.load_core_options( options, origin )
-    self.load_extra_options( options, origin )
+    self.load_core_options( options, origin, **kwargs )
+    self.load_extra_options( options, origin, **kwargs )
     self.check_unused( options )
 
   def check_unused( self, options : dict ):
@@ -55,21 +58,27 @@ class OptionLoader( logger.Logger ):
     if len( unused ) > 0:
       self.log( f"Unused keys in dict: {unused}", level=30 )
 
-  def load_core_options( self, options : dict, origin : str = None ):
+  def load_core_options( self, options : dict, origin : str = None, **kwargs ):
     """
     Any processed field should be removed from the *options* dict, with
     everything else ignored. All listed *options* are cummulative and optional
     unless specified otherwise.
 
+    ``**kwargs`` is provided for any arguments that need to passed throughout option
+    loading calls that are not part of the ``options`` dict
+
     See :py:meth:`load_options` for parameters.
     """
     pass
 
-  def load_extra_options( self, options : dict, origin : str = None ):
+  def load_extra_options( self, options : dict, origin : str = None, **kwargs ):
     """Load any extra *options* after :py:meth:`load_core_options`.
 
     Any processed field should be removed from the *options* dict, with
     everything else ignored.
+
+    ``**kwargs`` is provided for any arguments that need to passed throughout option
+    loading calls that are not part of the ``options`` dict
 
     See :py:meth:`load_options` for parameters.
     """

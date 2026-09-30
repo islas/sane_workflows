@@ -504,7 +504,7 @@ class ResourceRequestor( opts.OptionLoader ):
           self._resources[resource] = info
 
   @copydoc( opts.OptionLoader.load_core_options, append=False )
-  def load_core_options( self, options : dict, origin : str ):
+  def load_core_options( self, options : dict, origin : str, **kwargs ):
     """Load :py:class:`~sane.resources.ResourceRequestor` resource requirements
 
     The following key is loaded verbatim into :py:meth:`add_resource_requirements`:
@@ -521,7 +521,7 @@ class ResourceRequestor( opts.OptionLoader ):
     if local is not None:
       self.local = local
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
 
 class ResourceProvider( opts.OptionLoader ):
@@ -713,7 +713,7 @@ class ResourceProvider( opts.OptionLoader ):
     self.log_pop()
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="sane.options" )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load the available resources for this :py:class:`~sane.resources.ResourceProvider`
 
     The following key is loaded verbatim into :py:meth:`add_resources`
@@ -767,7 +767,7 @@ class ResourceProvider( opts.OptionLoader ):
     for resource, aliases in mapping.items():
       self._mapper.add_mapping( resource, aliases )
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
   def map_resource( self, resource : str ) -> str:
     """Map the input ``resource`` to an internal name, if available
@@ -841,7 +841,7 @@ class NonLocalProvider( ResourceProvider ):
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="sane.options" )
   @copydoc( ResourceProvider.load_core_options )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load local resources into :py:attr:`local_resources` and control flags
 
     The following key is loaded verbatim into :py:attr:`local_resources` via
@@ -868,7 +868,7 @@ class NonLocalProvider( ResourceProvider ):
           "default_local" : True
         }
     """
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
     resources = options.pop( "local_resources", {} )
     if len( resources ) > 0:
       self.local_resources.add_resources( resources )
