@@ -113,7 +113,7 @@ When a JSON file declares an object with a ``"type"`` field, the
 |
 
 This means that your custom Python module must be available to the workflow
-before the JSON file is interpreted. When using the ``sane_runner`` entry point,
+before the JSON file is interpreted. When using the ``sane workflow`` entry point,
 this is done for you by default - loading your Python files first before any
 JSON files. The exact order of operations is outlined in :py:meth:`Orchestrator.load_paths`:
 
@@ -145,7 +145,7 @@ that uniquely identifies the type from the loaded Python modules.
     Recall from the Tutorial :ref:`tutorial.structure` that the path we provide
     to the runner functions as the root `namespace package`_ so our type will be
     named based off of that. If ``MyAction`` is found in ``.sane/proj/custom_actions/acts.py``
-    and run with ``sane_runner -p .sane/ ...`` then ``"type" : "proj.custom_actions.acts.MyAction"``
+    and run with ``sane workflow -p .sane/ ...`` then ``"type" : "proj.custom_actions.acts.MyAction"``
     is the full type name.
 
 

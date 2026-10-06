@@ -70,19 +70,19 @@ if you want to use it outside of the provided runner script, but this is not nec
 
 Usage when installed:
 ```
-sane_runner -h
+sane -h
 ```
 
 Usage when from source:
 ```
-<path to source>/bin/sane_runner.py -h
+<path to source>/bin/sane.py -h
 ```
 
 ## Quickstart
 
 ### Python Usage
 To utilize `sane` in a python setting, create a python file (module) and import the
-`sane` package. Assuming you are running via the provided entry point `sane_runner[.py]`,
+`sane` package. Assuming you are running via the provided entry point `sane workflow`,
 you do not need to ensure `sane` is within your `PYTHONPATH`. Afterwards, to add,
 remove, or modify the _orchestrator_ use the `@sane.register(priority=0)` decorator.
 Providing a priority is optional, and if no priority is given, no `()` call is necessary,
@@ -216,7 +216,7 @@ Provide the paths of your workflow with `-p`/`--path`, then list or filter for
 whichever _actions_ you want to operate with, along with the `-r` flag to run these
 _actions_:
 ```bash
-<path to sane_workflows>/bin/sane_runner.py -p <workflow path> [-p <other path>] -a my_action -r
+<path to sane_workflows>/bin/sane.py workflow -p <workflow path> [-p <other path>] -a my_action -r
 ```
 > [!NOTE]
 > All paths provided are added to `sys.path` for importing of modules. Thus, when
@@ -224,84 +224,85 @@ _actions_:
 > workflow path, e.g. `-p .workflow` for `.workflow/custom_actions/my_action_def.py`
 > as `import custom_actions.my_action_def`
 
-You will get output that looks like so:
+For example, running a copy of the repository's `demo/` directory from
+`/home/aislas/sane_workflows` produces output like this:
 ```
-./bin/sane_runner.py -p demo/ -a action_000 -r --debug_level 19
-2026-09-17 10:03:44 INFO     [sane_runner]            Logging output to /home/aislas/sane_workflows/log/runner.log
-2026-09-17 10:03:44 INFO     [orchestrator]           Searching for workflow files...
-2026-09-17 10:03:44 INFO     [orchestrator]             Searching demo/ for *.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/custom_def_usage.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/simple_action.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/hpc_host.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/patches.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/resource_action.json
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/test_depmodes.json
-2026-09-17 10:03:44 INFO     [orchestrator]             Searching demo/ for *.jsonc
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/simple_host.jsonc
-2026-09-17 10:03:44 INFO     [orchestrator]             Searching demo/ for *.py
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/my_workflow.py
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/actual_workflow.py
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/custom_defs.py
-2026-09-17 10:03:44 INFO     [orchestrator]               Found demo/simple_host.py
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading python file demo/my_workflow.py as 'my_workflow'
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading python file demo/actual_workflow.py as 'actual_workflow'
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading python file demo/custom_defs.py as 'custom_defs'
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading python file demo/simple_host.py as 'simple_host'
-2026-09-17 10:03:44 INFO     [orchestrator::register] Creation of universe
-2026-09-17 10:03:44 INFO     [orchestrator::register] Creation of world
-2026-09-17 10:03:44 INFO     [orchestrator::register] Hello world from my_workflow
-2026-09-17 10:03:44 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
-2026-09-17 10:03:44 WARNING  [fib_seq_fixed]            Unused keys in dict: ['unused_action_param']
-2026-09-17 10:03:44 WARNING  [fib_seq_calc_mult]        Unused keys in dict: ['mult']
-2026-09-17 10:03:44 WARNING  [orchestrator]             Unused keys in dict: ['unused_orch_param']
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/simple_action.json
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/hpc_host.json
-2026-09-17 10:03:44 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/patches.json
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/resource_action.json
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/test_depmodes.json
-2026-09-17 10:03:44 INFO     [orchestrator]           Loading config file demo/simple_host.jsonc
-2026-09-17 10:03:44 INFO     [orchestrator::patch]    Processing patches from demo/patches.json
-2026-09-17 10:03:44 INFO     [orchestrator::patch]      Applying patch to Host 'unique_host_config'
-2026-09-17 10:03:44 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_fixed'
-2026-09-17 10:03:44 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_calc_mult'
-2026-09-17 10:03:44 WARNING  [fib_seq_calc_mult::patch]     Unused keys in dict: ['mult']
-2026-09-17 10:03:44 INFO     [orchestrator::patch]      Applying patch filter 'action_09[0-5]' to [6] Actions
-2026-09-17 10:03:44 WARNING  [orchestrator::patch]      Unused keys in patch : ['unused_patch_param']
-2026-09-17 10:03:44 INFO     [orchestrator]           No previous save file to load
-2026-09-17 10:03:44 INFO     [orchestrator]           Requested actions:
-2026-09-17 10:03:44 INFO     [orchestrator]             action_000  
-2026-09-17 10:03:44 INFO     [orchestrator]           and any necessary dependencies
-2026-09-17 10:03:44 INFO     [orchestrator]           Full action set:
-2026-09-17 10:03:44 INFO     [orchestrator]             action_000  
-2026-09-17 10:03:44 INFO     [orchestrator]           Checking host "generic"
-2026-09-17 10:03:44 INFO     [orchestrator]           Running as 'generic'
-2026-09-17 10:03:44 INFO     [orchestrator]           Checking ability to run all actions on 'generic'...
-2026-09-17 10:03:44 INFO     [orchestrator]             Checking environments...
-2026-09-17 10:03:44 INFO     [orchestrator]             Checking resource availability...
-2026-09-17 10:03:44 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-2026-09-17 10:03:44 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'generic' passed           * * * * * * * * * * 
-2026-09-17 10:03:44 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-2026-09-17 10:03:44 INFO     [orchestrator]           Saving host information...
-2026-09-17 10:03:44 INFO     [orchestrator]           Setting state of all inactive actions to pending
-2026-09-17 10:03:44 INFO     [orchestrator]           No previous save file to load
-2026-09-17 10:03:44 INFO     [orchestrator]           Using working directory : '/home/aislas/sane_workflows'
-2026-09-17 10:03:44 INFO     [orchestrator]           Running actions...
-2026-09-17 10:03:44 INFO     [orchestrator]           Running 'action_000' on 'generic'
-2026-09-17 10:03:44 INFO     [orchestrator]           ...IDLE... Listening for next wake event
-2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]      Action logfile captured at /home/aislas/sane_workflows/log/action_000.log
-2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]      Running command:
-2026-09-17 10:03:44 INFO     [thread_0]  [action_000::launch]        /home/aislas/sane_workflows/sane/action_launcher.py /home/aislas/sane_workflows /home/aislas/sane_workflows/tmp/action_action_000.json
-2026-09-17 10:03:44 INFO     [orchestrator]           [FINISHED] ** Action 'action_000'             completed with 'success'
-2026-09-17 10:03:44 INFO     [orchestrator]           Finished running queued actions
-2026-09-17 10:03:44 INFO     [orchestrator]             action_000: success  
-2026-09-17 10:03:44 INFO     [orchestrator]           All actions finished with success
-2026-09-17 10:03:44 INFO     [orchestrator]           Finished in 0:00:00.070389
-2026-09-17 10:03:44 INFO     [orchestrator]           Logfiles at /home/aislas/sane_workflows/log
-2026-09-17 10:03:44 INFO     [orchestrator]           Save file at /home/aislas/sane_workflows/tmp/orchestrator.json
-2026-09-17 10:03:44 INFO     [orchestrator]           JUnit file at /home/aislas/sane_workflows/log/results.xml
-2026-09-17 10:03:44 INFO     [sane_runner]            Finished
+sane workflow -p demo/ -a action_000 -r --debug_level 19
+2026-10-02 13:06:40 INFO     [sane]                   Logging output to /home/aislas/sane_workflows/log/runner.log
+2026-10-02 13:06:40 INFO     [orchestrator]           Searching for workflow files...
+2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/custom_def_usage.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/hpc_host.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/patches.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/resource_action.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_action.json
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/test_depmodes.json
+2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.jsonc
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_host.jsonc
+2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.py
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/actual_workflow.py
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/my_workflow.py
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/custom_defs.py
+2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_host.py
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/actual_workflow.py as 'actual_workflow'
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/my_workflow.py as 'my_workflow'
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/custom_defs.py as 'custom_defs'
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/simple_host.py as 'simple_host'
+2026-10-02 13:06:40 INFO     [orchestrator::register] Creation of universe
+2026-10-02 13:06:40 INFO     [orchestrator::register] Creation of world
+2026-10-02 13:06:40 INFO     [orchestrator::register] Hello world from my_workflow
+2026-10-02 13:06:40 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
+2026-10-02 13:06:40 WARNING  [fib_seq_fixed]            Unused keys in dict: ['unused_action_param']
+2026-10-02 13:06:40 WARNING  [fib_seq_calc_mult]        Unused keys in dict: ['mult']
+2026-10-02 13:06:40 WARNING  [orchestrator]             Unused keys in dict: ['unused_orch_param']
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/hpc_host.json
+2026-10-02 13:06:40 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/patches.json
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/resource_action.json
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/simple_action.json
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/test_depmodes.json
+2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/simple_host.jsonc
+2026-10-02 13:06:40 INFO     [orchestrator::patch]    Processing patches from demo/patches.json
+2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Host 'unique_host_config'
+2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_fixed'
+2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_calc_mult'
+2026-10-02 13:06:40 WARNING  [fib_seq_calc_mult::patch]     Unused keys in dict: ['mult']
+2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch filter 'action_09[0-5]' to [6] Actions
+2026-10-02 13:06:40 WARNING  [orchestrator::patch]      Unused keys in patch : ['unused_patch_param']
+2026-10-02 13:06:40 INFO     [orchestrator]           No previous save file to load
+2026-10-02 13:06:40 INFO     [orchestrator]           Requested actions:
+2026-10-02 13:06:40 INFO     [orchestrator]             action_000
+2026-10-02 13:06:40 INFO     [orchestrator]           and any necessary dependencies
+2026-10-02 13:06:40 INFO     [orchestrator]           Full action set:
+2026-10-02 13:06:40 INFO     [orchestrator]             action_000
+2026-10-02 13:06:40 INFO     [orchestrator]           Checking host "generic"
+2026-10-02 13:06:40 INFO     [orchestrator]           Running as 'generic'
+2026-10-02 13:06:40 INFO     [orchestrator]           Checking ability to run all actions on 'generic'...
+2026-10-02 13:06:40 INFO     [orchestrator]             Checking environments...
+2026-10-02 13:06:40 INFO     [orchestrator]             Checking resource availability...
+2026-10-02 13:06:40 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+2026-10-02 13:06:40 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'generic' passed           * * * * * * * * * *
+2026-10-02 13:06:40 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+2026-10-02 13:06:40 INFO     [orchestrator]           Saving host information...
+2026-10-02 13:06:40 INFO     [orchestrator]           Setting state of all inactive actions to pending
+2026-10-02 13:06:40 INFO     [orchestrator]           No previous save file to load
+2026-10-02 13:06:40 INFO     [orchestrator]           Using working directory : '/home/aislas/sane_workflows'
+2026-10-02 13:06:40 INFO     [orchestrator]           Running actions...
+2026-10-02 13:06:40 INFO     [orchestrator]           Running 'action_000' on 'generic'
+2026-10-02 13:06:40 INFO     [orchestrator]           ...IDLE... Listening for next wake event
+2026-10-02 13:06:40 INFO     [thread_0]  [action_000::launch]      Action logfile captured at /home/aislas/sane_workflows/log/action_000.log
+2026-10-02 13:06:40 INFO     [thread_0]  [action_000::launch]      Running command:
+2026-10-02 13:06:40 INFO     [thread_0]  [action_000::launch]        /home/aislas/frameflow/sane/action_launcher.py /home/aislas/sane_workflows /home/aislas/sane_workflows/tmp/action_action_000.json
+2026-10-02 13:06:40 INFO     [orchestrator]           [FINISHED] ** Action 'action_000'             completed with 'success'
+2026-10-02 13:06:40 INFO     [orchestrator]           Finished running queued actions
+2026-10-02 13:06:40 INFO     [orchestrator]             action_000: success
+2026-10-02 13:06:40 INFO     [orchestrator]           All actions finished with success
+2026-10-02 13:06:40 INFO     [orchestrator]           Finished in 0:00:00.213507
+2026-10-02 13:06:40 INFO     [orchestrator]           Logfiles at /home/aislas/sane_workflows/log
+2026-10-02 13:06:40 INFO     [orchestrator]           Save file at /home/aislas/sane_workflows/tmp/orchestrator.json
+2026-10-02 13:06:40 INFO     [orchestrator]           JUnit file at /home/aislas/sane_workflows/log/results.xml
+2026-10-02 13:06:40 INFO     [sane]                   Finished
 ```
 > [!TIP]
 > The above is generated from the `demo/` folder in the repository. It should
