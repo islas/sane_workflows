@@ -250,7 +250,7 @@ def show_summary( workflow_save, options ):
     exit(1)
 
 
-def get_parser():
+def get_parser( parser=None ):
   base = argparse.ArgumentParser( add_help=False )
   base.add_argument(
                     "workflow_save",
@@ -265,7 +265,8 @@ def get_parser():
                     type=str,
                     default="orchestrator.json"
                     )
-  parser = argparse.ArgumentParser()
+  if parser is None:
+    parser = argparse.ArgumentParser()
   subparsers = parser.add_subparsers( required=True, dest="cmd" )
   usage   = subparsers.add_parser( "usage",   help="View resource usage", parents=[base] )
   status  = subparsers.add_parser( "status",  help="View action status", parents=[base] )
@@ -322,16 +323,24 @@ def get_parser():
   return parser
 
 
-def main():
+def main( options=None ):
+  if options is None:
+    print( "DEPRECATED: sane_view is deprecated; use sane view instead.", file=sys.stderr )
+    parser = get_parser()
+    options = parser.parse_args()
+  else:
+    # Remove CLI metadata before processing workflow options.
+    parser = vars( options ).pop( "_parser", None )
+    if parser is None:
+      parser = get_parser()
+
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
-  if package_path not in sys.path:
-      sys.path.append( package_path )
+  if sys.path[0] != package_path:
+      sys.path.insert( 0, package_path )
 
   import sane
 
-  parser = get_parser()
-  options = parser.parse_args()
   filename = os.path.join( options.workflow_save, options.filename )
   if options.cmd == "usage":
     plot_usage( filename, options )

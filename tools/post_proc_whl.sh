@@ -10,6 +10,7 @@ unzip $WHEEL
 chmod +x sane/action_launcher.py
 chmod +x sane/sane_runner.py
 chmod +x sane/sane_view.py
+chmod +x sane/sane.py
 
 # repackage, force update
 rm $WHEEL
