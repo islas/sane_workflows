@@ -14,7 +14,9 @@ def get_parser():
   from sane import sane_runner, sane_view
 
   parser = argparse.ArgumentParser( description="SANE workflow tools" )
-  subparsers = parser.add_subparsers( required=True, dest="command" )
+  subparsers = parser.add_subparsers( dest="command" )
+  # Python 3.6 requires setting this attribute after creating the subparsers.
+  subparsers.required = True
   workflow = sane_runner.get_parser( subparsers.add_parser( "workflow", help="Orchestrate actions" ) )
   workflow.set_defaults( _parser=workflow )
   view = sane_view.get_parser( subparsers.add_parser( "view", help="Inspect a saved workflow" ) )

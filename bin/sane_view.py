@@ -267,7 +267,9 @@ def get_parser( parser=None ):
                     )
   if parser is None:
     parser = argparse.ArgumentParser()
-  subparsers = parser.add_subparsers( required=True, dest="cmd" )
+  subparsers = parser.add_subparsers( dest="cmd" )
+  # Python 3.6 requires setting this attribute after creating the subparsers.
+  subparsers.required = True
   usage   = subparsers.add_parser( "usage",   help="View resource usage", parents=[base] )
   status  = subparsers.add_parser( "status",  help="View action status", parents=[base] )
   state   = subparsers.add_parser( "state",   help="View action state", parents=[base] )
