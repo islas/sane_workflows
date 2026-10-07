@@ -1,0 +1,4 @@
+interface:
+  display_name: "SANE Workflows"
+  short_description: "Author and diagnose stateful DAG workflows"
+  default_prompt: "Use $sane-workflows to design, review, or debug this SANE workflow."
