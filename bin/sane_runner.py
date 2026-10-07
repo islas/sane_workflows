@@ -8,10 +8,9 @@ import copy
 import json
 
 
-def get_parser():
-  parser = argparse.ArgumentParser(
-                                    description="Entry point for orchestrating actions"
-                                    )
+def get_parser( parser=None ):
+  if parser is None:
+    parser = argparse.ArgumentParser( description="Entry point for orchestrating actions" )
 
   parser.add_argument(
                       "-p", "--path",
@@ -166,17 +165,25 @@ def get_parser():
   return parser
 
 
-def main():
+def main( options=None ):
+  if options is None:
+    print( "DEPRECATED: sane_runner is deprecated; use sane workflow instead.", file=sys.stderr )
+    parser = get_parser()
+    options = parser.parse_args()
+  else:
+    # Remove CLI metadata before copying options for virtual relaunches.
+    parser = vars( options ).pop( "_parser", None )
+    if parser is None:
+      parser = get_parser()
+
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
-  if package_path not in sys.path:
-      sys.path.append( package_path )
+  if sys.path[0] != package_path:
+      sys.path.insert( 0, package_path )
 
   import sane
 
-  logger = sane.logger.Logger( "sane_runner" )
-  parser  = get_parser()
-  options = parser.parse_args()
+  logger = sane.logger.Logger( "sane" )
   sane.internal_logger.setLevel( options.debug_level )
   sys.excepthook = sane.log_exceptions
 
@@ -312,8 +319,10 @@ def main():
           else :
             args.append( f"{value}" )
       action = sane.Action( "virtual_relaunch" )
-      action.config["command"] = __file__
-      action.config["arguments"] = args
+      from sane import sane as sane_cli
+
+      action.config["command"] = sane_cli.__file__
+      action.config["arguments"] = [ "workflow" ] + args
       action.wrap_stdout = False
       action.add_resource_requirements( json.loads( virtual_resources ) )
       orchestrator.add_action( action )

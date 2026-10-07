@@ -9,16 +9,17 @@ this section is listed first. An example workflow is provided in the `source rep
 in the `demo folder`_.
 
 
-Runner
-======
-SANE workflows provides a single entry point for executing workflows: ``sane_runner``. 
+Executing Workflows
+===================
+Use ``sane workflow`` to execute workflows and ``sane view`` to inspect saved results.
+See the :doc:`CLI reference </reference/cli>` for command syntax and help.
 
 This python executable facilitates the creation of an :py:class:`Orchestrator`, passing options and initializing the
 orchestrator instance, then performing the user requested commands. All documentation moving forward will use
-``sane_runner`` and runner interchangeably to refer to this entry point.
+``sane workflow`` and runner interchangeably to refer to this entry point.
 
 It is not *strictly necessary* to use the provided entry point, and one *could* directly use the :py:class:`Orchestrator`
-however it is **highly recommended** that users first use ``sane_runner``, directly setting up their own orchestrator instance
+however it is **highly recommended** that users first use ``sane workflow``, directly setting up their own orchestrator instance
 only when the runner features are insufficient. 
 
 The next sections assume the exclusive usage of the runner.
@@ -33,7 +34,7 @@ able to be listed by using the option multiple times:
 
 .. code:: console
 
-  sane_runner -p workflow_path -p other_path ...<other options>
+  sane workflow -p workflow_path -p other_path ...<other options>
 
 
 Once provided, these paths will be searched *in order* for all applicable files. Once found, these files are processed
@@ -47,52 +48,56 @@ as follows:
 At the end of this processing a workflow is fully ready to use and **SHOULD NOT** be further modified by the user.
 
 As an example, here is an excerpt from running the demo workflow found in the `source repo`_ with lines highlighting the
-start of each of the above steps:
+start of each of the above steps. This run uses a copy of ``demo/`` in
+``/home/aislas/sane_workflows`` and ``--debug_level 19`` to include execution details:
 
-.. code-block:: ruby
+.. code-block:: none
    :linenos:
-   :emphasize-lines: 17, 21, 25, 34
+   :emphasize-lines: 18, 22, 26, 37
 
-    sane_runner -p demo/ -a action_000 -r
-    2025-11-18 12:36:19 INFO     [sane_runner]            Logging output to /home/aislas/frameflow/log/runner.log
-    2025-11-18 12:36:19 INFO     [orchestrator]           Searching for workflow files...
-    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.json
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/custom_def_usage.json
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_action.json
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/hpc_host.json
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/patches.json
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/resource_action.json
-    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.jsonc
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_host.jsonc
-    2025-11-18 12:36:19 INFO     [orchestrator]             Searching demo/ for *.py
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/my_workflow.py
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/simple_host.py
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/actual_workflow.py
-    2025-11-18 12:36:19 INFO     [orchestrator]               Found demo/custom_defs.py
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/my_workflow.py as 'my_workflow'
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/simple_host.py as 'simple_host'
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/actual_workflow.py as 'actual_workflow'
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading python file demo/custom_defs.py as 'custom_defs'
-    2025-11-18 12:36:19 INFO     [orchestrator::register] Creation of universe
-    2025-11-18 12:36:19 INFO     [orchestrator::register] Creation of world
-    2025-11-18 12:36:19 INFO     [orchestrator::register] Hello world from my_workflow
-    2025-11-18 12:36:19 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
-    2025-11-18 12:36:19 WARNING  [fib_seq_fixed]            Unused keys in dict : ['unused_action_param']
-    2025-11-18 12:36:19 WARNING  [orchestrator]             Unused keys in dict : ['unused_orch_param']
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/simple_action.json
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/hpc_host.json
-    2025-11-18 12:36:19 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/patches.json
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/resource_action.json
-    2025-11-18 12:36:19 INFO     [orchestrator]           Loading config file demo/simple_host.jsonc
-    2025-11-18 12:36:19 INFO     [orchestrator::patch]    Processing patches from demo/patches.json
-    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Host 'unique_host_config'
-    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_fixed'
-    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_calc_mult'
-    2025-11-18 12:36:19 INFO     [orchestrator::patch]      Applying patch filter 'action_09[0-5]' to [6] Actions
-    2025-11-18 12:36:19 WARNING  [orchestrator::patch]      Unused keys in patch : ['unused_patch_param']
-
+    sane workflow -p demo/ -a action_000 -r --debug_level 19
+    2026-10-02 13:06:40 INFO     [sane]                   Logging output to /home/aislas/sane_workflows/log/runner.log
+    2026-10-02 13:06:40 INFO     [orchestrator]           Searching for workflow files...
+    2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/custom_def_usage.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/hpc_host.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/patches.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/resource_action.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_action.json
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/test_depmodes.json
+    2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.jsonc
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_host.jsonc
+    2026-10-02 13:06:40 INFO     [orchestrator]             Searching demo/ for *.py
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/actual_workflow.py
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/my_workflow.py
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/custom_defs.py
+    2026-10-02 13:06:40 INFO     [orchestrator]               Found demo/simple_host.py
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/actual_workflow.py as 'actual_workflow'
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/my_workflow.py as 'my_workflow'
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/custom_defs.py as 'custom_defs'
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading python file demo/simple_host.py as 'simple_host'
+    2026-10-02 13:06:40 INFO     [orchestrator::register] Creation of universe
+    2026-10-02 13:06:40 INFO     [orchestrator::register] Creation of world
+    2026-10-02 13:06:40 INFO     [orchestrator::register] Hello world from my_workflow
+    2026-10-02 13:06:40 INFO     [orchestrator::register] <class 'custom_defs.MyAction'>
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/custom_def_usage.json
+    2026-10-02 13:06:40 WARNING  [fib_seq_fixed]            Unused keys in dict: ['unused_action_param']
+    2026-10-02 13:06:40 WARNING  [fib_seq_calc_mult]        Unused keys in dict: ['mult']
+    2026-10-02 13:06:40 WARNING  [orchestrator]             Unused keys in dict: ['unused_orch_param']
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/hpc_host.json
+    2026-10-02 13:06:40 INFO     [example_pbs]              Adding homogeneous node resources for 'cpu'
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/patches.json
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/resource_action.json
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/simple_action.json
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/test_depmodes.json
+    2026-10-02 13:06:40 INFO     [orchestrator]           Loading config file demo/simple_host.jsonc
+    2026-10-02 13:06:40 INFO     [orchestrator::patch]    Processing patches from demo/patches.json
+    2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Host 'unique_host_config'
+    2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_fixed'
+    2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch to Action 'fib_seq_calc_mult'
+    2026-10-02 13:06:40 WARNING  [fib_seq_calc_mult::patch]     Unused keys in dict: ['mult']
+    2026-10-02 13:06:40 INFO     [orchestrator::patch]      Applying patch filter 'action_09[0-5]' to [6] Actions
+    2026-10-02 13:06:40 WARNING  [orchestrator::patch]      Unused keys in patch : ['unused_patch_param']
 
 Selecting Actions
 =================
@@ -105,7 +110,7 @@ used in conjunction with one another to create the desired set of actions to ope
 The ``--actions`` option allows explicitly listing a series of actions, space-delimited, to be executed.
 .. code::
 
-   sane_runner -p demo -a action_000 action_001 ... action_099
+   sane workflow -p demo -a action_000 action_001 ... action_099
 
 The ``--filter`` option allows a Python :py:mod:`re` regular expression (regex) filter to be used to select which actions
 to be executed. There are no extra flags added to this regex (i.e. no case insensitive ``re.I``) and actions are included
@@ -113,7 +118,7 @@ if ``re.match( filter, action.id )`` is not ``None``. The option may be listed m
 i.e. actions need only match **one** of the filters to be included (not all need to be matched).
 .. code::
 
-   sane_runner -p demo -f "^action_0[0-9]5" -f "action_0[0-4]1"
+   sane workflow -p demo -f "^action_0[0-9]5" -f "action_0[0-4]1"
 
 The default is ``--filter ".*"``
 
@@ -146,15 +151,15 @@ of actions was previously run from this workflow, the results of those actions w
 
 Results are written in a JUnit XML file in the log directory:
 
-.. code-block:: ruby
+.. code-block:: none
    :linenos:
    :emphasize-lines: 4
 
-   ...
-   2025-10-08 18:22:56 INFO     [orchestrator]       All actions finished with success
-   2025-10-08 18:22:56 INFO     [orchestrator]       Save file at /home/aislas/sane_workflows/tmp/orchestrator.json
-   2025-10-08 18:22:56 INFO     [orchestrator]       JUnit file at /home/aislas/sane_workflows/log/results.xml
-   2025-10-08 18:22:56 INFO     [sane_runner]        Finished 
+    ...
+    2026-10-02 13:06:40 INFO     [orchestrator]           All actions finished with success
+    2026-10-02 13:06:40 INFO     [orchestrator]           Save file at /home/aislas/sane_workflows/tmp/orchestrator.json
+    2026-10-02 13:06:40 INFO     [orchestrator]           JUnit file at /home/aislas/sane_workflows/log/results.xml
+    2026-10-02 13:06:40 INFO     [sane]                   Finished
 
 .. _running.saves:
 
@@ -194,7 +199,7 @@ symbol meaning     description
 ``✧``  end         A node specifically requested to be printed, vs implicitly due to dependencies
 ====== =========== ===========
 
-As an example, if ``sane_runner -p demo -l -a action_005 action_015 action_025`` is run and the output graph is:
+As an example, if ``sane workflow -p demo -l -a action_005 action_015 action_025 -vg`` is run and the output graph is:
 
 .. code-block:: none
    :emphasize-lines: 7, 8
@@ -223,8 +228,8 @@ The following have no dependencies:
 
 Verbose
 -------
-The ``-v``/``--verbose`` option forces actions' output to be echoed to the terminal in addition to the already
-captured output in the actions' logfile.
+The ``-v``/``--verbose`` option sets the logging level to ``17``, including action
+output in the terminal and main log. Action logfiles are still written.
 
 .. _running.debug:
 
@@ -245,11 +250,13 @@ scheduler. Rather than have each action submitted as individual jobs, potentiall
 between action dependencies, we can launch the workflow itself as the job, forcing the actions to work within the new
 resource constraints we supplied.
 
-So instead of:
+The following queue listings illustrate submission on a PBS host; job IDs and
+queue names depend on the scheduler. Select your configured PBS host with
+``-sh``. For example, individual submissions could look like:
 
 .. code:: none
 
-   sane_runner -p demo -l -a action_005 action_015 action_025
+   sane workflow -p demo -r -sh my_pbs_host -a action_005 action_015 action_025
    ...job status...
    Job ID          Username Queue    Jobname                  S ...
    --------------- -------- -------- ------------------------ - ...
@@ -265,13 +272,14 @@ We can do:
 
 .. code:: none
 
-   sane_runner -p demo -l -a action_005 action_015 action_025 -vr '{"cpus" : 20}'
+   sane workflow -p demo -r -sh my_pbs_host -a action_005 action_015 action_025 -vr '{"cpus" : 20}'
    ...job status...
    Job ID          Username Queue    Jobname                        S ...
    --------------- -------- -------- ------------------------       - ...
    3582344.desche* aislas   cpu      sane.workflow.virtual_relaunch Q ...
 
-Where the ``sane.workflow.virtual_relaunch`` job will run ``sane_runner -p demo -l -a action_005 action_015 action_025``
+The ``sane.workflow.virtual_relaunch`` job runs the selected actions through
+``sane workflow`` within the allocated resources.
 
 The benefit of this relaunch system, aside from the aggregation of actions, is that it allows us to generally group actions
 but allow the host to inform us how that aggregation will look based on the resources specific to the host.

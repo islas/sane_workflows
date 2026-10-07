@@ -34,6 +34,7 @@ Repository = "https://github.com/islas/sane_workflows.git"
 Issues = "https://github.com/islas/sane_workflows/issues"
 
 [project.scripts]
+sane        = "sane.sane:main"
 sane_runner = "sane:sane_runner.main"
 sane_view   = "sane:sane_view.main"
 
