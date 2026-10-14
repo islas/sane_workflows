@@ -124,12 +124,14 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
   def post_launch( self, action, retval, content ):
     if not self.launch_local( action ):
+      # Job submission failed
       if retval != 0:
         msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
-        raise Exception( msg )
-      self._job_ids[action.id] = self.extract_job_id( content )
-      self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'", level=RUN_INFO )
+        # raise Exception( msg )
+      else:
+        self._job_ids[action.id] = self.extract_job_id( content )
+        self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'", level=RUN_INFO )
     super().post_launch( action, retval, content )
 
   def post_run_actions( self, actions ):

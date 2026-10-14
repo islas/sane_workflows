@@ -814,10 +814,13 @@ class Action( state.SaveState, res.ResourceRequestor ):
       # We failed :(
       self.set_state_error()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
+      slogger.log_exceptions( None, e, e.__traceback__, logger=self.logger.getChild( "raw" ) )
       self.logname = self.id
       self.label_length = slogger.DEFAULT_LABEL_LENGTH
       self.pop_logscope()
-      raise e
+      # Do not re-raise, just mark as failure
+      return -1, "failure"
+      # raise e
 
     finally:
       # Always notify the orchestrator
