@@ -80,11 +80,11 @@ internal_filter.logger = internal_logger
 console_handler.addFilter( internal_filter )
 
 
-def log_exceptions( etype, value, traceback ):
+def log_exceptions( etype, value, traceback, logger=internal_logger ):
   from traceback import format_exception
   lines = format_exception( etype, value, traceback )
   for line in lines:
-    internal_logger.log( 50, line )
+    logger.log( 50, line )
 
 
 class Logger:
