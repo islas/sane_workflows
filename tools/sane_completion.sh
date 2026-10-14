@@ -218,4 +218,4 @@ _shtab_sane() {
   return 0
 }
 
-complete -F _shtab_sane sane
+complete -o default -F _shtab_sane sane
