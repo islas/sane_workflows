@@ -23,7 +23,7 @@
         "<anything>" : "<anyvalue>",
         "<anything-else>" : { "<anykey>" : "<anyvalue>" },
         "<anything-else2>" : [ "<anyvalue>" ]
-      }
+      },
       // base environment of host always run before other envs
       // name will be <host-name>_env where <host-name> is substituted for user provided name
       "base_env" :
@@ -168,24 +168,36 @@
     }
   },
   "patches" :
-  {
-    // priority of when to apply patch, similar to python @sane.register decorator
-    // highest priority goes first. If not specified default is 0
-    "priority" : 0,
-    "hosts" :
+  [
     {
-      // matching name of host to modify
-      // all fields found in this host's type config are allowed (except "type" as you can't change the type)
-      // however not all fields may be modifiable after creation, that is dependent on the type itself and how
-      // it implements its load_config()
-      "<host-name>" : {}
+      // priority of when to apply patch, similar to python @sane.register decorator
+      // highest priority goes first. If not specified default is 0
+      "priority" : 0,
+      "hosts" :
+      {
+        // matching name of host to modify
+        // all fields found in this host's type config are allowed (except "type" as you can't change the type)
+        // however not all fields may be modifiable after creation, that is dependent on the type itself and how
+        // it implements its load_config()
+        "<host-name>" : {}
+      },
+      "actions" :
+      {
+        // Same as host patch above, match the name to an existing action id
+        // and use any fields applicable with same caveat of may not be modifiable
+        "<id>" : {}
+      }
     },
-    "actions" :
     {
-      // Same as host patch above, match the name to an existing action id
-      // and use any fields applicable with same caveat of may not be modifiable
-      "<id>" : {}
+      // Apply this patch earlier
+      "priority" : 100,
+      "actions" :
+      {
+        // You may use regex filters, denoted with [<regex>], to apply a patch to
+        // multiple host names or action IDs
+        "[^regex(find|match)_(<id1)?$]" : {}
+      }
     }
-  }
+  ]
   // Anything after this is passed via config dict to load_extra_options()
 }

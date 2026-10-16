@@ -33,10 +33,12 @@ while [ ! -f $CURRENT_SOURCE_DIR/kill ]; do
     fi
 
     cmd=$( tail -n 1 $QUEUE_DIR/$cmd_file )
-    eval "$cmd" &> /dev/null
+    eval "$cmd" > /dev/null 2>&1
     result=$?
-    rm $QUEUE_DIR/$cmd_file
-    echo $result > $COMPLETE_DIR/$cmd_file
+    # Publish the exit status only after its contents are complete.
+    printf '%s\n' "$result" > "$CURRENT_SOURCE_DIR/$cmd_file.complete.tmp"
+    mv "$CURRENT_SOURCE_DIR/$cmd_file.complete.tmp" "$COMPLETE_DIR/$cmd_file"
+    rm "$QUEUE_DIR/$cmd_file"
   done
   sleep $PERIOD
 done

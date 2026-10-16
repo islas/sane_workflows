@@ -1,21 +1,23 @@
 {
   "patches" :
-  {
-    "actions" :
+  [
     {
-      "fib_seq_fixed" :
+      "actions" :
       {
+        "fib_seq_fixed" :
+        {
+        },
+        "fib_seq_calc_mult":
+        {
+          "mult" : 3
+        },
+        "[action_09[0-5]]" : { "config" : { "useless" : 0 } }
       },
-      "fib_seq_calc_mult":
+      "hosts" :
       {
-        "mult" : 3
+        "unique_host_config" : { "config" : { "x" : 1 } }
       },
-      "[action_09[0-5]]" : { "config" : { "useless" : 0 } }
-    },
-    "hosts" :
-    {
-      "unique_host_config" : { "config" : { "x" : 1 } }
-    },
-    "unused_patch_param" : 2
-  }
+      "unused_patch_param" : 2
+    }
+  ]
 }

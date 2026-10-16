@@ -6,8 +6,8 @@ import os
 if __name__ == "__main__":
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
-  if package_path not in sys.path:
-    sys.path.append( package_path )
+  if sys.path[0] != package_path:
+    sys.path.insert( 0, package_path )
 
   import sane
 

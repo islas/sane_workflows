@@ -25,7 +25,7 @@ config = SphinxConfig( os.path.join( package_path, "pyproject.toml" ), globalns=
 project = "SANE Workflows"
 copyright = "2025, islas"
 author = "islas"
-release = version
+release = version  # noqa
 
 nitpicky = False
 
@@ -42,7 +42,7 @@ extensions = [
               "sphinx.ext.intersphinx",
               "sphinx.ext.graphviz",
               # External extensions
-              "myst_parser", # .md include
+              "myst_parser",  # .md include
               "sphinx_toolbox.collapse",            # collapse sections
               "sphinx_toolbox.decorators",          # py:deco doesn't work
               "sphinx_toolbox.more_autodoc.regex"   # regex highlighting
@@ -86,16 +86,18 @@ ref = None
 try:
   result = subprocess.run( ["git", "describe", "--exact-match"], capture_output=True, text=True, check=True )
   ref = result.stdout.strip()
-except:
+except Exception as e:
   try:
     result = subprocess.run( ["git", "branch", "-a", "--contains"], capture_output=True, text=True, check=True )
     ref = result.stdout.strip().split( "\n" )[-1].split( "origin/" )[-1].strip()
-  except:
+  except Exception as e:
     print( "No git source found" )
-    raise Exception()
+    raise e
 
 print( f"Using git ref : {ref}" )
 code_url = f"https://github.com/islas/sane_workflows/tree/{ref}"
+
+
 def linkcode_resolve(domain, info):
   if domain != "py":
     return None
@@ -119,7 +121,7 @@ def linkcode_resolve(domain, info):
   except TypeError:
     # e.g. object is a typing.Union
     return None
-  
+
   project_path = os.path.abspath( os.path.join( __file__, "../../../" ) )
   file = os.path.relpath(file, project_path )
 

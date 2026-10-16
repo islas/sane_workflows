@@ -8,10 +8,9 @@ import copy
 import json
 
 
-def get_parser():
-  parser = argparse.ArgumentParser(
-                                    description="Entry point for orchestrating actions"
-                                    )
+def get_parser( parser=None ):
+  if parser is None:
+    parser = argparse.ArgumentParser( description="Entry point for orchestrating actions" )
 
   parser.add_argument(
                       "-p", "--path",
@@ -31,22 +30,27 @@ def get_parser():
                       action="append",
                       type=str,
                       default=[],
-                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py], Use multiple times for many patterns"
+                      help="Search pattern used to find workflows, default is [*.json, *.jsonc, *.py],"
+                           "Use multiple times for many patterns"
                       )
-  act_group = parser.add_argument_group( "Action Selection (choose only one)", "Select actions to operate on" )
-  act_list = act_group.add_mutually_exclusive_group()
-  act_list.add_argument(
+  act_group = parser.add_argument_group(
+                                        "Action Selection",
+                                        "Select actions to operate on,"
+                                        "default is '.*' filter when no selection is provided"
+                                        )
+  act_group.add_argument(
                         "-a", "--actions",
                         nargs="+",
                         type=str,
                         default=[],
                         help="Actions in the workflow to run"
                         )
-  act_list.add_argument(
+  act_group.add_argument(
                         "-f", "--filter",
+                        action="append",
                         type=str,
-                        default=".*",
-                        help="Select actions matching pattern, default '.*'"
+                        default=[],
+                        help="Actions matching pattern. Use multiple times for many filters, each applied separately"
                         )
   cmd_group = parser.add_argument_group( "Commands (choose only one)", "Set of commands operate on select actions" )
   cmd = cmd_group.add_mutually_exclusive_group()
@@ -88,8 +92,8 @@ def get_parser():
                       action="store_const",
                       dest="debug_level",
                       default=20,
-                      const=18,
-                      help="Verbose output to main log, shorthand for `-g 18`"
+                      const=17,
+                      help="Verbose output to main log, shorthand for `-g 17`"
                       )
   parser.add_argument(
                       "-g", "--debug_level",
@@ -111,6 +115,14 @@ def get_parser():
                       action="store_true",
                       default=None,
                       help="Force local actions running of all actions"
+                      )
+  parser.add_argument(
+                      "-m", "--mode",
+                      type=int,
+                      default=0,
+                      help="0 - requested actions (RA) use workflow state |"
+                           "1 - RA always run |"
+                           "2 - (1) & invalidate downstream actions"
                       )
   parser.add_argument(
                       "-n", "--new",
@@ -153,17 +165,25 @@ def get_parser():
   return parser
 
 
-def main():
+def main( options=None ):
+  if options is None:
+    print( "DEPRECATED: sane_runner is deprecated; use sane workflow instead.", file=sys.stderr )
+    parser = get_parser()
+    options = parser.parse_args()
+  else:
+    # Remove CLI metadata before copying options for virtual relaunches.
+    parser = vars( options ).pop( "_parser", None )
+    if parser is None:
+      parser = get_parser()
+
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
-  if package_path not in sys.path:
-      sys.path.append( package_path )
+  if sys.path[0] != package_path:
+      sys.path.insert( 0, package_path )
 
   import sane
 
-  logger = sane.logger.Logger( "sane_runner" )
-  parser  = get_parser()
-  options = parser.parse_args()
+  logger = sane.logger.Logger( "sane" )
   sane.internal_logger.setLevel( options.debug_level )
   sys.excepthook = sane.log_exceptions
 
@@ -198,12 +218,17 @@ def main():
 
   action_list = options.actions.copy()
 
-  if len( action_list ) == 0:
-    # Use filter
-    action_filter = re.compile( options.filter )
-    for action in orchestrator.actions:
-      if action_filter.match( action ):
-        action_list.append( action )
+  # Use default filter
+  if len( action_list ) == 0 and len( options.filter ) == 0:
+    options.filter.append( ".*" )
+
+  for filter in options.filter:
+    logger.log( f"Using action filter '{filter}'" )
+    action_filter = re.compile( filter )
+    found = [ action for action in orchestrator.actions if action_filter.match( action ) ]
+    if len( found ) > 0:
+      logger.log( f"  Found [{len(found)}] Actions" )
+    action_list.extend( found )
 
   # Still nothing
   if len( action_list ) == 0:
@@ -211,6 +236,11 @@ def main():
     parser.print_help()
     exit( 1 )
   else:
+    prev_length = len( action_list )
+    action_list = sorted( list( set( action_list ) ) )
+    diff_len = prev_length - len( action_list )
+    if diff_len > 0:
+      logger.log( f"Duplicate requests [{diff_len}] for Actions", level=30 )
     orchestrator.check_action_id_list( action_list )
 
   if options.virtual_host is not None or options.virtual_relaunch is not None:
@@ -224,9 +254,9 @@ def main():
     if isinstance( host, sane.resources.NonLocalProvider ):
       host.force_local = True
       host.local_resources.logname = f"{host.name}::local"
-      host.local_resources.add_resources( json.loads( virtual_resources ), override=True )
+      host.local_resources.add_resources( json.loads( virtual_resources ), overwrite=True )
     else:
-      host.add_resources( json.loads( virtual_resources ), override=True )
+      host.add_resources( json.loads( virtual_resources ), overwrite=True )
 
     logger.log( f"Adding virtual host {host.name} to orchestrator" )
     orchestrator.add_host( host )
@@ -289,8 +319,10 @@ def main():
           else :
             args.append( f"{value}" )
       action = sane.Action( "virtual_relaunch" )
-      action.config["command"] = __file__
-      action.config["arguments"] = args
+      from sane import sane as sane_cli
+
+      action.config["command"] = sane_cli.__file__
+      action.config["arguments"] = [ "workflow" ] + args
       action.wrap_stdout = False
       action.add_resource_requirements( json.loads( virtual_resources ) )
       orchestrator.add_action( action )
@@ -310,10 +342,13 @@ def main():
   success = True
   orchestrator.dry_run = options.dry_run
 
-  if options.run:
-    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
-  elif options.dry_run:
-    success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
+  if options.run or options.dry_run:
+    success = orchestrator.run_actions(
+                                        action_list,
+                                        options.specific_host,
+                                        visualize=options.view_graph,
+                                        mode=options.mode
+                                        )
   elif options.list:
     logger.log( "Listing actions:" )
     orchestrator.construct_dag()

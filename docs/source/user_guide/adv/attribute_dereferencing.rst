@@ -189,10 +189,10 @@ resolution. Consider:
         # Data normally comes from this location
         self.datafile = "${{ dependencies.${{ config.data_from }}.output.data }}"
 
-      def load_extra_options( self, options, origin ):
+      def load_extra_options( self, options, origin, **kwargs ):
         # Allow instances of this action type to change where the data comes from
         self.datafile = options.pop( "datafile", self.datafile )
-        super().load_extra_options( self, options, origin )
+        super().load_extra_options( self, options, origin, **kwargs )
 
       def load_data( self, file ):
         ...do work...
@@ -217,10 +217,10 @@ this with logic contained to just ``run()`` may look something like:
         # Data normally comes from this location
         self.datafile = None
 
-      def load_extra_options( self, options, origin ):
+      def load_extra_options( self, options, origin, **kwargs ):
         # Allow instances of this action type to change where the data comes from
         self.datafile = options.pop( "datafile", self.datafile )
-        super().load_extra_options( self, options, origin )
+        super().load_extra_options( self, options, origin, **kwargs )
 
       def load_data( self, file ):
         ...do work...

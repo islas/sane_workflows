@@ -168,22 +168,29 @@ Our final file setup should look something like so:
 .. include:: common/host_uneventful.rst
 
 .. code-block:: none
-    :emphasize-lines: 8
+   :emphasize-lines: 9, 11
 
-    sane_runner -p .sane/ --run
+    sane workflow -p .sane/ -sh forest -n -v -r
 
-    2025-12-07 20:36:10 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-    2025-12-07 20:36:10 INFO     [orchestrator]           Searching for workflow files...
-    2025-12-07 20:36:10 INFO     [orchestrator]             Searching .sane/ for *.json
-    2025-12-07 20:36:10 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-    2025-12-07 20:36:10 INFO     [orchestrator]             Searching .sane/ for *.py
-    2025-12-07 20:36:10 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
-    2025-12-07 20:36:10 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
-    2025-12-07 20:36:10 INFO     [sane_runner]            No actions selected
-    ...help info...
+    2026-10-02 12:28:19 INFO     [sane]                   Logging output to /home/aislas/mango/python_basic_host/log/runner.log
+    2026-10-02 12:28:19 INFO     [orchestrator]           Searching for workflow files...
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.json
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.jsonc
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.py
+    2026-10-02 12:28:19 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
+    2026-10-02 12:28:19 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
+    2026-10-02 12:28:19 INFO     [sane]                   Using action filter '.*'
+    2026-10-02 12:28:19 INFO     [sane]                   No actions selected
+    usage: sane workflow [-h] [-p PATH] [-w WORKING_DIR] [-s SEARCH_PATTERN]
+                         [-a ACTIONS [ACTIONS ...]] [-f FILTER] [-r | -l | -d]
+                         [-sh SPECIFIC_HOST] [-sl SAVE_LOCATION]
+                         [-ll LOG_LOCATION] [-v] [-g [DEBUG_LEVEL]] [-vg] [-fl]
+                         [-m MODE] [-n] [--patch PATCH] [-vr VIRTUAL_RELAUNCH]
+                         [-ml MAIN_LOG] [-vh VIRTUAL_HOST]
+    ...remaining help omitted...
 
 .. tip:: This output can be reproduced by using the source repo example found at
-         ``/home/aislas/frameflow/docs/examples/mango/python_basic_host/.sane``
+         ``docs/examples/mango/python_basic_host/.sane``
 
 The default search patterns found our file and loaded it, but nothing was done since
 no actions were found.
@@ -326,72 +333,73 @@ following *optional* flags:
 * ``-v``  :ref:`running.verbose` option to get full output in one location rather than split amongst multiple files
 
 .. code-block:: none
-    :emphasize-lines: 8-11, 32, 42-44, 48, 50-54, 61-63
+   :emphasize-lines: 10, 11, 33, 43, 44, 45, 47, 49, 50, 51, 52, 53, 54, 62, 63, 64
 
-    sane_runner -p .sane/ -sh forest -n -v -r
+    sane workflow -p .sane/ -sh forest -n -v -r
 
-    2025-12-10 18:41:08 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-    2025-12-10 18:41:08 INFO     [orchestrator]           Searching for workflow files...
-    2025-12-10 18:41:08 INFO     [orchestrator]             Searching .sane/ for *.json
-    2025-12-10 18:41:08 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-    2025-12-10 18:41:08 INFO     [orchestrator]             Searching .sane/ for *.py
-    2025-12-10 18:41:08 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
-    2025-12-10 18:41:08 INFO     [orchestrator]               Found .sane/mango/actions/grow.py
-    2025-12-10 18:41:08 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
-    2025-12-10 18:41:08 INFO     [orchestrator]           Loading python file .sane/mango/actions/grow.py as 'mango.actions.grow'
-    2025-12-10 18:41:08 INFO     [orchestrator]           No previous save file to load
-    2025-12-10 18:41:08 INFO     [orchestrator]           Requested actions:
-    2025-12-10 18:41:08 INFO     [orchestrator]             grow_action  
-    2025-12-10 18:41:08 INFO     [orchestrator]           and any necessary dependencies
-    2025-12-10 18:41:08 INFO     [orchestrator]           Full action set:
-    2025-12-10 18:41:08 INFO     [orchestrator]           Full action set:
-    2025-12-10 18:41:08 INFO     [orchestrator]             grow_action  
-    2025-12-10 18:41:08 INFO     [orchestrator]           Checking host "forest"
-    2025-12-10 18:41:08 INFO     [orchestrator]           Running as 'forest'
-    2025-12-10 18:41:08 INFO     [orchestrator]           Checking ability to run all actions on 'forest'...
-    2025-12-10 18:41:08 INFO     [orchestrator]             Checking environments...
-    2025-12-10 18:41:08 INFO     [orchestrator]             Checking resource availability...
-    2025-12-10 18:41:08 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-    2025-12-10 18:41:08 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'forest' passed            * * * * * * * * * * 
-    2025-12-10 18:41:08 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-    2025-12-10 18:41:08 INFO     [orchestrator]           Saving host information...
-    2025-12-10 18:41:08 INFO     [orchestrator]           Setting state of all inactive actions to pending
-    2025-12-10 18:41:08 INFO     [orchestrator]           No previous save file to load
-    2025-12-10 18:41:08 INFO     [orchestrator]           Using working directory : '/home/aislas/mango'
-    2025-12-10 18:41:08 INFO     [orchestrator]           Running actions...
-    2025-12-10 18:41:08 INFO     [orchestrator]           Running 'grow_action' on 'forest'
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Action logfile captured at /home/aislas/mango/log/grow_action.log
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Saving action information for launch...
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Using working directory : '/home/aislas/mango'
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Running command:
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]        /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango /home/aislas/mango/tmp/action_grow_action.json
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Command output will be captured to logfile /home/aislas/mango/log/grow_action.runlog
-    2025-12-10 18:41:08 INFO     [thread_0]  [grow_action::launch]      Command output will be printed to this terminal
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    ***************Inside action_launcher.py***************
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    Current directory: /home/aislas/mango
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    Loaded Action "grow_action"
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    Loaded Host "forest"
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    Using Environment "valley"
-    2025-12-10 18:41:08 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
-    2025-12-10 18:41:08 INFO     [valley]                   Environment variable GROWTH_RATE=85
-    2025-12-10 18:41:08 INFO     [grow_action::run]       Running command:
-    2025-12-10 18:41:08 INFO     [grow_action::run]         .sane/mango/scripts/grow.sh 4
-    2025-12-10 18:41:08 INFO     [grow_action::run]       Command output will be printed to this terminal
-    2025-12-10 18:41:08 STDOUT   [grow_action::run]       Growing with 4 trees with 85% growth rate...
-    2025-12-10 18:41:08 STDOUT   [grow_action::run]         Tree 1 grew 6 mangos!
-    2025-12-10 18:41:08 STDOUT   [grow_action::run]         Tree 2 grew 6 mangos!
-    2025-12-10 18:41:08 STDOUT   [grow_action::run]         Tree 3 grew 4 mangos!
-    2025-12-10 18:41:08 STDOUT   [grow_action::run]         Tree 4 grew 6 mangos!
-    2025-12-10 18:41:08 INFO     [grow_action::launch]    ***************Finished action_launcher.py***************
-    2025-12-10 18:41:08 INFO     [orchestrator]           [FINISHED] ** Action 'grow_action'            completed with 'success'
-    2025-12-10 18:41:08 INFO     [orchestrator]           Finished running queued actions
-    2025-12-10 18:41:08 INFO     [orchestrator]             grow_action: success  
-    2025-12-10 18:41:08 INFO     [orchestrator]           All actions finished with success
-    2025-12-10 18:41:08 INFO     [orchestrator]           Finished in 0:00:00.183791
-    2025-12-10 18:41:08 INFO     [orchestrator]           Logfiles at /home/aislas/mango/log
-    2025-12-10 18:41:08 INFO     [orchestrator]           Save file at /home/aislas/mango/tmp/orchestrator.json
-    2025-12-10 18:41:08 INFO     [orchestrator]           JUnit file at /home/aislas/mango/log/results.xml
-    2025-12-10 18:41:08 INFO     [sane_runner]            Finished
+    2026-10-02 12:28:19 INFO     [sane]                   Logging output to /home/aislas/mango/python_grow_action/log/runner.log
+    2026-10-02 12:28:19 INFO     [orchestrator]           Searching for workflow files...
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.json
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.jsonc
+    2026-10-02 12:28:19 INFO     [orchestrator]             Searching .sane/ for *.py
+    2026-10-02 12:28:19 INFO     [orchestrator]               Found .sane/mango/actions/grow.py
+    2026-10-02 12:28:19 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
+    2026-10-02 12:28:19 INFO     [orchestrator]           Loading python file .sane/mango/actions/grow.py as 'mango.actions.grow'
+    2026-10-02 12:28:19 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
+    2026-10-02 12:28:19 INFO     [sane]                   Using action filter '.*'
+    2026-10-02 12:28:19 INFO     [sane]                     Found [1] Actions
+    2026-10-02 12:28:19 INFO     [orchestrator]           No previous save file to load
+    2026-10-02 12:28:19 INFO     [orchestrator]           Requested actions:
+    2026-10-02 12:28:19 INFO     [orchestrator]             grow_action
+    2026-10-02 12:28:19 INFO     [orchestrator]           and any necessary dependencies
+    2026-10-02 12:28:19 INFO     [orchestrator]           Full action set:
+    2026-10-02 12:28:19 INFO     [orchestrator]             grow_action
+    2026-10-02 12:28:19 INFO     [orchestrator]           Checking host "forest"
+    2026-10-02 12:28:19 INFO     [orchestrator]           Running as 'forest'
+    2026-10-02 12:28:19 INFO     [orchestrator]           Checking ability to run all actions on 'forest'...
+    2026-10-02 12:28:19 INFO     [orchestrator]             Checking environments...
+    2026-10-02 12:28:19 INFO     [orchestrator]             Checking resource availability...
+    2026-10-02 12:28:19 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    2026-10-02 12:28:19 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'forest' passed            * * * * * * * * * *
+    2026-10-02 12:28:19 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    2026-10-02 12:28:19 INFO     [orchestrator]           Saving host information...
+    2026-10-02 12:28:19 INFO     [orchestrator]           Setting state of all inactive actions to pending
+    2026-10-02 12:28:19 INFO     [orchestrator]           No previous save file to load
+    2026-10-02 12:28:19 INFO     [orchestrator]           Using working directory : '/home/aislas/mango/python_grow_action'
+    2026-10-02 12:28:19 INFO     [orchestrator]           Running actions...
+    2026-10-02 12:28:19 INFO     [orchestrator]           Running 'grow_action' on 'forest'
+    2026-10-02 12:28:19 INFO     [orchestrator]           ...IDLE... Listening for next wake event
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]      Action logfile captured at /home/aislas/mango/python_grow_action/log/grow_action.log
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]      Saving action information for launch...
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]        Save complete
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]      Using working directory : '/home/aislas/mango/python_grow_action'
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]      Running command:
+    2026-10-02 12:28:19 INFO     [thread_0]  [grow_action::launch]        /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango/python_grow_action /home/aislas/mango/python_grow_action/tmp/action_grow_action.json
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    ***************Inside action_launcher.py***************
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    Current directory: /home/aislas/mango/python_grow_action
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    Loaded Action "grow_action"
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    Loaded Host "forest"
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    Using Environment "valley"
+    2026-10-02 12:28:19 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
+    2026-10-02 12:28:19 INFO     [valley]                   Environment variable GROWTH_RATE=85
+    2026-10-02 12:28:19 INFO     [grow_action::run]       Running command:
+    2026-10-02 12:28:19 INFO     [grow_action::run]         .sane/mango/scripts/grow.sh 4
+    2026-10-02 12:28:19 STDOUT   [grow_action::run]       Growing with 4 trees with 85% growth rate...
+    2026-10-02 12:28:19 STDOUT   [grow_action::run]         Tree 1 grew 5 mangos!
+    2026-10-02 12:28:19 STDOUT   [grow_action::run]         Tree 2 grew 1 mangos!
+    2026-10-02 12:28:19 STDOUT   [grow_action::run]         Tree 3 grew 6 mangos!
+    2026-10-02 12:28:19 STDOUT   [grow_action::run]         Tree 4 grew 1 mangos!
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    Saving outputs to : /home/aislas/mango/python_grow_action/tmp/grow_action_outputs.json
+    2026-10-02 12:28:19 INFO     [grow_action::launch]    ***************Finished action_launcher.py***************
+    2026-10-02 12:28:20 INFO     [orchestrator]           [FINISHED] ** Action 'grow_action'            completed with 'success'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Finished running queued actions
+    2026-10-02 12:28:20 INFO     [orchestrator]             grow_action: success
+    2026-10-02 12:28:20 INFO     [orchestrator]           All actions finished with success
+    2026-10-02 12:28:20 INFO     [orchestrator]           Finished in 0:00:00.300554
+    2026-10-02 12:28:20 INFO     [orchestrator]           Logfiles at /home/aislas/mango/python_grow_action/log
+    2026-10-02 12:28:20 INFO     [orchestrator]           Save file at /home/aislas/mango/python_grow_action/tmp/orchestrator.json
+    2026-10-02 12:28:20 INFO     [orchestrator]           JUnit file at /home/aislas/mango/python_grow_action/log/results.xml
+    2026-10-02 12:28:20 INFO     [sane]                   Finished
 
 .. tip:: This output can be reproduced by using the source repo example found at
           ``docs/examples/mango/python_grow_action/.sane/``
@@ -538,97 +546,97 @@ and not the :py:class:`Action` object created in `grow.py`_ directly.
 Let's run with new action:
 
 .. code-block:: none
-    :emphasize-lines: 59, 75, 77-78
+   :emphasize-lines: 60, 76, 77, 78
 
-    sane_runner -p .sane/ -sh forest -n -v -r
+    sane workflow -p .sane/ -sh forest -n -v -r
 
-    2025-12-11 16:36:33 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-    2025-12-11 16:36:33 INFO     [orchestrator]           Searching for workflow files...
-    2025-12-11 16:36:33 INFO     [orchestrator]             Searching .sane/ for *.json
-    2025-12-11 16:36:33 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-    2025-12-11 16:36:33 INFO     [orchestrator]             Searching .sane/ for *.py
-    2025-12-11 16:36:33 INFO     [orchestrator]               Found .sane/mango/actions/grow.py
-    2025-12-11 16:36:33 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
-    2025-12-11 16:36:33 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
-    2025-12-11 16:36:33 INFO     [orchestrator]           Loading python file .sane/mango/actions/grow.py as 'mango.actions.grow'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
-    2025-12-11 16:36:33 INFO     [orchestrator]           No previous save file to load
-    2025-12-11 16:36:33 INFO     [orchestrator]           Requested actions:
-    2025-12-11 16:36:33 INFO     [orchestrator]             grow_action     harvest_action  
-    2025-12-11 16:36:33 INFO     [orchestrator]           and any necessary dependencies
-    2025-12-11 16:36:33 INFO     [orchestrator]           Full action set:
-    2025-12-11 16:36:33 INFO     [orchestrator]           Full action set:
-    2025-12-11 16:36:33 INFO     [orchestrator]             grow_action     harvest_action  
-    2025-12-11 16:36:33 INFO     [orchestrator]           Checking host "forest"
-    2025-12-11 16:36:33 INFO     [orchestrator]           Running as 'forest'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Checking ability to run all actions on 'forest'...
-    2025-12-11 16:36:33 INFO     [orchestrator]             Checking environments...
-    2025-12-11 16:36:33 INFO     [orchestrator]             Checking resource availability...
-    2025-12-11 16:36:33 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-    2025-12-11 16:36:33 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'forest' passed            * * * * * * * * * * 
-    2025-12-11 16:36:33 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-    2025-12-11 16:36:33 INFO     [orchestrator]           Saving host information...
-    2025-12-11 16:36:33 INFO     [orchestrator]           Setting state of all inactive actions to pending
-    2025-12-11 16:36:33 INFO     [orchestrator]           No previous save file to load
-    2025-12-11 16:36:33 INFO     [orchestrator]           Using working directory : '/home/aislas/mango'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Running actions...
-    2025-12-11 16:36:33 INFO     [orchestrator]           Running 'grow_action' on 'forest'
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Action logfile captured at /home/aislas/mango/log/grow_action.log
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Saving action information for launch...
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Using working directory : '/home/aislas/mango'
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Running command:
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]           /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango /home/aislas/mango/tmp/action_grow_action.json
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Command output will be captured to logfile /home/aislas/mango/log/grow_action.runlog
-    2025-12-11 16:36:33 INFO     [thread_0]  [grow_action::launch]         Command output will be printed to this terminal
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    ***************Inside action_launcher.py***************
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    Current directory: /home/aislas/mango
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    Loaded Action "grow_action"
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    Loaded Host "forest"
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    Using Environment "valley"
-    2025-12-11 16:36:33 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
-    2025-12-11 16:36:33 INFO     [valley]                   Environment variable GROWTH_RATE=85
-    2025-12-11 16:36:33 INFO     [grow_action::run]       Running command:
-    2025-12-11 16:36:33 INFO     [grow_action::run]         .sane/mango/scripts/grow.sh 4
-    2025-12-11 16:36:33 INFO     [grow_action::run]       Command output will be printed to this terminal
-    2025-12-11 16:36:33 STDOUT   [grow_action::run]       Growing with 4 trees with 85% growth rate...
-    2025-12-11 16:36:33 STDOUT   [grow_action::run]         Tree 1 grew 2 mangos!
-    2025-12-11 16:36:33 STDOUT   [grow_action::run]         Tree 2 grew 4 mangos!
-    2025-12-11 16:36:33 STDOUT   [grow_action::run]         Tree 3 grew 2 mangos!
-    2025-12-11 16:36:33 STDOUT   [grow_action::run]         Tree 4 grew 8 mangos!
-    2025-12-11 16:36:33 INFO     [grow_action::launch]    ***************Finished action_launcher.py***************
-    2025-12-11 16:36:33 INFO     [orchestrator]           [FINISHED] ** Action 'grow_action'            completed with 'success'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Running 'harvest_action' on 'forest'
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Action logfile captured at /home/aislas/mango/log/harvest_action.log
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Saving action information for launch...
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Using working directory : '/home/aislas/mango'
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Running command:
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]        /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango /home/aislas/mango/tmp/action_harvest_action.json
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Command output will be captured to logfile /home/aislas/mango/log/harvest_action.runlog
-    2025-12-11 16:36:33 INFO     [thread_0]  [harvest_action::launch]      Command output will be printed to this terminal
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] ***************Inside action_launcher.py***************
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] Current directory: /home/aislas/mango
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] Loaded Action "harvest_action"
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] Loaded Host "forest"
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] Using Environment "valley"
-    2025-12-11 16:36:33 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
-    2025-12-11 16:36:33 INFO     [valley]                   Environment variable GROWTH_RATE=85
-    2025-12-11 16:36:33 INFO     [harvest_action::run]    Running command:
-    2025-12-11 16:36:33 INFO     [harvest_action::run]      .sane/mango/scripts/harvest.sh
-    2025-12-11 16:36:33 INFO     [harvest_action::run]    Command output will be printed to this terminal
-    2025-12-11 16:36:33 STDOUT   [harvest_action::run]    Harvesting mangos...
-    2025-12-11 16:36:33 STDOUT   [harvest_action::run]    Collected : 16
-    2025-12-11 16:36:33 INFO     [harvest_action::launch] ***************Finished action_launcher.py***************
-    2025-12-11 16:36:33 INFO     [orchestrator]           [FINISHED] ** Action 'harvest_action'         completed with 'success'
-    2025-12-11 16:36:33 INFO     [orchestrator]           Finished running queued actions
-    2025-12-11 16:36:33 INFO     [orchestrator]             grow_action   : success  harvest_action: success  
-    2025-12-11 16:36:33 INFO     [orchestrator]           All actions finished with success
-    2025-12-11 16:36:33 INFO     [orchestrator]           Finished in 0:00:00.346601
-    2025-12-11 16:36:33 INFO     [orchestrator]           Logfiles at /home/aislas/mango/log
-    2025-12-11 16:36:33 INFO     [orchestrator]           Save file at /home/aislas/mango/tmp/orchestrator.json
-    2025-12-11 16:36:33 INFO     [orchestrator]           JUnit file at /home/aislas/mango/log/results.xml
-    2025-12-11 16:36:33 INFO     [sane_runner]            Finished
-
+    2026-10-02 12:28:20 INFO     [sane]                   Logging output to /home/aislas/mango/python_harvest_action/log/runner.log
+    2026-10-02 12:28:20 INFO     [orchestrator]           Searching for workflow files...
+    2026-10-02 12:28:20 INFO     [orchestrator]             Searching .sane/ for *.json
+    2026-10-02 12:28:20 INFO     [orchestrator]             Searching .sane/ for *.jsonc
+    2026-10-02 12:28:20 INFO     [orchestrator]             Searching .sane/ for *.py
+    2026-10-02 12:28:20 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
+    2026-10-02 12:28:20 INFO     [orchestrator]               Found .sane/mango/actions/grow.py
+    2026-10-02 12:28:20 INFO     [orchestrator]               Found .sane/mango/hosts/forest.py
+    2026-10-02 12:28:20 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Loading python file .sane/mango/actions/grow.py as 'mango.actions.grow'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Loading python file .sane/mango/hosts/forest.py as 'mango.hosts.forest'
+    2026-10-02 12:28:20 INFO     [sane]                   Using action filter '.*'
+    2026-10-02 12:28:20 INFO     [sane]                     Found [2] Actions
+    2026-10-02 12:28:20 INFO     [orchestrator]           No previous save file to load
+    2026-10-02 12:28:20 INFO     [orchestrator]           Requested actions:
+    2026-10-02 12:28:20 INFO     [orchestrator]             grow_action     harvest_action
+    2026-10-02 12:28:20 INFO     [orchestrator]           and any necessary dependencies
+    2026-10-02 12:28:20 INFO     [orchestrator]           Full action set:
+    2026-10-02 12:28:20 INFO     [orchestrator]             grow_action     harvest_action
+    2026-10-02 12:28:20 INFO     [orchestrator]           Checking host "forest"
+    2026-10-02 12:28:20 INFO     [orchestrator]           Running as 'forest'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Checking ability to run all actions on 'forest'...
+    2026-10-02 12:28:20 INFO     [orchestrator]             Checking environments...
+    2026-10-02 12:28:20 INFO     [orchestrator]             Checking resource availability...
+    2026-10-02 12:28:20 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    2026-10-02 12:28:20 INFO     [orchestrator]           * * * * * * * * * *            All prerun checks for 'forest' passed            * * * * * * * * * *
+    2026-10-02 12:28:20 INFO     [orchestrator]           * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+    2026-10-02 12:28:20 INFO     [orchestrator]           Saving host information...
+    2026-10-02 12:28:20 INFO     [orchestrator]           Setting state of all inactive actions to pending
+    2026-10-02 12:28:20 INFO     [orchestrator]           No previous save file to load
+    2026-10-02 12:28:20 INFO     [orchestrator]           Using working directory : '/home/aislas/mango/python_harvest_action'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Running actions...
+    2026-10-02 12:28:20 INFO     [orchestrator]           Running 'grow_action' on 'forest'
+    2026-10-02 12:28:20 INFO     [orchestrator]           ...IDLE... Listening for next wake event
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]         Action logfile captured at /home/aislas/mango/python_harvest_action/log/grow_action.log
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]         Saving action information for launch...
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]           Save complete
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]         Using working directory : '/home/aislas/mango/python_harvest_action'
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]         Running command:
+    2026-10-02 12:28:20 INFO     [thread_0]  [grow_action::launch]           /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango/python_harvest_action /home/aislas/mango/python_harvest_action/tmp/action_grow_action.json
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    ***************Inside action_launcher.py***************
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    Current directory: /home/aislas/mango/python_harvest_action
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    Loaded Action "grow_action"
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    Loaded Host "forest"
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    Using Environment "valley"
+    2026-10-02 12:28:20 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
+    2026-10-02 12:28:20 INFO     [valley]                   Environment variable GROWTH_RATE=85
+    2026-10-02 12:28:20 INFO     [grow_action::run]       Running command:
+    2026-10-02 12:28:20 INFO     [grow_action::run]         .sane/mango/scripts/grow.sh 4
+    2026-10-02 12:28:20 STDOUT   [grow_action::run]       Growing with 4 trees with 85% growth rate...
+    2026-10-02 12:28:20 STDOUT   [grow_action::run]         Tree 1 grew 7 mangos!
+    2026-10-02 12:28:20 STDOUT   [grow_action::run]         Tree 2 grew 2 mangos!
+    2026-10-02 12:28:20 STDOUT   [grow_action::run]         Tree 3 grew 6 mangos!
+    2026-10-02 12:28:20 STDOUT   [grow_action::run]         Tree 4 grew 1 mangos!
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    Saving outputs to : /home/aislas/mango/python_harvest_action/tmp/grow_action_outputs.json
+    2026-10-02 12:28:20 INFO     [grow_action::launch]    ***************Finished action_launcher.py***************
+    2026-10-02 12:28:20 INFO     [orchestrator]           [FINISHED] ** Action 'grow_action'            completed with 'success'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Running 'harvest_action' on 'forest'
+    2026-10-02 12:28:20 INFO     [orchestrator]           ...IDLE... Listening for next wake event
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]      Action logfile captured at /home/aislas/mango/python_harvest_action/log/harvest_action.log
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]      Saving action information for launch...
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]        Save complete
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]      Using working directory : '/home/aislas/mango/python_harvest_action'
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]      Running command:
+    2026-10-02 12:28:20 INFO     [thread_0]  [harvest_action::launch]        /home/aislas/frameflow/sane/action_launcher.py /home/aislas/mango/python_harvest_action /home/aislas/mango/python_harvest_action/tmp/action_harvest_action.json
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] ***************Inside action_launcher.py***************
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] Current directory: /home/aislas/mango/python_harvest_action
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] Loaded Action "harvest_action"
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] Loaded Host "forest"
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] Using Environment "valley"
+    2026-10-02 12:28:20 INFO     [valley]                 Running env cmd: 'set' with var: 'GROWTH_RATE' and val: '85'
+    2026-10-02 12:28:20 INFO     [valley]                   Environment variable GROWTH_RATE=85
+    2026-10-02 12:28:20 INFO     [harvest_action::run]    Running command:
+    2026-10-02 12:28:20 INFO     [harvest_action::run]      .sane/mango/scripts/harvest.sh
+    2026-10-02 12:28:20 STDOUT   [harvest_action::run]    Harvesting mangos...
+    2026-10-02 12:28:20 STDOUT   [harvest_action::run]    Collected : 16
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] Saving outputs to : /home/aislas/mango/python_harvest_action/tmp/harvest_action_outputs.json
+    2026-10-02 12:28:20 INFO     [harvest_action::launch] ***************Finished action_launcher.py***************
+    2026-10-02 12:28:20 INFO     [orchestrator]           [FINISHED] ** Action 'harvest_action'         completed with 'success'
+    2026-10-02 12:28:20 INFO     [orchestrator]           Finished running queued actions
+    2026-10-02 12:28:20 INFO     [orchestrator]             grow_action   : success  harvest_action: success
+    2026-10-02 12:28:20 INFO     [orchestrator]           All actions finished with success
+    2026-10-02 12:28:20 INFO     [orchestrator]           Finished in 0:00:00.427453
+    2026-10-02 12:28:20 INFO     [orchestrator]           Logfiles at /home/aislas/mango/python_harvest_action/log
+    2026-10-02 12:28:20 INFO     [orchestrator]           Save file at /home/aislas/mango/python_harvest_action/tmp/orchestrator.json
+    2026-10-02 12:28:20 INFO     [orchestrator]           JUnit file at /home/aislas/mango/python_harvest_action/log/results.xml
+    2026-10-02 12:28:20 INFO     [sane]                   Finished
 
 .. tip:: This output can be reproduced by using the source repo example found at
           ``docs/examples/mango/python_harvest_action/.sane/``
@@ -647,341 +655,6 @@ Again, reviewing the highlighted regions:
 
     If you're looking to add more control to your workflows or for an extra challenge,
     check out the :ref:`advanced`.
-
-.. We will create the ``.sane/mango/actions/harvest.py`` file and mock up our function:
-
-.. .. code-block:: python
-..     :caption: .sane/mango/actions/harvest.py
-
-..     import sane
-
-..     @sane.register
-..     def create_harvest_action( orch ):
-..       # what to put here...
-
-.. Depending on how thoroughly you read the :py:meth:`Action.load_core_config` documentation
-.. presented in the JSON :ref:`json.actions` section, you may recall that the config loading
-.. relied almost exclusively on :py:class:`Action` :ref:`action.ui` interaction. Internally,
-.. there is some data "massaging" to get JSON ``dict`` values into the right spot, but the
-.. content is analogous.
-
-.. Using the API reference links as necessary, let's start to fill out our function with useful
-.. details:
-
-.. .. literalinclude:: ../../examples/mango/python_harvest_action/.sane/mango/actions/harvest.py
-..     :language: python
-..     :caption: .sane/mango/actions/harvest.py
-..     :emphasize-lines: 13
-
-.. We won't add any :py:meth:`~Action.resources`, but we will need to create the helper
-.. script to do the harvesting:
-
-.. .. literalinclude:: ../../examples/mango/python_harvest_action/.sane/scripts/harvest.sh
-..     :language: bash
-..     :caption: .sane/scripts/harvest.sh
-
-.. We are ready to run this new action with our previous JSON setup:
-
-.. .. code-block:: none
-..     :emphasize-lines: 15, 31, 37
-
-..     sane_runner -p .sane/ --specific_host forest --run -p patch/ -v -n
-
-..     2025-12-05 15:54:13 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Searching for workflow files...
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching .sane/ for *.json
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]               Found .sane/mango/actions/grow.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]               Found .sane/mango/hosts/forest.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching .sane/ for *.py
-..     2025-12-05 15:54:13 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching patch/ for *.json
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching patch/ for *.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]               Found patch/valley_growth.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]             Searching patch/ for *.py
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Loading config file .sane/mango/actions/grow.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Loading config file .sane/mango/hosts/forest.jsonc
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Loading config file patch/valley_growth.jsonc
-..     ...
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Running 'grow_action' on 'forest'
-..     ...
-..     2025-12-05 15:54:13 INFO     [grow_action::run]       Running command:
-..     2025-12-05 15:54:13 INFO     [grow_action::run]         .sane/scripts/grow.sh 4
-..     2025-12-05 15:54:13 INFO     [grow_action::run]       Command output will be printed to this terminal
-..     2025-12-05 15:54:13 STDOUT   [grow_action::run]       Growing with 4 trees with 400% growth rate...
-..     2025-12-05 15:54:13 STDOUT   [grow_action::run]         Tree 1 grew 33 mangos!
-..     2025-12-05 15:54:13 STDOUT   [grow_action::run]         Tree 2 grew 21 mangos!
-..     2025-12-05 15:54:13 STDOUT   [grow_action::run]         Tree 3 grew 37 mangos!
-..     2025-12-05 15:54:13 STDOUT   [grow_action::run]         Tree 4 grew 1 mangos!
-..     ...
-..     2025-12-05 15:54:13 INFO     [orchestrator]           Running 'harvest_action' on 'forest'
-..     ...
-..     2025-12-05 15:54:13 INFO     [harvest_action::run]    Running command:
-..     2025-12-05 15:54:13 INFO     [harvest_action::run]      .sane/scripts/harvest.sh
-..     2025-12-05 15:54:13 INFO     [harvest_action::run]    Command output will be printed to this terminal
-..     2025-12-05 15:54:13 STDOUT   [harvest_action::run]    Harvesting mangos...
-..     2025-12-05 15:54:13 STDOUT   [harvest_action::run]    Collected : 92
-..     ...
-..     2025-12-05 15:54:13 INFO     [sane_runner]            Finished
-
-.. .. tip:: This output can be reproduced by using the source repo example found at
-..           ``docs/examples/mango/python_harvest_action/.sane/``
-
-.. As we are already probably familiar with the runner outupt, the above shows the
-.. condensed view of the sections of interest:
-
-.. * The python file is loaded first then immediately processed for registered functions before the JSON files
-
-..   * The dependency of ``"harvest_action"`` on ``"grow_action"`` can be declared before the parent action is created
-..   * :py:class:`Action.dependencies` makes no distinction between JSON or python declared actions
-.. * The ``"harvest_action"`` is only run after the ``"grow_action"``
-.. * The total number of mangos is correct and it's quite the harvest!
-
-.. Hosts
-.. -----
-.. Using the same guidelines as above (using :py:class:`Host` :ref:`host.ui`) we should
-.. be able to create a new host as well:
-
-.. .. literalinclude:: ../../examples/mango/python_desert_host/.sane/mango/hosts/desert.py
-..     :language: python
-..     :caption: .sane/mango/hosts/desert.py
-
-.. However if we run this we may get some issues...
-
-.. .. code-block:: none
-..     :emphasize-lines: 36-38
-
-..     sane_runner -p .sane/ -n -r -sh wasteland -p patch/ -v
-
-..     2025-12-05 16:35:28 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Searching for workflow files...
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching .sane/ for *.json
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]               Found .sane/mango/hosts/forest.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]               Found .sane/mango/actions/grow.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching .sane/ for *.py
-..     2025-12-05 16:35:28 INFO     [orchestrator]               Found .sane/mango/hosts/desert.py
-..     2025-12-05 16:35:28 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching patch/ for *.json
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching patch/ for *.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]               Found patch/valley_growth.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Searching patch/ for *.py
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Loading python file .sane/mango/hosts/desert.py as 'mango.hosts.desert'
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Loading config file .sane/mango/hosts/forest.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Loading config file .sane/mango/actions/grow.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Loading config file patch/valley_growth.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator::patch]    Processing patches from patch/valley_growth.jsonc
-..     2025-12-05 16:35:28 INFO     [orchestrator::patch]      Applying patch to Host 'forest'
-..     2025-12-05 16:35:28 INFO     [forest::patch]              Applying patch to Environment 'valley'
-..     2025-12-05 16:35:28 WARNING  [orchestrator::patch]      Host 'host-does-not-exist' does not exist, cannot patch
-..     2025-12-05 16:35:28 INFO     [sane_runner]            Changing all actions output to verbose
-..     2025-12-05 16:35:28 INFO     [orchestrator]           No previous save file to load
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Running actions:
-..     2025-12-05 16:35:28 INFO     [orchestrator]             harvest_action  grow_action     
-..     2025-12-05 16:35:28 INFO     [orchestrator]           and any necessary dependencies
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Full action set:
-..     2025-12-05 16:35:28 INFO     [orchestrator]             grow_action     harvest_action  
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Checking host "desert"
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Running as 'desert'
-..     2025-12-05 16:35:28 INFO     [orchestrator]           Checking ability to run all actions on 'desert'...
-..     2025-12-05 16:35:28 INFO     [orchestrator]             Checking environments...
-..     2025-12-05 16:35:28 CRITICAL [orchestrator]             Missing environments in Host( "desert" )
-..     2025-12-05 16:35:28 ERROR    [orchestrator]               Action( "grow_action" ) requires Environment( "valley" )
-..     2025-12-05 16:35:28 ERROR    [orchestrator]               Action( "harvest_action" ) requires Environment( "valley" )
-..     Traceback (most recent call last):
-
-..       File "/home/aislas/sane_workflows/bin/sane_runner.py", line 322, in <module>
-..         main()
-
-..       File "/home/aislas/sane_workflows/bin/sane_runner.py", line 305, in main
-..         success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
-
-..       File "/home/aislas/sane_workflows/sane/orchestrator.py", line 529, in run_actions
-..         self.check_host( traversal_list )
-
-..       File "/home/aislas/sane_workflows/sane/orchestrator.py", line 458, in check_host
-..         raise Exception( f"Missing environments {missing_env}" )
-
-..     Exception: Missing environments [('grow_action', 'valley'), ('harvest_action', 'valley')]
-
-
-.. .. tip:: This output can be reproduced by using the source repo example found at
-..           ``docs/examples/mango/python_desert_host/.sane/``
-
-.. We did not implement the ``"valley"`` environment which both actions explicitly
-.. call for, and our ``"dunes"`` environment has no aliases.
-
-.. Register Order
-.. --------------
-.. We can perform object patching using the python interface as well, with even more
-.. powerful control with the caveat that JSON objects are always loaded afterwards.
-.. All we need to do is call :py:func:`@sane.register <sane.register>` with a lower
-.. priority than the function that created the object.
-
-.. To demonstrate, let's fix our ``"desert"`` environment issue with a "patch" python
-.. file we will put in the ``patch/`` folder:
-
-
-.. .. literalinclude:: ../../examples/mango/python_desert_patch/patch/desert_valley.py
-..     :language: python
-..     :caption: patch/desert_valley.py
-
-.. However if we run this we may get some issues...
-
-.. .. code-block:: none
-..     :emphasize-lines: 18-19, 37-39
-
-..     sane_runner -p .sane/ -n -r -sh wasteland -p patch/ -v
-
-..     2025-12-05 16:51:32 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Searching for workflow files...
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching .sane/ for *.json
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found .sane/mango/actions/grow.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found .sane/mango/hosts/forest.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching .sane/ for *.py
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found .sane/mango/hosts/desert.py
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching patch/ for *.json
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching patch/ for *.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found patch/valley_growth.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Searching patch/ for *.py
-..     2025-12-05 16:51:32 INFO     [orchestrator]               Found patch/desert_valley.py
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading python file .sane/mango/hosts/desert.py as 'mango.hosts.desert'
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading python file patch/desert_valley.py as 'desert_valley'
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading config file .sane/mango/actions/grow.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading config file .sane/mango/hosts/forest.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Loading config file patch/valley_growth.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator::patch]    Processing patches from patch/valley_growth.jsonc
-..     2025-12-05 16:51:32 INFO     [orchestrator::patch]      Applying patch to Host 'forest'
-..     2025-12-05 16:51:32 INFO     [forest::patch]              Applying patch to Environment 'valley'
-..     2025-12-05 16:51:32 WARNING  [orchestrator::patch]      Host 'host-does-not-exist' does not exist, cannot patch
-..     2025-12-05 16:51:32 INFO     [sane_runner]            Changing all actions output to verbose
-..     2025-12-05 16:51:32 INFO     [orchestrator]           No previous save file to load
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Running actions:
-..     2025-12-05 16:51:32 INFO     [orchestrator]             harvest_action  grow_action     
-..     2025-12-05 16:51:32 INFO     [orchestrator]           and any necessary dependencies
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Full action set:
-..     2025-12-05 16:51:32 INFO     [orchestrator]             grow_action     harvest_action  
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Checking host "desert"
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Running as 'desert'
-..     2025-12-05 16:51:32 INFO     [orchestrator]           Checking ability to run all actions on 'desert'...
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Checking environments...
-..     2025-12-05 16:51:32 INFO     [orchestrator]             Checking resource availability...
-..     2025-12-05 16:51:32 CRITICAL [desert]                       Will never be able to acquire resource 'trees' : 4, host does not possess this resource. Resources: {'cacti': { total: 50, used: 0 }}
-..     Traceback (most recent call last):
-
-..       File "/home/aislas/sane_workflows/bin/sane_runner.py", line 322, in <module>
-..         main()
-
-..       File "/home/aislas/sane_workflows/bin/sane_runner.py", line 305, in main
-..         success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
-
-..       File "/home/aislas/sane_workflows/sane/orchestrator.py", line 529, in run_actions
-..         self.check_host( traversal_list )
-
-..       File "/home/aislas/sane_workflows/sane/orchestrator.py", line 465, in check_host
-..         can_run = host.resources_available( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
-
-..       File "/home/aislas/sane_workflows/sane/resources.py", line 637, in resources_available
-..         raise Exception( msg )
-
-..     Exception: Will never be able to acquire resource 'trees' : 4, host does not possess this resource. Resources: {'cacti': { total: 50, used: 0 }}
-
-.. .. tip:: This output can be reproduced by using the source repo example found at
-..           ``docs/examples/mango/python_desert_patch/.sane/``
-
-.. Our "patch" python file does in fact get loaded after ``.sane/mango/hosts/desert.py``!
-.. We got a *little* bit further, but now we see the err of our ways in not adding
-.. the appriopriate resources. How would we ever grow mangos on ``"cacti"``?!?
-
-
-.. Python Modules
-.. --------------
-.. The final beginner section of the tutorial will cover how to reference python files
-.. within other python files in your workflow.
-
-.. For this example, we shall have some really useful helper functions in ``.sane/custom/funcs.py``:
-
-.. .. literalinclude:: ../../examples/mango/python_imports/.sane/mango/custom/funcs.py
-..     :language: python
-..     :caption: .sane/mango/custom/funcs.py
-
-.. And let's modify our ``"desert"`` host to use this function:
-
-.. .. literalinclude:: ../../examples/mango/python_imports/.sane/mango/hosts/desert.py
-..     :language: python
-..     :caption: .sane/mango/hosts/desert.py
-..     :emphasize-lines: 3
-
-.. Now if we run this:
-
-.. .. code-block:: none
-..     :emphasize-lines: 14
-
-..     sane_runner -p .sane/ -n -r -sh sahara -v
-
-..     2025-12-05 17:24:58 INFO     [sane_runner]            Logging output to /home/aislas/mango/log/runner.log
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Searching for workflow files...
-..     2025-12-05 17:24:58 INFO     [orchestrator]             Searching .sane/ for *.json
-..     2025-12-05 17:24:58 INFO     [orchestrator]             Searching .sane/ for *.jsonc
-..     2025-12-05 17:24:58 INFO     [orchestrator]               Found .sane/mango/hosts/forest.jsonc
-..     2025-12-05 17:24:58 INFO     [orchestrator]               Found .sane/mango/actions/grow.jsonc
-..     2025-12-05 17:24:58 INFO     [orchestrator]             Searching .sane/ for *.py
-..     2025-12-05 17:24:58 INFO     [orchestrator]               Found .sane/mango/hosts/desert.py
-..     2025-12-05 17:24:58 INFO     [orchestrator]               Found .sane/mango/actions/harvest.py
-..     2025-12-05 17:24:58 INFO     [orchestrator]               Found .sane/mango/custom/funcs.py
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Loading python file .sane/mango/hosts/desert.py as 'mango.hosts.desert'
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Loading python file .sane/mango/actions/harvest.py as 'mango.actions.harvest'
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Loading python file .sane/mango/custom/funcs.py as 'mango.custom.funcs'
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Loading config file .sane/mango/hosts/forest.jsonc
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Loading config file .sane/mango/actions/grow.jsonc
-..     2025-12-05 17:24:58 INFO     [sane_runner]            Changing all actions output to verbose
-..     2025-12-05 17:24:58 INFO     [orchestrator]           No previous save file to load
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Running actions:
-..     2025-12-05 17:24:58 INFO     [orchestrator]             harvest_action  grow_action     
-..     2025-12-05 17:24:58 INFO     [orchestrator]           and any necessary dependencies
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Full action set:
-..     2025-12-05 17:24:58 INFO     [orchestrator]             grow_action     harvest_action  
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Checking host "sonoran"
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Checking host "sahara"
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Running as 'sahara'
-..     2025-12-05 17:24:58 INFO     [orchestrator]           Checking ability to run all actions on 'sahara'...
-..     2025-12-05 17:24:58 INFO     [orchestrator]             Checking environments...
-..     2025-12-05 17:24:58 INFO     [orchestrator]             Checking resource availability...
-..     2025-12-05 17:24:58 CRITICAL [sahara]                       Will never be able to acquire resource 'trees' : 4, host does not possess this resource. Resources: {'cacti': { total: 0, used: 0 }}
-..     Traceback (most recent call last):
-
-..       File "/home/aislas/frameflow/bin/sane_runner.py", line 322, in <module>
-..         main()
-
-..       File "/home/aislas/frameflow/bin/sane_runner.py", line 305, in main
-..         success = orchestrator.run_actions( action_list, options.specific_host, visualize=options.view_graph )
-
-..       File "/home/aislas/frameflow/sane/orchestrator.py", line 529, in run_actions
-..         self.check_host( traversal_list )
-
-..       File "/home/aislas/frameflow/sane/orchestrator.py", line 465, in check_host
-..         can_run = host.resources_available( self.actions[node].resources( self.current_host ), requestor=self.actions[node] )
-
-..       File "/home/aislas/frameflow/sane/resources.py", line 637, in resources_available
-..         raise Exception( msg )
-
-..     Exception: Will never be able to acquire resource 'trees' : 4, host does not possess this resource. Resources: {'cacti': { total: 0, used: 0 }}
-
-.. .. tip:: This output can be reproduced by using the source repo example found at
-..           ``docs/examples/mango/python_imports/.sane/``
-
-.. We still have no trees, **but** our ``"cacti"`` amount corresponds to the ``.sane/mango/custom/funcs.py``
-.. ``num_cacti_in_region()`` function. Note that even though the ``.sane/mango/custom/funcs.py``
-.. module is loaded after the ``mango.hosts.desert`` module, the import still happens correctly.
-
-.. This is because anything provided as a ``-p``/``--path`` argument is added to the
-.. `sys.path`_ for module searching. So ``.sane/mango/custom/funcs.py`` can be imported
-.. in our ``desert.py`` file as ``mango.custom.funcs``.
 
 .. toctree::
    :maxdepth: 2

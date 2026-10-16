@@ -8,6 +8,7 @@ from functools import reduce
 import sane.action
 import sane.resources
 import sane.host
+from sane.logger import RUN_INFO
 
 
 class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
@@ -48,7 +49,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
                           }
     self._cmd_delim = None
 
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     queue = options.pop( "queue", None )
     if queue is not None:
       self.queue = queue
@@ -59,7 +60,7 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
     self.job_suffix = options.pop( "job_suffix", "" )
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
   def _format_arguments( self, arguments ):
     resources = []
@@ -95,36 +96,42 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
     return self.capture_job_complete
 
   def capture_job_complete( self, actions, only_watchdog=True ):
-    while not self.kill_watchdog and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
+    while ( not self.kill_watchdog ) and ( only_watchdog or ( len( self._completed ) != len( self._job_ids ) ) ):
       time.sleep( self._delay_sec )
-      for action_name, job_id in self._job_ids.items():
+      # copy to ensure no other thread modifies the job_ids we iterate on
+      for action_name, job_id in self._job_ids.copy().items():
         if action_name not in self._completed and ( self.dry_run or self.job_complete( job_id ) ):
+
+          # Try to read outputs again
+          actions[action_name].load_outputs()
+
           self._completed[action_name] = job_id
+
           status = self.dry_run or self.job_status( job_id )
           disclaimer = ""
           if self.dry_run:
             disclaimer = " (dry-run)"
+
           self.log( f"Action '{action_name}' with job ID {job_id} complete. Success : {status}{disclaimer}" )
           if status:
             actions[action_name].set_status_success()
           else:
             actions[action_name].set_status_failure()
 
-          # Try to read outputs again
-          actions[action_name].load_outputs()
-
           self.on_job_complete( job_id, actions[action_name] )
           # Wake the orch
-          self.__orch_wake__()
+          self.__orch_wake__.set()
 
   def post_launch( self, action, retval, content ):
     if not self.launch_local( action ):
+      # Job submission failed
       if retval != 0:
         msg = f"Submission of Action '{action.id}' failed. Will not have job id"
         self.log( msg, level=40 )
-        raise Exception( msg )
-      self._job_ids[action.id] = self.extract_job_id( content )
-      self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'" )
+        # raise Exception( msg )
+      else:
+        self._job_ids[action.id] = self.extract_job_id( content )
+        self.log( f"Found job id '{self._job_ids[action.id]}' for '{action.id}'", level=RUN_INFO )
     super().post_launch( action, retval, content )
 
   def post_run_actions( self, actions ):
@@ -200,7 +207,8 @@ class HPCHost( sane.resources.NonLocalProvider, sane.host.Host ):
 
     submit_args, submit_queue = self.submit_args( specific_resources, action.logname )
 
-    if queue is not None and submit_queue is not None:
+    # The queue we thought we would submit to and the requisition queue differ
+    if queue is not None and submit_queue is not None and queue != submit_queue:
       self.log( f"Host or Action provided queue '{queue}' does not match resource queue '{submit_queue}'", level=40 )
       raise RuntimeError( "Mismatched queue" )
 
@@ -317,13 +325,13 @@ class PBSHost( HPCHost ):
       nodeset["total"].log_pop( levels )
       nodeset["node"].log_pop( levels )
 
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     # Note: This is very delicate and maybe should be restructured
     # Pull out resources first to override
     resources = options.pop( "resources", {} )
 
     # Now read rest of options *first* in case we have mappings
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
     # Finally process resources
     for node_type, hardware_info in resources.items():
@@ -337,9 +345,9 @@ class PBSHost( HPCHost ):
         exclusive = hardware_info.get( "exclusive", False )
         queues = hardware_info.get( "queues", [None] )
         node_resource_dict = hardware_info["resources"]
-        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues )
+        self.add_resources( node_type, node_resource_dict, nodes, exclusive, queues, kwargs.get( "overwrite" ) )
 
-  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None] ):
+  def add_resources( self, node_type, node_resource_dict, nodes, exclusive=False, queues=[None], overwrite=False ):
     if node_type in self._resources:
       self.log( f"Node type '{node_type}' already exists" )
     else:
@@ -350,14 +358,15 @@ class PBSHost( HPCHost ):
                                       "node" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" ),
                                       "total" : sane.resources.ResourceProvider( mapper=self._mapper, logname=f"{self.name}::{node_type}" )
                                     }
-      self._resources[node_type]["node"].add_resources( node_resource_dict )
+      self._resources[node_type]["node"].add_resources( node_resource_dict, overwrite )
       self._resources[node_type]["total"].add_resources(
                                                         {
                                                           res_name : (res.acquirable * nodes).amount
                                                           for res_name, res in self._resources[node_type]["node"].resources.items()
-                                                        }
+                                                        },
+                                                        overwrite
                                                       )
-      self._resources[node_type]["total"].add_resources( { "nodes" : nodes } )
+      self._resources[node_type]["total"].add_resources( { "nodes" : nodes }, overwrite )
 
   @property
   def resource_log( self ):
@@ -430,7 +439,7 @@ class PBSHost( HPCHost ):
         resource_dicts.append( select_dict )
 
     requisition = {}
-    queue       = resource_dict.get( "queue", None )
+    queue       = resource_dict.get( "queue", self.queue )
     resolved = True
 
     # These are the resources we *can* provide by queue
@@ -445,7 +454,6 @@ class PBSHost( HPCHost ):
         # Add to that queue what we can possibly offer
         available_resources_by_queue[q] = available_resources_by_queue[q] | set( node_resources["node"].resources.keys() )
         available_resources = available_resources | available_resources_by_queue[q]
-
 
     # Sanitize resource dict into specifics and find the numeric resources we will
     # concern ourselves with fulfilling
@@ -467,18 +475,21 @@ class PBSHost( HPCHost ):
       numeric_resources = []
       for resource in specified_resource_dict.keys():
         if sane.resources.Resource.is_resource( specified_resource_dict[resource] ):
-          specified_resource_dict[resource] = sane.resources.Resource( resource, specified_resource_dict[resource] ).total
+          specified_resource_dict[resource] = sane.resources.Resource(
+                                                                      resource,
+                                                                      specified_resource_dict[resource]
+                                                                      ).total
           numeric_resources.append( resource )
 
       specified_resource_dicts.append( specified_resource_dict )
       numeric_resources_per_dict.append( numeric_resources )
 
     # Find which queue and which nodesets to use
-    if queue is None:
-      all_resources = set()
-      for nr in numeric_resources_per_dict:
-        all_resources = all_resources | set( nr )
+    all_resources = set()
+    for nr in numeric_resources_per_dict:
+      all_resources = all_resources | set( nr )
 
+    if queue is None:
       for q, available_resources in available_resources_by_queue.items():
         if all_resources <= available_resources:
           queue = q
@@ -685,6 +696,8 @@ class PBSHost( HPCHost ):
   def on_job_complete( self, job_id, action ):
     # Release the resources now
     requisition = self._requisitions[action.logname]
-    for nodeset, req in requisition.items():
-      self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+    with self._run_lock:
+      for nodeset, req in requisition.items():
+        self._resources[nodeset]["total"].release_resources( req["amounts"], action )
+
     del self._requisitions[action.logname]

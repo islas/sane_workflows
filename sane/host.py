@@ -3,15 +3,16 @@ from typing import Dict
 
 import sane.match as match
 import sane.options as opts
-import sane.logger as logger
 import sane.save_state as state
 import sane.utdict as utdict
 import sane.environment
 import sane.resources
 from sane.helpers import copydoc, recursive_update
 
+
 class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
-  """Primary :py:class:`~resources.ResourceProvider` and container for :py:class:`Environment` available within a workflow."""
+  """Primary :py:class:`~resources.ResourceProvider` and container for
+  :py:class:`Environment` available within a workflow."""
   CONFIG_TYPE = "Host"
 
   def __init__( self, name, aliases=[] ):
@@ -27,14 +28,27 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
     self.config          = {}
     #: Control when to kill the :py:attr:`watchdog_func`
     self.kill_watchdog   = False
-    self.__wake__        = None
+
+    # These two are provided by the orchestrator upon begin setup
+    # Use the run lock for mutually exclusive run logic (eg. clean logging)
+    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the
+    #: current workflow have access to this mutex.
+    self._run_lock     = None  # threading.Lock()
+    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to
+    #: induce re-evaluation of completed :py:class:`Actions <Action>` in the current workflow run.
+    #: See :py:attr:`Orchestrator.__wake__` for more info.
+    self.__orch_wake__ = None  # threading.Event()
+
+    self.unpicklable.append( "_run_lock" )
+    self.unpicklable.append( "__orch_wake__" )
+    self.unpicklable.append( "logger" )
 
   def match( self, requested_host ):
     return self.partial_match( requested_host )
 
   def valid_host( self, override_host : str = None ) -> bool:
     """Check if this host should be used for this workflow.
-    
+
     The default check uses the FQDN of current machine as the full string to find
     a partial substring match to this :py:attr:`Host.name`.
 
@@ -47,7 +61,7 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
   def has_environment( self, requested_env ) -> sane.environment.Environment:
     """Check if this :py:class:`Host` has the ``requested_env``
-    
+
     If the ``requested_env`` is ``None``, return the :py:attr:`default_env`,
     otherwise try to find the matching :py:class:`Environment` using
     :py:meth:`Environment.match()`.
@@ -107,9 +121,9 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   @copydoc( sane.resources.ResourceProvider.load_core_options, module="resources" )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load the :py:class:`Host` *options* into this instance.
-    
+
     Below is the expected layout, where all fields are optional and ``"<>"`` fields are user-specified:
 
     .. code-block:: python
@@ -153,9 +167,9 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
 
     .. hint::
         See :py:meth:`search_type` for more info on how the ``"type"`` field should be specified.
- 
+
     An example *options* :external:py:class:`dict`:
-    
+
     .. parsed-literal::
 
         {
@@ -192,7 +206,7 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
         env = env_type( self.name + "_env" )
       else:
         env = base_env
-      env.load_options( base_env, origin )
+      env.load_options( base_env, origin, **kwargs )
       self.base_env = env
 
     env_opts      = options.pop( "environments", {} )
@@ -211,13 +225,13 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
         env = env_type( id )
         self.add_environment( env )
 
-      env.load_options( env_options, origin )
+      env.load_options( env_options, origin, **kwargs )
 
     host_config = options.pop( "config", None )
     if host_config is not None:
       recursive_update( self.config, host_config )
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
 
   def pre_launch( self, action : sane.Action ):
     """Called within the main thread just before calling :py:meth:`Action.launch`"""
@@ -265,26 +279,6 @@ class Host( match.NameMatch, state.SaveState, sane.resources.ResourceProvider ):
     info["name"] = self.name
     info["config"] = self.config
     return info
-
-  def save( self ):
-    tmp_wake     = self.__wake__
-    tmp_logger   = self.logger
-    self.__wake__  = None
-    self.logger    = None
-    super().save()
-    # Now restore
-    self.__wake__  = tmp_wake
-    self.logger    = tmp_logger
-
-  def __orch_wake__( self ):
-    """Wake up the :py:class:`Orchestrator` from another thread.
-
-    This should be used as an event trigger to induce re-evaluation of completed
-    :py:class:`Actions <Action>` in the current workflow run.
-    See :py:attr:`Orchestrator.__wake__` for more info.
-    """
-    if self.__wake__ is not None:
-      self.__wake__.set()
 
   @property
   def watchdog_func( self ):

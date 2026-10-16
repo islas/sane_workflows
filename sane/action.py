@@ -50,7 +50,6 @@ class ActionState( Enum ):
   SKIPPED  = "skipped"    #: never run due to dependencies missing
   ERROR    = "error"      #: reserved for internal use, use action status for action failure
 
-
   @classmethod
   def valid_run_state( cls, state ):
     return state == cls.PENDING or state == cls.RUNNING
@@ -78,11 +77,11 @@ class RequirementsState( Enum ):
   def reduce_state( cls, *args ):
     state = cls.MET
     for arg in args:
-      if ( isinstance( arg, bool ) and arg == True ) or arg == cls.MET:
+      if ( isinstance( arg, bool ) and arg is True ) or arg == cls.MET:
         continue
       if arg == cls.PENDING:
         state = cls.PENDING
-      elif ( isinstance( arg, bool ) and arg == False ) or arg == cls.UNMET:
+      elif ( isinstance( arg, bool ) and arg is False ) or arg == cls.UNMET:
         state = cls.UNMET
         break
     return state
@@ -104,7 +103,7 @@ def _dependency_met( dep_type, state, status, submit_ok ):
         elif dep_type == DependencyType.AFTERNOTOK:
           if status == ActionStatus.FAILURE:
             return RequirementsState.MET
-          elif  status == ActionStatus.SUBMITTED:
+          elif status == ActionStatus.SUBMITTED:
             return RequirementsState.MET if submit_ok else RequirementsState.PENDING
   elif dep_type == DependencyType.AFTER:
     if state == ActionState.RUNNING or state == ActionState.FINISHED:
@@ -134,6 +133,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def __init__( self, id ):
     """Create an Action with unique ID"""
+    super().__init__( filename=f"action_{id}", logname=id, base=Action )
+
     self._id = id
     self.config  = {}
     self.outputs = {}
@@ -167,24 +168,17 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     # These two are provided by the orchestrator upon begin setup
     # Use the run lock for mutually exclusive run logic (eg. clean logging)
-    self._run_lock = None
-    self.__wake__    = None
+    #: Shared :py:class:`Action` mutex - All :py:class:`Actions <Action>` in the
+    #: current workflow have access to this mutex.
+    self._run_lock     = None  # threading.Lock()
+    #: Wake up the :py:class:`Orchestrator` from another thread, used as an event trigger to
+    #: induce re-evaluation of completed :py:class:`Actions <Action>` in the current workflow run.
+    #: See :py:attr:`Orchestrator.__wake__` for more info.
+    self.__orch_wake__ = None  # threading.Event()
 
-    super().__init__( filename=f"action_{id}", logname=id, base=Action )
-
-  def save( self ) -> None:
-    # Quickly remove sync objects then restore
-    tmp_run_lock = self._run_lock
-    tmp_wake     = self.__wake__
-    tmp_logger   = self.logger
-    self._run_lock = None
-    self.__wake__  = None
-    self.logger    = None
-    super().save()
-    # Now restore
-    self._run_lock = tmp_run_lock
-    self.__wake__  = tmp_wake
-    self.logger    = tmp_logger
+    self.unpicklable.append( "_run_lock" )
+    self.unpicklable.append( "__orch_wake__" )
+    self.unpicklable.append( "logger" )
 
   def save_outputs( self ) -> None:
     """Serialize :py:attr:`Action.outputs` to JSON file in :py:attr:`Action.save_location`"""
@@ -209,32 +203,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """Reload dependency output info in case it has changed"""
     for dep, info in self.dependencies.items():
       self.load_outputs( dep, info["outputs"] )
-
-  def __orch_wake__( self ) -> None:
-    """Wake up the :py:class:`Orchestrator` from another thread.
-
-    This should be used as an event trigger to induce re-evaluation of completed
-    :py:class:`Actions <Action>` in the current workflow run.
-    See :py:attr:`Orchestrator.__wake__` for more info.
-    """
-    if self.__wake__ is not None:
-      self.__wake__.set()
-
-  def _acquire( self ) -> None:
-    """Acquire the shared :py:class:`Action` mutex.
-
-    All :py:class:`Actions <Action>` in the current workflow have access to this mutex.
-    """
-    if self._run_lock is not None:
-      self._run_lock.acquire()
-
-  def _release( self ) -> None:
-    """Release the shared :py:class:`Action` mutex."""
-    if self._run_lock is not None:
-      if self._run_lock.locked():
-        self._run_lock.release()
-      else:
-        self.log( "Run lock already released", level=30 )
 
   def push_exec_raw( self, exec_raw : bool ) -> None:
     """Push a new value of :py:attr:`Action.__exec_raw__`"""
@@ -346,7 +314,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
   def info( self ) -> dict:
     """:py:class:`Action` info ``dict`` (:py:meth:`dereferenced <dereference>`) provided to direct
     dependencies via :py:attr:`dependencies` at runtime
-    
+
     The default info ``dict`` provided is:
 
     .. parsed-literal::
@@ -421,7 +389,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     """
     return self._dependencies.copy()
 
-  def add_dependencies( self, *args : List[Union[str,Tuple[str,Union[str,DependencyType]]]] ) -> None:
+  def add_dependencies( self, *args : List[Union[str, Tuple[str, Union[str, DependencyType]]]] ) -> None:
     """Add dependencies to this :py:class:`Action`
 
     Use this function to properly add dependencies at any time before the workflow
@@ -471,14 +439,14 @@ class Action( state.SaveState, res.ResourceRequestor ):
       if isinstance( arg, str ):
         self._dependencies[arg] = { "dep_type" : DependencyType.AFTEROK }
       elif (
-                isinstance( arg, tuple )
+            isinstance( arg, tuple )
             and len(arg) == 2
             and isinstance( arg[0], str )
             and arg[1] in DependencyType ):
         self._dependencies[arg[0]] = { "dep_type" : DependencyType( arg[1] ) }
       else:
         msg  = f"Error: Argument {arg_idx} '{arg}' is invalid for {Action.add_dependencies.__name__}()"
-        msg += f", must be of type str or tuple( str, DependencyType.value->str )"
+        msg += ", must be of type str or tuple( str, DependencyType.value->str )"
         self.log( msg, level=50 )
         raise Exception( msg )
 
@@ -497,9 +465,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
     return met
 
   # https://peps.python.org/pep-0484/#forward-references
-  def extra_requirements_met( self, dependency_actions : Dict[str,"Action"] ) -> bool:
+  def extra_requirements_met( self, dependency_actions : Dict[str, "Action"] ) -> bool:
     """Check if any extra user-imposed requirements are met
-    
+
     The return value may be ``True`` to signify this Action is ready to run, or
     ``False`` to note that a requirement was not satisfied and this action would not
     be able to run and thus be :py:attr:`~ActionState.SKIPPED`. Default is to always
@@ -590,7 +558,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     * internal, logfile, and verbose logging with flushing in realtime
     * wrapping of stdout using internal log levels
     * returning return value along with captured stdout (if ``capture`` enabled)
-    
+
     Prefer using this function if stdout log wrapping is desired. If none of the
     features above are of use, any subprocess function call can be used, but may
     or may not appear in the log output as desired. All output is logged, however.
@@ -613,10 +581,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
     args = [ str( arg ) for arg in args ]
 
     command = " ".join( [ arg if " " not in arg else "\"{0}\"".format( arg ) for arg in args ] )
-    self._acquire()
     self.log( "Running command:", level=log_level )
     self.log( "  {0}".format( command ), level=log_level )
-    self._release()
 
     retval  = -1
     content = None
@@ -628,9 +594,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       ##
       # https://stackoverflow.com/a/18422264
       if logfile is not None:
-        self.log( "Command output will be captured to logfile {0}".format( logfile ), level=log_level )
+        self.log( "Command output will be captured to logfile {0}".format( logfile ), level=15 )
       if verbose:
-        self.log( "Command output will be printed to this terminal" )
+        self.log( "Command output will be printed to this terminal", level=15 )
 
       # Keep a duplicate of the output as well in memory as a string
       output = None
@@ -653,9 +619,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
         logfileOutput = open( logfile, "w+", buffering=1 )
 
       # Temporarily swap in a very crude logger
-      log = lambda *args: self.log( *args, level=slogger.STDOUT )
+      log = lambda *args: self.log( *args, level=slogger.STDOUT )  # noqa
       if self.__exec_raw__:
-        log = lambda msg: self.logger.getChild( "raw" ).log( slogger.STDOUT, msg )
+        log = lambda msg: self.logger.getChild( "raw" ).log( slogger.STDOUT, msg )  # noqa
 
       for c in iter( lambda: proc.stdout.readline(), b"" ):
         # Always store in logfile if possible
@@ -670,9 +636,6 @@ class Action( state.SaveState, res.ResourceRequestor ):
         if verbose:
           # Use a raw logger to ensure this also gets captured by the logging handlers
           log( c.decode( 'utf-8', 'replace' ).rstrip( "\n" ) )
-          # print( c.decode( 'utf-8', 'replace' ), flush=True, end="" )
-          # sys.stdout.buffer.write(c)
-          # sys.stdout.flush()
 
       # We don't mind doing this as the process should block us until we are ready to continue
       dump, err    = proc.communicate()
@@ -689,16 +652,9 @@ class Action( state.SaveState, res.ResourceRequestor ):
       retval = 0
       output = "12345"
 
-    # self.log( "\n" )
-    # print( "\n", flush=True, end="" )
-
     if not dry_run:
       if capture:
-        if False:  # TODO Not sure which conditional is supposed to lead here
-          output.seek(0)
-          content = output.read()
-        else:
-          content = output.getvalue().decode( 'utf-8' )
+        content = output.getvalue().decode( 'utf-8' )
         output.close()
     else:
       content = output
@@ -721,9 +677,13 @@ class Action( state.SaveState, res.ResourceRequestor ):
       #. :py:meth:`pre_launch()` (shared :py:class:`Action` mutex locked around this call)
       #. :py:meth:`save()`
       #. resolve internal launch command (:ref:`action_launcher.py`) and ``launch_wrapper``
-      #. :py:meth:`execute_subprocess()` of resolved command, capturing to :py:attr:`runlog` using :py:attr:`dry_run` if set
-      #. final :py:attr:`state` and :py:attr:`status` recorded
-      #. :py:meth:`post_launch()` called with output of (4) (shared :py:class:`Action` mutex locked around this call)
+      #. :py:meth:`execute_subprocess()` of resolved command, capturing to :py:attr:`runlog`
+         using :py:attr:`dry_run` if set
+      #. :py:attr:`status` recorded based on return value from ``action_launcher.py`` subprocess
+      #. :py:attr:`outputs` are reloaded into the main context via :py:meth:`load_outputs`
+      #. :py:meth:`post_launch()` called with output of (4) and can mark :py:attr:`status` as
+         :py:attr:`~ActionStatus.FAILURE` (shared :py:class:`Action` mutex locked around this call)
+      #. :py:attr:`state` is published as :py:attr:`~ActionState.FINISHED`
       #. :py:meth:`__orch_wake__` the :py:class:`Orchestrator`
       #. return output of (4)
 
@@ -731,9 +691,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
     call within :py:meth:`execute_subprocess()`, the following occurs:
 
       #. :py:meth:`set_state_error()` called
-      #. shared :py:class:`Action` mutex force unlocked
       #. :py:meth:`__orch_wake__` the :py:class:`Orchestrator`
       #. re-raise the same ``Exception``
+
+    .. note:: Usage of a ``launch_wrapper`` causes :py:attr:`status` to yield :py:attr:`~ActionStatus.SUBMITTED`.
+              It is on the host that provided the wrapper to determine the Action status.
 
     .. danger:: Avoid modifying or overriding this function in any derived :py:class:`Action`
 
@@ -762,11 +724,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.push_logscope( "launch" )
       self.log( f"Action logfile captured at {self.logfile}", level=slogger.MAIN_LOG )
 
-      self._acquire()
-      self.push_logscope( "pre_launch" )
-      ok = self.pre_launch()
-      self.pop_logscope()
-      self._release()
+      with self._run_lock:
+        self.push_logscope( "pre_launch" )
+        ok = self.pre_launch()
+        self.pop_logscope()
+
       if ok is not None and not ok:
         raise AssertionError( "pre_launch() returned False" )
 
@@ -781,6 +743,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
       self.save()
       self.label_length = self.max_label_length
       self.logname = logname
+      self.log( "  Save complete" )
 
       # Self-submission of execute, but allowing more complex handling by re-entering into this script
       action_dir = self.resolve_path( self.working_directory, working_directory )
@@ -803,9 +766,8 @@ class Action( state.SaveState, res.ResourceRequestor ):
       retval = -1
       content = ""
       if self.logfile is None:
-        self._acquire()
         self.log( "Action will not be saved to logfile", level=30 )
-        self._release()
+
       retval, content = self.execute_subprocess(
                                                 cmd,
                                                 args,
@@ -813,10 +775,10 @@ class Action( state.SaveState, res.ResourceRequestor ):
                                                 capture=True,
                                                 verbose=True,
                                                 dry_run=self.dry_run,
-                                                log_level=slogger.MAIN_LOG
+                                                log_level=slogger.RUN_INFO
                                                 )
 
-      self._state = ActionState.FINISHED
+      # Report state of launch
       if retval != 0:
         self._status = ActionStatus.FAILURE
       else:
@@ -826,46 +788,56 @@ class Action( state.SaveState, res.ResourceRequestor ):
           # No idea what the wrapper might do, this is our best guess
           self._status = ActionStatus.SUBMITTED
 
+      # Reload outputs back into main process context
       self.load_outputs()
 
-      self._acquire()
-      self.push_logscope( "post_launch" )
-      ok = self.post_launch( retval, content )
-      self.pop_logscope()
-      self._release()
+      with self._run_lock:
+        self.push_logscope( "post_launch" )
+        ok = self.post_launch( retval, content )
+        self.pop_logscope()
+
       if ok is not None and not ok:
-        raise AssertionError( "post_launch() returned False" )
+        self.log( "post_launch() marked Action as failure" )
+        self._status = ActionStatus.FAILURE
 
       # notify we have finished
       if thread_name is not None:
         self.logname = self.id
       self.pop_logscope()
-      self.__orch_wake__()
-      self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
+
+      # This is the very last thing we do
+      self._state = ActionState.FINISHED
+
       return retval, content
+
     except Exception as e:
-      # We failed :( still notify the orchestrator
+      # We failed :(
       self.set_state_error()
-      self._release()
       self.log( f"Exception caught, cleaning up : {e}", level=40 )
+      slogger.log_exceptions( None, e, e.__traceback__, logger=self.logger.getChild( "raw" ) )
       self.logname = self.id
       self.label_length = slogger.DEFAULT_LABEL_LENGTH
       self.pop_logscope()
-      self.__orch_wake__()
+      # Do not re-raise, just mark as failure
+      return -1, "failure"
+      # raise e
+
+    finally:
+      # Always notify the orchestrator
+      self.__orch_wake__.set()
       self.__time__ = "{:.6f}".format( time.perf_counter() - start_time )
-      raise e
 
   def ref_string( self, input_str ):
     return len( list( Action.REF_RE.finditer( input_str ) ) ) > 0
 
   def dereference_str( self, input_str : str, log=True, noexcept=False ) -> str:
     """Dereference an input string using GitHub Actions style syntax scoped to the current object
-    
-    Continuously dereferences strings within the current object until no more 
+
+    Continuously dereferences strings within the current object until no more
     substitutions can be made. This means that dereference strings can be nested.
     All attributes and properties can be referenced, but dereferencing will work
     best with attributes that are ``dict``, ``list``, ``str``, or ``int`` values.
-    
+
     | Dict referencing can be achieved with ``.`` operator (key as next field)
     | Index referencing can be achieved with ``[]`` operator (positive integer)
 
@@ -937,7 +909,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
           if isinstance( curr, dict ):
             get_attr = curr.get
           else:
-            get_attr = lambda x: getattr( curr, x, None )
+            get_attr = lambda x: getattr( curr, x, None )  # noqa: E731
 
           curr = get_attr( attr_groups["attr"] )
 
@@ -981,11 +953,11 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   def dereference( self, obj, log=True, noexcept=False ):
     """Fully dereference all strings within the ``obj`` passed in
-    
+
     For ``dict`` and ``list`` objects, each will be iterated over and this function
     will be recursively call for each iterated value (not key), and then assigned
     back to itself, presumably modified. For ``str`` objects :py:meth:`dereference_str()`
-    will be called. 
+    will be called.
 
     For all other object types, the ``obj`` will be unmodified.
 
@@ -1016,9 +988,18 @@ class Action( state.SaveState, res.ResourceRequestor ):
     pass
 
   def post_launch( self, retval, content ) -> bool:
-    """Called after execution of ``action_launcher.py`` with the output of :py:meth:`execute_subprocess()`. See :py:meth:`launch`
+    """Called after execution of ``action_launcher.py`` with the output of :py:meth:`execute_subprocess()`.
+    See :py:meth:`launch`
 
-    :return: If return is ``False``, :py:class:`Action` is assumed to have a :py:attr:`~ActionStatus.FAILURE`
+    Use this call to post-process any Action results or outputs within the main process context.
+    As this occurs within the main process, do not perform intensive work here if not necessary
+    (prefer :py:meth:`post_run`). The Action final :py:attr:`outputs` are valid at this point,
+    and initial status has been set. The Action state remains :py:attr:`~ActionState.RUNNING`
+    during this call.
+
+    .. danger:: Users should not manage :py:attr:`Action.state`
+
+    :return: If return is ``False``, :py:class:`Action` is marked as :py:attr:`~ActionStatus.FAILURE`
     """
     pass
 
@@ -1075,7 +1056,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
   @copydoc( opts.OptionLoader.load_core_options, append=False, module="options" )
   @copydoc( res.ResourceRequestor.load_core_options, module="resources" )
-  def load_core_options( self, options, origin ):
+  def load_core_options( self, options, origin, **kwargs ):
     """Load :py:class:`Action` settings from the provided *options* dict, all keys are optional.
 
     The following keys are loaded verbatim into their respective attribute:
@@ -1087,7 +1068,7 @@ class Action( state.SaveState, res.ResourceRequestor ):
     preserve any unmodified existing values:
 
     * ``"config"`` => :py:attr:`config`
-    
+
     The following key is loaded directly to :py:meth:`add_dependencies` as key-value
     tuple pairs via :py:meth:`dict.items()`
 
@@ -1120,4 +1101,4 @@ class Action( state.SaveState, res.ResourceRequestor ):
 
     self.add_dependencies( *options.pop( "dependencies", {} ).items() )
 
-    super().load_core_options( options, origin )
+    super().load_core_options( options, origin, **kwargs )
