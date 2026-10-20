@@ -1,6 +1,6 @@
 .. some global links
-.. _source repo:   https://github.com/islas/sane_workflows
-.. _demo folder:   https://github.com/islas/sane_workflows/tree/main/demo
+.. _source repo:   https://github.com/NCAR/sane_workflows
+.. _demo folder:   https://github.com/NCAR/sane_workflows/tree/main/demo
 .. _logging level: https://docs.python.org/3/library/logging.html#logging-levels
 .. _picklable:     https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled
 .. _module:        https://lmod.readthedocs.io/en/latest/010_user.html#user-s-tour-of-the-module-command

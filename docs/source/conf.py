@@ -95,7 +95,7 @@ except Exception as e:
     raise e
 
 print( f"Using git ref : {ref}" )
-code_url = f"https://github.com/islas/sane_workflows/tree/{ref}"
+code_url = f"https://github.com/NCAR/sane_workflows/tree/{ref}"
 
 
 def linkcode_resolve(domain, info):

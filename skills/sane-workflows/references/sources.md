@@ -6,10 +6,10 @@ Validation on 2026-10-07: all 72 upstream unit tests passed at the merge checkou
 
 Primary sources:
 
-- Repository: https://github.com/islas/sane_workflows
+- Repository: https://github.com/NCAR/sane_workflows
 - Documentation: https://sane-workflows.readthedocs.io/en/latest/
-- Baseline source: https://github.com/islas/sane_workflows/tree/d0901c62de418c065656cf37f7235e77e4b92334
-- Baseline merge PR: https://github.com/islas/sane_workflows/pull/83
+- Baseline source: https://github.com/NCAR/sane_workflows/tree/d0901c62de418c065656cf37f7235e77e4b92334
+- Baseline merge PR: https://github.com/NCAR/sane_workflows/pull/83
 - Relevant changes: PR #79 (list-form patches), #80 (option-loader keywords), #81–82 (resource replacement), #77 (completion ordering), and #83 (unified CLI)
 - Tutorial source: `docs/source/tutorial/` at the baseline commit
 - Demo source: `demo/` at the baseline commit

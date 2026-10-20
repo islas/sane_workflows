@@ -1,5 +1,5 @@
 # SANE Workflows
-[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![unittest](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/islas/sane_workflows/actions/workflows/unittest.yml) [![PyPI Version](https://img.shields.io/pypi/v/sane-workflows)](https://pypi.org/project/sane-workflows/)
+[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/) [![unittest](https://github.com/NCAR/sane_workflows/actions/workflows/unittest.yml/badge.svg?branch=main)](https://github.com/NCAR/sane_workflows/actions/workflows/unittest.yml) [![PyPI Version](https://img.shields.io/pypi/v/sane-workflows)](https://pypi.org/project/sane-workflows/)
 
 
 
@@ -40,7 +40,7 @@ The focus should instead be:
 * instance information is transferred via python [pickling](https://docs.python.org/3/library/pickle.html)
 
 
-![SANE Overview](https://github.com/islas/sane_workflows/blob/main/docs/images/sane_overview.png?raw=true)
+![SANE Overview](https://github.com/NCAR/sane_workflows/blob/main/docs/images/sane_overview.png?raw=true)
 
 ## Use Case and Alternatives
 Workflow managers like SANE are useful for orchestrating tasks that have heterogeneous entry points or rely on a repeatable sequence and setup. SANE will specifically help with workflows that require at least one of the following:
@@ -157,7 +157,7 @@ and are accessed via GitHub Actions style dereferencing (`${{}}`):
 
 ### GitHub Actions Usage
 A simple composite reusable GitHub action is provided at: \
-<https://github.com/islas/sane-workflows-action/>
+<https://github.com/NCAR/sane-workflows-action/>
 
 This may be used in GitHub workflows to ease running and setup:
 
@@ -187,7 +187,7 @@ jobs:
             args : -vg
             actions_filter : "build_make_nvfortran_.*"
     steps:
-      - uses: islas/sane-workflows-action@v1.0.1
+      - uses: NCAR/sane-workflows-action@v1.2.2
         name: ${{ inputs.name }}
         with:
           # Info comes from the workflow matrix
@@ -203,7 +203,7 @@ A workflow consists of any number of python and JSON files discovered by the run
 
 Furthermore, a valid workflow will require at least one host. Without a valid host, any workflow is assumed unable to run.
 
-Take a look at [`demo/simple_host.jsonc`](demo/simple_host.jsonc) and [`demo/simple_action.json`](demo/simple_action.json) within the [source repo](https://github.com/islas/sane_workflows) for an idea of how bare bones a workflow _can_ be.
+Take a look at [`demo/simple_host.jsonc`](demo/simple_host.jsonc) and [`demo/simple_action.json`](demo/simple_action.json) within the [source repo](https://github.com/NCAR/sane_workflows) for an idea of how bare bones a workflow _can_ be.
 
 
 ### Running a workflow
