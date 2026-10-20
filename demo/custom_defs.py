@@ -3,6 +3,7 @@ import os
 import sane
 import sane.options as opts
 
+
 class MyAction( sane.Action ):
   def __init__( self, id ):
     super().__init__( id )
@@ -29,7 +30,6 @@ class MyActionWithArgs( MyAction ):
   def __init__( self, id ):
     super().__init__( id )
     self.dummy = opts.OptionLoader( logname="foo" )
-
 
   def run( self ):
     self.log( "Inside my custom run with arguments used" )

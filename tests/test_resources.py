@@ -53,7 +53,7 @@ class ResourceTests( unittest.TestCase ):
 
     # Now try with units and scale
     rhs_num = 1024
-    rhs_res = res.Resource( "foo", f"1kb" )
+    rhs_res = res.Resource( "foo", "1kb" )
 
     lhs = res.Resource( "foo", "4kb" )
     result = lhs + rhs_res
@@ -84,7 +84,7 @@ class ResourceTests( unittest.TestCase ):
 
     # Now try in place assignment
     rhs_num = 4096
-    rhs_res = res.Resource( "foo", f"4kb" )
+    rhs_res = res.Resource( "foo", "4kb" )
 
     lhs = res.Resource( "foo", "12kb" )
     result = copy.deepcopy( lhs )
@@ -136,24 +136,24 @@ class ResourceTests( unittest.TestCase ):
 
     lhs = res.Resource( "foo", 4 )
     with self.assertRaises( TypeError ):
-      result = lhs * rhs_res
+      result = lhs * rhs_res  # noqa
 
     lhs = res.Resource( "bar", 4 )
     with self.assertRaises( TypeError ):
-      result = lhs + rhs_res
+      result = lhs + rhs_res  # noqa
 
     lhs = res.Resource( "foo", "4b" )
     with self.assertRaises( TypeError ):
-      result = lhs + rhs_res
+      result = lhs + rhs_res  # noqa
 
     with self.assertRaises( TypeError ):
-      result = lhs + 4.1
+      result = lhs + 4.1  # noqa
 
     with self.assertRaises( TypeError ):
-      result = lhs - 4.1
+      result = lhs - 4.1  # noqa
 
     with self.assertRaises( ValueError ):
-      result = lhs - 6
+      result = lhs - 6  # noqa
 
   def test_acquirable_resource( self ):
     """Test standalone creation of an individual usable numeric resource"""

@@ -6,10 +6,12 @@ import sys
 
 DEFAULT_LABEL_LENGTH = 22
 #: The log level any stdout captured in :py:class:`Action` or :py:class:`Environment` is output at
-STDOUT   = 18
+STDOUT   = 17
 #: The default log level of :py:meth:`Action.log`,
 #: i.e. the log level most :py:class:`Action` activity is output at
-ACT_INFO = 19
+ACT_INFO = 18
+#: Provide additional run info that does not clutter the main log
+RUN_INFO = 19
 #: The default log level needed to output to the main logfile/console
 MAIN_LOG = 20
 
@@ -17,7 +19,8 @@ logger = logging.getLogger( __name__ )
 
 logging.addLevelName( STDOUT,   "STDOUT" )
 logging.addLevelName( ACT_INFO, "INFO" )
-for i in range( logging.DEBUG, logging.INFO - 2 ):
+logging.addLevelName( RUN_INFO, "INFO" )
+for i in range( logging.DEBUG, logging.INFO - 3 ):
   logging.addLevelName( i, f"DEBUG {i}" )
 
 
@@ -50,25 +53,25 @@ class ParentLevelFilter( logging.Filter ):
 
 # Initialize logging setup for package
 log_formatter = DispatchingFormatter(
-    {
-      f"sane[.]logger" : logging.Formatter(
-                                                fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                                datefmt="%Y-%m-%d %H:%M:%S"
-                                                ),
-      f"sane[.]action" : logging.Formatter(
-                                                fmt="%(asctime)s %(levelname)-8s %(message)s",
-                                                datefmt="%Y-%m-%d %H:%M:%S"
-                                                ),
-      f"sane[.]action[.].*[.]raw" : logging.Formatter()
-    },
-    logging.Formatter( "%(message)s" )
-  )
+      {
+        "sane[.]logger" : logging.Formatter(
+                                                  fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                                  datefmt="%Y-%m-%d %H:%M:%S"
+                                                  ),
+        "sane[.]action" : logging.Formatter(
+                                                  fmt="%(asctime)s %(levelname)-8s %(message)s",
+                                                  datefmt="%Y-%m-%d %H:%M:%S"
+                                                  ),
+        "sane[.]action[.].*[.]raw" : logging.Formatter()
+      },
+      logging.Formatter( "%(message)s" )
+    )
 console_handler = logging.StreamHandler( sys.stdout )
 console_handler.setFormatter( log_formatter )
 internal_logger = logging.getLogger( "sane" )
 internal_logger.setLevel( MAIN_LOG )
 internal_logger.addHandler( console_handler )
-action_logger = internal_logger.getChild( f"action" )
+action_logger = internal_logger.getChild( "action" )
 action_logger.setLevel( STDOUT )
 
 # Filter any logging from lower loggers if they do not meet our threshold
@@ -77,11 +80,11 @@ internal_filter.logger = internal_logger
 console_handler.addFilter( internal_filter )
 
 
-def log_exceptions( etype, value, traceback ):
+def log_exceptions( etype, value, traceback, logger=internal_logger ):
   from traceback import format_exception
   lines = format_exception( etype, value, traceback )
   for line in lines:
-    internal_logger.log( 50, line )
+    logger.log( 50, line )
 
 
 class Logger:

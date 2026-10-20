@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Dict
+from typing import TypeVar, Generic
 from collections import UserDict
 
 
@@ -23,5 +23,5 @@ class UniqueTypedDict( UserDict, Generic[T] ):
       super().__setitem__( key, value )
     else:
       msg  = f"Error: Provided key ( \"{key}\" ) to {UniqueTypedDict.__setitem__.__name__}() "
-      msg += f"does not have a unique value"
+      msg += "does not have a unique value"
       raise Exception( msg )

@@ -95,15 +95,15 @@ def visualize( dag : DAG, nodes, align=False ):
       if char == "p":
         line += u"│ "
       elif char == "b":
-        line += u"┗➢" # u"└─"
+        line += u"┗➢"  # u"└─"
       elif char == "a":
         line += u"╌╌"
       elif char == "t":
-        line += u"┺➢" #u"┴─"
+        line += u"┺➢"  # u"┴─"
       elif char == "c":
-        line += u"╄➢" #u"╀─" # u"┼─"
+        line += u"╄➢"  # u"╀─" # u"┼─"
       elif char == "s":
-        line += u"┡➢" #u"├─"
+        line += u"┡➢"  # u"├─"
       elif char == "o":
         line += u"│╌"
       elif char == "n":

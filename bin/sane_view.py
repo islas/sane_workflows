@@ -52,9 +52,15 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
     use_plot_times.append( rel_plot_times[-1] )
     use_plot_vals.append( used )
 
-  res = sane.resources.res_size_reduce( { "numeric" : max( acq_amount_max, rel_amount_max ), "unit" : resource_log["unit"], "scale" : "" } )
+  res = sane.resources.res_size_reduce(
+                                        {
+                                          "numeric" : max( acq_amount_max, rel_amount_max ),
+                                          "unit" : resource_log["unit"],
+                                          "scale" : ""
+                                        }
+                                      )
   scale = sane.resources._multipliers[res["scale"]]
-  
+
   use_plot_vals = list( map( lambda val: val / scale, use_plot_vals ) )
   acq_plot_vals = list( map( lambda val: val / scale, acq_plot_vals ) )
   acq_plot_used = list( map( lambda val: val / scale, acq_plot_used ) )
@@ -77,17 +83,17 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
     ax.stem( acq_plot_times, acq_plot_vals, linefmt="C3-", markerfmt="^" )
     ax.stem( rel_plot_times, rel_plot_vals, linefmt="C1-", markerfmt="v" )
 
-  time_range = use_plot_times[-1] - use_plot_times[0]
+  # time_range = use_plot_times[-1] - use_plot_times[0]
   if arrow_deltas:
     acq_start = [ used - val for used, val in zip( acq_plot_used, acq_plot_vals ) ]
     rel_start = [ used - val for used, val in zip( rel_plot_used, rel_plot_vals ) ]
-    ax.quiver( 
+    ax.quiver(
               acq_plot_times, acq_start, [0] * len( acq_plot_used ), acq_plot_vals,
               scale_units="xy", scale=1, angles="xy", minlength=0.01,
               headwidth=4, headlength=4, headaxislength=3.5, width=0.001,
               color="red"
               )
-    ax.quiver( 
+    ax.quiver(
               rel_plot_times, rel_start, [0] * len( rel_plot_used ), rel_plot_vals,
               scale_units="xy", scale=1, angles="xy", minlength=0.01,
               headwidth=4, headlength=4, headaxislength=3.5, width=0.001,
@@ -96,10 +102,14 @@ def plot_resource_usage( start_time, ax, resource, resource_log, arrow_deltas, s
 
   ax.set_ylim( -rel_amount_max / scale * 1.1, acq_amount_max / scale * 1.1)
   ax.set_ylabel( res["scale"] + res["unit"] )
-  time_xtick = [ use_plot_times[0] + (use_plot_times[-1] - use_plot_times[0]) / ntimes * i for i in range( ntimes + 1 ) ]
+  time_xtick = [
+                use_plot_times[0] + (use_plot_times[-1] - use_plot_times[0]) / ntimes * i
+                for i in range( ntimes + 1 )
+              ]
   time_label = [ str(mdates.num2timedelta( t - use_plot_times[0] )) for t in time_xtick ]
 
-  ax.set_xticks( time_xtick, labels=[ t.split(".")[0] for t in  time_label], rotation=30 )
+  ax.set_xticks( time_xtick, labels=[ t.split(".")[0] for t in time_label], rotation=30 )
+
 
 def plot_usage( workflow_save, options ):
   import matplotlib.pyplot as plt
@@ -108,7 +118,7 @@ def plot_usage( workflow_save, options ):
   resource_logs.pop( "null", None )
 
   times = list( resource_logs.keys() )
-  print( f"index   time" )
+  print( "index   time" )
   for i, t in enumerate( times ):
     print( f"{i:<5}   {t}" )
 
@@ -155,7 +165,14 @@ def plot_usage( workflow_save, options ):
         subfigs[i].subplots_adjust( hspace=0.0 )
         subax = subfigs[i].subplots( len( rdict.keys() ), sharex=True, squeeze=False )
         for j, pool_resource in enumerate( rdict.items() ):
-          plot_resource_usage( times[view_time], subax[j][0], pool_resource[0], pool_resource[1], options.arrows, options.stems )
+          plot_resource_usage(
+                              times[view_time],
+                              subax[j][0],
+                              pool_resource[0],
+                              pool_resource[1],
+                              options.arrows,
+                              options.stems
+                            )
 
   plt.show()
 
@@ -180,17 +197,60 @@ def show_logs( workflow_save, options ):
   import sane
   actions = json.load( open( workflow_save, "r" ) )["actions"]
   longest_action = len( max( actions.keys(), key=len ) )
+
+  md_div = "|" if options.markdown else ":"
+  md_end = "|" if options.markdown else ""
+
+  print( f"{md_end}{'Action':<{longest_action}}  {md_end}  Logfile{md_end}")
+  if options.markdown:
+    print( "|-|-|" )
+
   for action, info in actions.items():
-    if options.errors and info["status"] == "success":
+    if options.errors and info["status"] != "failure":
       continue
 
     log = info["runlog"] if options.runlog else info["logfile"]
 
     if options.relative_path:
       log = os.path.relpath( log, os.getcwd() )
-    print( f"  {action:<{longest_action}}: {log}" )
+    print( f"  {md_end}{action:<{longest_action}}{md_div} {log}{md_end}" )
 
-def get_parser():
+
+def show_summary( workflow_save, options ):
+  from datetime import timedelta
+  import sane
+  workflow = json.load( open( workflow_save, "r" ) )
+
+  errs = 0
+  acts = 0
+  for action, info in workflow["actions"].items():
+    acts += 1
+    if info["status"] == "failure":
+      errs += 1
+
+  runtimes = workflow["runtimes"]
+  total    = sum(runtimes)
+  success  = "SUCCESS" if errs == 0 else "FAILURE"
+
+  runtime_str = timedelta(seconds=runtimes[-1]) if runtimes else "---"
+  total_str   = timedelta(seconds=total) if runtimes else "---"
+
+  md_div = "|" if options.markdown else ":"
+  md_end = "|" if options.markdown else ""
+
+  print( f"SANE Workflow [{workflow_save}]")
+  print( f"{md_end}  Status  {md_div} {success}{md_end}" )
+  if options.markdown:
+      print( "|-|-|" )
+  print( f"{md_end}  Actions {md_div} {acts}{md_end}" )
+  print( f"{md_end}  Errors  {md_div} {errs}{md_end}" )
+  print( f"{md_end}  Last Run{md_div} {runtime_str}{md_end}" )
+  print( f"{md_end}  Total   {md_div} {total_str}{md_end}" )
+  if errs > 0:
+    exit(1)
+
+
+def get_parser( parser=None ):
   base = argparse.ArgumentParser( add_help=False )
   base.add_argument(
                     "workflow_save",
@@ -205,12 +265,16 @@ def get_parser():
                     type=str,
                     default="orchestrator.json"
                     )
-  parser = argparse.ArgumentParser()
-  subparsers = parser.add_subparsers( required=True, dest="cmd" )
-  usage   = subparsers.add_parser( "usage",  help="View resource usage", parents=[base] )
-  status  = subparsers.add_parser( "status", help="View action status", parents=[base] )
-  state   = subparsers.add_parser( "state",  help="View action state", parents=[base] )
-  logs    = subparsers.add_parser( "logs",   help="View action logs", parents=[base] )
+  if parser is None:
+    parser = argparse.ArgumentParser()
+  subparsers = parser.add_subparsers( dest="cmd" )
+  # Python 3.6 requires setting this attribute after creating the subparsers.
+  subparsers.required = True
+  usage   = subparsers.add_parser( "usage",   help="View resource usage", parents=[base] )
+  status  = subparsers.add_parser( "status",  help="View action status", parents=[base] )
+  state   = subparsers.add_parser( "state",   help="View action state", parents=[base] )
+  logs    = subparsers.add_parser( "logs",    help="View action logs", parents=[base] )
+  summary = subparsers.add_parser( "summary", help="View workflow summary", parents=[base] )
   usage.add_argument(
                       "-a", "--arrows",
                       action="store_true",
@@ -248,18 +312,37 @@ def get_parser():
                     action="store_true",
                     help="Show path as relative to current working directory"
                     )
+  logs.add_argument(
+                    "-md", "--markdown",
+                    action="store_true",
+                    help="Output in markdown format"
+                    )
+  summary.add_argument(
+                        "-md", "--markdown",
+                        action="store_true",
+                        help="Output in markdown format"
+                        )
   return parser
 
-def main():
+
+def main( options=None ):
+  if options is None:
+    print( "DEPRECATED: sane_view is deprecated; use sane view instead.", file=sys.stderr )
+    parser = get_parser()
+    options = parser.parse_args()
+  else:
+    # Remove CLI metadata before processing workflow options.
+    parser = vars( options ).pop( "_parser", None )
+    if parser is None:
+      parser = get_parser()
+
   filepath = os.path.dirname( os.path.abspath( __file__ ) )
   package_path = os.path.abspath( os.path.join( filepath, ".." ) )
-  if package_path not in sys.path:
-      sys.path.append( package_path )
+  if sys.path[0] != package_path:
+      sys.path.insert( 0, package_path )
 
   import sane
 
-  parser = get_parser()
-  options = parser.parse_args()
   filename = os.path.join( options.workflow_save, options.filename )
   if options.cmd == "usage":
     plot_usage( filename, options )
@@ -269,6 +352,9 @@ def main():
     show_state( filename, options )
   elif options.cmd == "logs":
     show_logs( filename, options )
+  elif options.cmd == "summary":
+    show_summary( filename, options )
+
 
 if __name__ == "__main__":
   main()
